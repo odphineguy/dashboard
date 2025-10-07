@@ -5,7 +5,6 @@ import { Card } from './ui/card'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
-import DatabaseTest from './DatabaseTest'
 import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
 import BadgeCelebration from './BadgeCelebration'
 import { toast } from 'sonner'
@@ -302,9 +301,9 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">🧪 AI Scanner Test</h2>
+        <h2 className="text-2xl font-bold mb-2">AI Scanner</h2>
         <p className="text-muted-foreground">
-          Test the AI-powered scanning without any native plugins. Works on web, iOS Safari, and Android Chrome!
+          Scan barcodes and receipts to quickly add items to your inventory. Works on web, iOS Safari, and Android Chrome!
         </p>
         {!user && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
@@ -312,9 +311,6 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
           </p>
         )}
       </div>
-
-      {/* Database Connection Test */}
-      <DatabaseTest />
 
       {/* Barcode Scanner */}
       <Card className="p-6">
