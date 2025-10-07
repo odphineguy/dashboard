@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../supabaseClient'
+import { supabase } from '../lib/supabaseClient'
 
 const AppSidebar = ({ onClose }) => {
   const { user } = useAuth()
