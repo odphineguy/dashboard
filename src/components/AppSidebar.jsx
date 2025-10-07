@@ -252,7 +252,9 @@ const AppSidebar = ({ onClose }) => {
               <span className="text-sm">Pricing</span>
             </NavLink>
             <a
-              href="mailto:support@mealsaver.app?subject=Help%20Request"
+              href="https://mealsaver.app/app-support"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
             >
               <HelpCircle className="h-5 w-5" />
