@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   BarChart3,
@@ -22,8 +22,49 @@ import {
   Crown
 } from 'lucide-react'
 import { Button } from './ui/button'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../supabaseClient'
 
 const AppSidebar = ({ onClose }) => {
+  const { user } = useAuth()
+  const [profile, setProfile] = useState(null)
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) return
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (error) throw error
+        setProfile(data)
+      } catch (error) {
+        console.error('Error loading profile:', error)
+      }
+    }
+
+    loadProfile()
+  }, [user?.id])
+
+  const getInitials = () => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ')
+      return names.length > 1
+        ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+        : names[0][0].toUpperCase()
+    }
+    if (user?.email) {
+      return user.email[0].toUpperCase()
+    }
+    return 'U'
+  }
+
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User'
+  const displayEmail = user?.email || ''
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar">
       {/* Header */}
@@ -213,18 +254,28 @@ const AppSidebar = ({ onClose }) => {
 
       {/* User Profile */}
       <div className="p-6">
-        <div className="flex items-center gap-3 p-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors cursor-pointer">
+        <NavLink
+          to="/profile"
+          onClick={onClose}
+          className={({ isActive }) =>
+            `flex items-center gap-3 p-3 rounded-lg transition-colors ${
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            }`
+          }
+        >
           <div className="h-8 w-8 rounded bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-medium text-sm">MS</span>
+            <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-sidebar-foreground truncate">Meal Saver</div>
-            <div className="text-xs text-sidebar-foreground/60 truncate">admin@mealsaver.co...</div>
+            <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
+            <div className="text-xs text-sidebar-foreground/60 truncate">{displayEmail}</div>
           </div>
           <div className="h-4 w-4 text-sidebar-foreground/60">
             <MoreHorizontal className="h-4 w-4" />
           </div>
-        </div>
+        </NavLink>
       </div>
     </div>
   )
