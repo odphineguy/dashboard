@@ -12,7 +12,6 @@ import {
   FileText,
   FileSpreadsheet,
   MoreHorizontal,
-  Plus,
   X,
   Package,
   ChefHat,
@@ -85,21 +84,13 @@ const AppSidebar = ({ onClose }) => {
     <div className="flex h-screen w-64 flex-col bg-sidebar">
       {/* Header */}
       <div className="flex h-16 items-center justify-start px-6">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onClose}
           className="lg:hidden"
         >
           <X className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* Quick Create Button */}
-      <div className="px-6 pb-6">
-        <Button className="w-full flex items-center gap-2 px-4 py-3 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground rounded-lg font-medium">
-          <Plus className="h-4 w-4" />
-          Quick Create
         </Button>
       </div>
 
@@ -260,7 +251,10 @@ const AppSidebar = ({ onClose }) => {
               <Crown className="h-5 w-5" />
               <span className="text-sm">Pricing</span>
             </NavLink>
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
+            <a
+              href="mailto:support@mealsaver.app?subject=Help%20Request"
+              className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
+            >
               <HelpCircle className="h-5 w-5" />
               <span className="text-sm">Get Help</span>
             </a>
@@ -269,30 +263,40 @@ const AppSidebar = ({ onClose }) => {
       </nav>
 
       {/* User Profile */}
-      <div className="p-6 space-y-3">
-        <Button 
-          onClick={handleLogout}
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign out
-        </Button>
-        
-        <NavLink
-          to="/profile"
-          onClick={onClose}
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-        >
-          <div className="h-8 w-8 rounded bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
-            <div className="text-xs text-sidebar-foreground/60 truncate">{displayEmail}</div>
-          </div>
-        </NavLink>
+      <div className="p-6">
+        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
+          <NavLink
+            to="/profile"
+            onClick={onClose}
+            className="flex items-center gap-3 flex-1 min-w-0"
+          >
+            <div className="h-8 w-8 rounded bg-sidebar-primary flex items-center justify-center">
+              <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
+              <div className="text-xs text-sidebar-foreground/60 truncate">{displayEmail}</div>
+            </div>
+          </NavLink>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   )
