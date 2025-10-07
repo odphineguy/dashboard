@@ -62,6 +62,10 @@ export default function ScannerTest() {
         throw new Error('You must be logged in to save items')
       }
 
+      // Calculate expiration date
+      const expirationDate = new Date()
+      expirationDate.setDate(expirationDate.getDate() + (item.suggestedExpirationDays || 7))
+
       // Match Smart_Pantry's exact schema
       const insertData = {
         user_id: currentUser.id, // Explicitly set user_id
@@ -70,6 +74,7 @@ export default function ScannerTest() {
         brand: item.brand || null,
         quantity: 1,
         unit: item.defaultUnit || 'units',
+        expiry_date: expirationDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
       }
 
       const { data, error } = await supabase
@@ -141,16 +146,21 @@ export default function ScannerTest() {
       const imagePart = await fileToGenerativePart(file)
       
       // Step 1: Use AI to read the barcode number
-      const barcodePrompt = `You are a barcode reader. Look at this image and extract the barcode number (UPC or EAN).
+      const barcodePrompt = `You are a barcode reader and food safety expert. Look at this image and extract the barcode number (UPC or EAN).
+
+Identify the food item and suggest an expiration date based on standard food safety guidelines.
 
 Return ONLY valid JSON (no markdown, no code blocks) with this exact structure:
 {
   "barcode": "123456789012",
   "productName": "Product Name from Label (if visible)",
-  "category": "Category guess"
+  "category": "Category guess",
+  "suggestedExpirationDays": 7
 }
 
-If you cannot read a barcode, return {"barcode": "unknown", "productName": "visible product name", "category": "guess"}`
+suggestedExpirationDays should be the number of days from today until the item typically expires (e.g., 7 for fresh produce, 30 for canned goods, 365 for dry goods).
+
+If you cannot read a barcode, return {"barcode": "unknown", "productName": "visible product name", "category": "guess", "suggestedExpirationDays": 7}`
 
       const result = await model.generateContent([barcodePrompt, imagePart])
       const response = await result.response
@@ -172,7 +182,11 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
       
       // Step 3: Use OpenFoodFacts data if available, otherwise use AI data
       if (productData) {
-        setBarcodeResult(productData)
+        // Add AI's expiration suggestion to OpenFoodFacts data
+        setBarcodeResult({
+          ...productData,
+          suggestedExpirationDays: aiData.suggestedExpirationDays || 7
+        })
       } else {
         // Fallback to AI's best guess
         setBarcodeResult({
@@ -180,6 +194,7 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
           category: aiData.category || 'Food',
           defaultUnit: 'units',
           barcode: aiData.barcode || 'unknown',
+          suggestedExpirationDays: aiData.suggestedExpirationDays || 7,
           source: 'AI'
         })
       }
@@ -207,7 +222,7 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
 
       const imagePart = await fileToGenerativePart(file)
       
-      const prompt = `You are a receipt parser. Analyze this grocery receipt image and extract all FOOD items.
+      const prompt = `You are a receipt parser and food safety expert. Analyze this grocery receipt image and extract all FOOD items.
 
 For each item, provide:
 - name: The product name
@@ -215,12 +230,22 @@ For each item, provide:
 - unit: "units", "lbs", "oz", "each", or "pieces"
 - price: The price as a number, or null if not visible
 - category: Best guess category ("Produce", "Dairy", "Meat", "Bakery", "Beverages", "Canned Goods", "Frozen", "Snacks")
+- suggestedExpirationDays: Number of days from today until typical expiration based on food safety guidelines
 
 Also extract:
 - storeName: The store name from the top of the receipt
 - date: The purchase date
 
 Focus ONLY on food items. Skip non-food items like bags, cleaning supplies, etc.
+
+Expiration guidelines:
+- Fresh produce: 3-7 days
+- Dairy: 7-14 days
+- Meat (fresh): 1-3 days
+- Bakery: 2-5 days
+- Frozen: 90-180 days
+- Canned goods: 365+ days
+- Beverages (non-dairy): 30-90 days
 
 Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
 {
@@ -230,7 +255,8 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
       "quantity": 2,
       "unit": "lbs",
       "price": 1.29,
-      "category": "Produce"
+      "category": "Produce",
+      "suggestedExpirationDays": 5
     }
   ],
   "storeName": "Whole Foods",
@@ -386,6 +412,12 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
                       <dt className="font-medium min-w-[100px]">Barcode:</dt>
                       <dd className="font-mono flex-1">{barcodeResult.barcode}</dd>
                     </div>
+                    {barcodeResult.suggestedExpirationDays && (
+                      <div className="flex gap-2">
+                        <dt className="font-medium min-w-[100px]">Expires in:</dt>
+                        <dd className="flex-1">{barcodeResult.suggestedExpirationDays} days</dd>
+                      </div>
+                    )}
                   </dl>
                   {barcodeResult.imageUrl && (
                     <div className="mt-3 pt-3 border-t border-green-500/20">
@@ -536,15 +568,16 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
                   
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {receiptResult.items?.map((item, index) => (
-                      <div 
+                      <div
                         key={index}
                         className="p-2 bg-background/50 rounded border border-border text-sm"
                       >
                         <div className="font-medium">{item.name}</div>
-                        <div className="text-muted-foreground text-xs mt-1 flex gap-3">
+                        <div className="text-muted-foreground text-xs mt-1 flex gap-3 flex-wrap">
                           <span>Qty: {item.quantity} {item.unit}</span>
                           {item.category && <span>Category: {item.category}</span>}
                           {item.price && <span>Price: ${item.price.toFixed(2)}</span>}
+                          {item.suggestedExpirationDays && <span className="text-orange-600 dark:text-orange-400">Expires in: {item.suggestedExpirationDays} days</span>}
                         </div>
                       </div>
                     ))}
