@@ -28,7 +28,7 @@ const Header = ({ onMenuClick }) => {
         <img 
           src="/Meal.svg" 
           alt="Meal Saver Logo" 
-          className="h-8 w-auto"
+          className="h-32 w-auto"
         />
       </div>
       
