@@ -57,11 +57,6 @@ const OnboardingPage = () => {
       number: 4,
       title: "Set Your Goals",
       subtitle: "What would you like to achieve?"
-    },
-    {
-      number: 5,
-      title: "You're All Set!",
-      subtitle: "Welcome to your smart pantry"
     }
   ]
 
@@ -98,6 +93,12 @@ const OnboardingPage = () => {
   }
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.email || !formData.password) {
+      alert('Please fill in all required fields')
+      return
+    }
+
     setLoading(true)
     try {
       await signUp(formData.email, formData.password)
@@ -105,7 +106,7 @@ const OnboardingPage = () => {
       navigate('/dashboard')
     } catch (error) {
       console.error('Signup error:', error)
-      // Handle error (show toast, etc.)
+      alert(error.message || 'Failed to create account. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -284,35 +285,6 @@ const OnboardingPage = () => {
           </div>
         )
 
-      case 5:
-        return (
-          <div className="text-center">
-            <div className="mb-8">
-              <img 
-                src="/Meal.svg" 
-                alt="Meal Saver Logo" 
-                className="h-20 w-auto mx-auto mb-6"
-              />
-              <h2 className="text-3xl font-bold text-foreground mb-4">
-                You're All Set!
-              </h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Welcome to your smart pantry. Let's start reducing food waste together!
-              </p>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
-              <h3 className="font-semibold text-green-800 mb-2">What's Next?</h3>
-              <ul className="text-left text-green-700 space-y-2">
-                <li>• Add your first items to your pantry</li>
-                <li>• Try the AI scanner to quickly add products</li>
-                <li>• Get recipe suggestions for your ingredients</li>
-                <li>• Track your progress in the analytics dashboard</li>
-              </ul>
-            </div>
-          </div>
-        )
-
       default:
         return null
     }
@@ -322,7 +294,14 @@ const OnboardingPage = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-end">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/login')}
+            className="text-sm"
+          >
+            Already have an account? Log in
+          </Button>
           <div className="text-sm text-muted-foreground">
             Step {currentStep} of {steps.length}
           </div>
@@ -365,16 +344,16 @@ const OnboardingPage = () => {
                     onClick={handleNext}
                     className="bg-primary hover:bg-primary/90 flex items-center"
                   >
-                    {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
+                    Next
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || !formData.email || !formData.password}
                     className="bg-primary hover:bg-primary/90 flex items-center"
                   >
-                    {loading ? 'Creating Account...' : 'Complete Setup'}
+                    {loading ? 'Creating Account...' : 'Get Started'}
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
