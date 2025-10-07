@@ -9,18 +9,14 @@ const Header = ({ onMenuClick }) => {
     <header className="flex h-16 items-center justify-between bg-background border-b border-border px-6 relative">
       {/* Left side - Menu and divider */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={onMenuClick}
           className="lg:hidden"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="h-6 w-px bg-border hidden lg:block"></div>
-        <div className="hidden lg:block">
-          <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
-        </div>
       </div>
       
       {/* Center - Logo */}
