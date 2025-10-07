@@ -45,12 +45,13 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-3xl">🍽️</span>
-            </div>
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/Meal.svg" 
+              alt="Meal Saver Logo" 
+              className="h-24 w-auto object-contain"
+            />
           </div>
-          <h1 className="text-3xl font-bold mb-2">Meal Saver</h1>
           <p className="text-muted-foreground">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </p>

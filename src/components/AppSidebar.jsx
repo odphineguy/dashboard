@@ -19,14 +19,21 @@ import {
   Building,
   Scan,
   MapPin,
-  Crown
+  Crown,
+  LogOut
 } from 'lucide-react'
 import { Button } from './ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
 const AppSidebar = ({ onClose }) => {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [profile, setProfile] = useState(null)
 
   useEffect(() => {
@@ -65,6 +72,15 @@ const AppSidebar = ({ onClose }) => {
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User'
   const displayEmail = user?.email || ''
+
+  const handleLogout = async () => {
+    console.log('Logout clicked!') // Debug log
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar">
       {/* Header */}
@@ -253,17 +269,21 @@ const AppSidebar = ({ onClose }) => {
       </nav>
 
       {/* User Profile */}
-      <div className="p-6">
+      <div className="p-6 space-y-3">
+        <Button 
+          onClick={handleLogout}
+          variant="ghost" 
+          size="sm" 
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign out
+        </Button>
+        
         <NavLink
           to="/profile"
           onClick={onClose}
-          className={({ isActive }) =>
-            `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-              isActive
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            }`
-          }
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
         >
           <div className="h-8 w-8 rounded bg-sidebar-primary flex items-center justify-center">
             <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
@@ -271,9 +291,6 @@ const AppSidebar = ({ onClose }) => {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
             <div className="text-xs text-sidebar-foreground/60 truncate">{displayEmail}</div>
-          </div>
-          <div className="h-4 w-4 text-sidebar-foreground/60">
-            <MoreHorizontal className="h-4 w-4" />
           </div>
         </NavLink>
       </div>
