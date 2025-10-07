@@ -1,10 +1,12 @@
 import React from 'react'
-import { 
-  BarChart3, 
-  Home, 
-  Users, 
-  Settings, 
-  HelpCircle, 
+import { NavLink } from 'react-router-dom'
+import {
+  BarChart3,
+  Home,
+  Users,
+  User,
+  Settings,
+  HelpCircle,
   Search,
   Database,
   FileText,
@@ -14,7 +16,10 @@ import {
   X,
   Package,
   ChefHat,
-  House
+  Building,
+  Scan,
+  MapPin,
+  Crown
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -44,26 +49,104 @@ const AppSidebar = ({ onClose }) => {
       {/* Main Navigation */}
       <nav className="flex-1 px-6 space-y-1">
         <div className="space-y-1">
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
+          <NavLink
+            to="/dashboard"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
             <Home className="h-5 w-5" />
             <span className="text-sm">Dashboard</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-            <Package className="h-5 w-5" />
-            <span className="text-sm">Inventory</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-            <ChefHat className="h-5 w-5" />
-            <span className="text-sm">Recipes</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-            <House className="h-5 w-5" />
-            <span className="text-sm">Household</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
+          </NavLink>
+          <NavLink
+            to="/analytics"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
             <BarChart3 className="h-5 w-5" />
             <span className="text-sm">Analytics</span>
-          </a>
+          </NavLink>
+          <NavLink
+            to="/inventory"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <Package className="h-5 w-5" />
+            <span className="text-sm">Inventory</span>
+          </NavLink>
+          <NavLink
+            to="/recipes"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <ChefHat className="h-5 w-5" />
+            <span className="text-sm">Recipes</span>
+          </NavLink>
+          <NavLink
+            to="/scanner"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <Scan className="h-5 w-5" />
+            <span className="text-sm">AI Scanner</span>
+          </NavLink>
+          <NavLink
+            to="/household"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-sm">Household</span>
+          </NavLink>
+          <NavLink
+            to="/storage-locations"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <MapPin className="h-5 w-5" />
+            <span className="text-sm">Storage</span>
+          </NavLink>
         </div>
 
         {/* Documents Section */}
@@ -72,35 +155,57 @@ const AppSidebar = ({ onClose }) => {
             Documents
           </div>
           <div className="space-y-1 mt-2">
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
+            <NavLink
+              to="/reports"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                }`
+              }
+            >
               <FileText className="h-5 w-5" />
               <span className="text-sm">Reports</span>
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-              <FileSpreadsheet className="h-5 w-5" />
-              <span className="text-sm">Analytics</span>
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-              <MoreHorizontal className="h-5 w-5" />
-              <span className="text-sm">...more</span>
-            </a>
+            </NavLink>
           </div>
         </div>
 
         {/* Bottom Navigation */}
         <div className="pt-8 mt-auto">
           <div className="space-y-1">
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-              <Settings className="h-5 w-5" />
-              <span className="text-sm">Settings</span>
-            </a>
+            <NavLink
+              to="/profile"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                }`
+              }
+            >
+              <User className="h-5 w-5" />
+              <span className="text-sm">Profile</span>
+            </NavLink>
+            <NavLink
+              to="/pricing"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                }`
+              }
+            >
+              <Crown className="h-5 w-5" />
+              <span className="text-sm">Pricing</span>
+            </NavLink>
             <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
               <HelpCircle className="h-5 w-5" />
               <span className="text-sm">Get Help</span>
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors">
-              <Search className="h-5 w-5" />
-              <span className="text-sm">Search</span>
             </a>
           </div>
         </div>
