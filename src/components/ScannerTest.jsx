@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import DatabaseTest from './DatabaseTest'
 import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
 import BadgeCelebration from './BadgeCelebration'
+import { toast } from 'sonner'
 
 export default function ScannerTest() {
   const { user } = useAuth()
@@ -92,14 +93,27 @@ export default function ScannerTest() {
       console.log('Saved successfully:', data)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
-      
+
+      // Show success toast
+      toast.success('Item saved to inventory!', {
+        description: `${item.name} has been added to your pantry`,
+        duration: 4000,
+      })
+
       // Check for inventory badges after successful save
       await checkBadges('inventory_updated')
-      
+
       return data
     } catch (error) {
       console.error('Save error details:', error)
-      setBarcodeError(`Save failed: ${error.message || 'Unknown error'}`)
+      const errorMsg = `Save failed: ${error.message || 'Unknown error'}`
+      setBarcodeError(errorMsg)
+
+      // Show error toast
+      toast.error('Failed to save item', {
+        description: error.message || 'Please try again',
+        duration: 4000,
+      })
     } finally {
       setSaving(false)
     }
