@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Package, Edit2, Trash2, ArrowUpDown, MapPin } from 'lucide-react'
+import { Package, Edit2, Trash2, ArrowUpDown, MapPin, Check } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Checkbox } from '../../../components/ui/checkbox'
 
@@ -10,6 +10,8 @@ const InventoryTable = ({
   onSelectAll,
   onEditItem,
   onDeleteItem,
+  onConsumed,
+  onWasted,
   isAllSelected
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
@@ -183,11 +185,32 @@ const InventoryTable = ({
                     </span>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-end space-x-2">
+                    <div className="flex items-center justify-end space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onConsumed(item)}
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        title="Mark as consumed"
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Consumed
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onWasted(item)}
+                        className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                        title="Mark as wasted"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Wasted
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => onEditItem(item)}
+                        title="Edit item"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -195,8 +218,10 @@ const InventoryTable = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => onDeleteItem(item?.id)}
+                        className="text-red-500 hover:text-red-700"
+                        title="Delete item"
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>
@@ -239,7 +264,25 @@ const InventoryTable = ({
                     <span>•</span>
                     <span>Exp: {formatDate(item?.expirationDate)}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onConsumed(item)}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      Consumed
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onWasted(item)}
+                      className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Wasted
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

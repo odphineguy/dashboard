@@ -218,6 +218,77 @@ const Inventory = () => {
     setSelectedItems(prev => prev.filter(id => id !== itemId))
   }
 
+  const handleConsumed = async (item) => {
+    if (!user?.id) return
+
+    try {
+      // Create pantry event
+      const { error: eventError } = await supabase
+        .from('pantry_events')
+        .insert([{
+          user_id: user.id,
+          item_id: item.id,
+          type: 'consumed',
+          quantity: item.quantity,
+          at: new Date().toISOString()
+        }])
+
+      if (eventError) throw eventError
+
+      // Delete the item from inventory
+      const { error: deleteError } = await supabase
+        .from('pantry_items')
+        .delete()
+        .eq('id', item.id)
+
+      if (deleteError) throw deleteError
+
+      // Update UI
+      setInventoryItems(prev => prev.filter(i => i.id !== item.id))
+      setSelectedItems(prev => prev.filter(id => id !== item.id))
+
+      // Check for badges
+      await checkBadges('item_consumed')
+    } catch (error) {
+      console.error('Error marking item as consumed:', error)
+      alert('Failed to mark item as consumed')
+    }
+  }
+
+  const handleWasted = async (item) => {
+    if (!user?.id) return
+
+    try {
+      // Create pantry event
+      const { error: eventError } = await supabase
+        .from('pantry_events')
+        .insert([{
+          user_id: user.id,
+          item_id: item.id,
+          type: 'wasted',
+          quantity: item.quantity,
+          at: new Date().toISOString()
+        }])
+
+      if (eventError) throw eventError
+
+      // Delete the item from inventory
+      const { error: deleteError } = await supabase
+        .from('pantry_items')
+        .delete()
+        .eq('id', item.id)
+
+      if (deleteError) throw deleteError
+
+      // Update UI
+      setInventoryItems(prev => prev.filter(i => i.id !== item.id))
+      setSelectedItems(prev => prev.filter(id => id !== item.id))
+    } catch (error) {
+      console.error('Error marking item as wasted:', error)
+      alert('Failed to mark item as wasted')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -326,6 +397,8 @@ const Inventory = () => {
         onSelectAll={handleSelectAll}
         onEditItem={handleEditItem}
         onDeleteItem={handleDeleteItem}
+        onConsumed={handleConsumed}
+        onWasted={handleWasted}
         isAllSelected={selectedItems?.length === filteredItems?.length && filteredItems?.length > 0}
       />
 
