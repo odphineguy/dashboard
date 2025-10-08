@@ -3,19 +3,18 @@ import { X } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 
-const AVATAR_EMOJIS = [
-  '👤', '😊', '😎', '🤓', '🥳', '🤗', '🥰', '😇',
-  '🍕', '🍔', '🍟', '🌮', '🍜', '🍱', '🍣', '🍰',
-  '🥗', '🥑', '🍎', '🍊', '🍇', '🥕', '🥦', '🧀',
-  '🐶', '🐱', '🐼', '🐨', '🦊', '🦁', '🐯', '🐸',
-  '🌟', '⭐', '✨', '💫', '🔥', '💎', '🎯', '🏆'
-]
+// Custom avatars from the avatars folder
+const CUSTOM_AVATARS = Array.from({ length: 20 }, (_, i) => ({
+  id: i + 1,
+  src: `/avatars/avatar-${i + 1}.png`,
+  name: `Avatar ${i + 1}`
+}))
 
 const AvatarSelector = ({ currentAvatar, onAvatarSelect, isOpen, onClose }) => {
   const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar)
 
-  const handleSelect = (emoji) => {
-    setSelectedAvatar({ emoji, src: null })
+  const handleSelect = (avatar) => {
+    setSelectedAvatar({ src: avatar.src, name: avatar.name, emoji: null })
   }
 
   const handleConfirm = () => {
@@ -39,29 +38,41 @@ const AvatarSelector = ({ currentAvatar, onAvatarSelect, isOpen, onClose }) => {
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-2">Choose Your Avatar</h2>
-          <p className="text-muted-foreground">Select an emoji to represent your profile</p>
+          <p className="text-muted-foreground">Select a custom avatar for your profile</p>
         </div>
 
         {/* Preview */}
         <div className="mb-6 flex justify-center">
-          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-5xl">
-            {selectedAvatar?.emoji || '👤'}
+          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+            {selectedAvatar?.src ? (
+              <img
+                src={selectedAvatar.src}
+                alt={selectedAvatar.name || 'Avatar'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-5xl">👤</div>
+            )}
           </div>
         </div>
 
-        {/* Emoji Grid */}
-        <div className="grid grid-cols-8 gap-2 mb-6 max-h-64 overflow-y-auto">
-          {AVATAR_EMOJIS.map((emoji, index) => (
+        {/* Avatar Grid */}
+        <div className="grid grid-cols-5 gap-3 mb-6 max-h-80 overflow-y-auto">
+          {CUSTOM_AVATARS.map((avatar) => (
             <button
-              key={index}
-              onClick={() => handleSelect(emoji)}
+              key={avatar.id}
+              onClick={() => handleSelect(avatar)}
               className={`
-                w-10 h-10 rounded-lg flex items-center justify-center text-2xl
-                transition-all hover:bg-primary/20
-                ${selectedAvatar?.emoji === emoji ? 'bg-primary/30 ring-2 ring-primary' : 'bg-muted/50'}
+                aspect-square rounded-lg overflow-hidden
+                transition-all hover:scale-105
+                ${selectedAvatar?.src === avatar.src ? 'ring-4 ring-primary' : 'ring-1 ring-border'}
               `}
             >
-              {emoji}
+              <img
+                src={avatar.src}
+                alt={avatar.name}
+                className="w-full h-full object-cover"
+              />
             </button>
           ))}
         </div>

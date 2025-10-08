@@ -272,8 +272,16 @@ const AppSidebar = ({ onClose }) => {
             onClick={onClose}
             className="flex items-center gap-3 flex-1 min-w-0"
           >
-            <div className="h-8 w-8 rounded bg-sidebar-primary flex items-center justify-center">
-              <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
+            <div className="h-8 w-8 rounded-full bg-sidebar-primary flex items-center justify-center overflow-hidden">
+              {profile?.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sidebar-primary-foreground font-medium text-sm">{getInitials()}</span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
