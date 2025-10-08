@@ -12,10 +12,14 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(() => {
-    // Check localStorage first, then default to light mode
+    // Check localStorage first, then check document class, then default to light mode
     const saved = localStorage.getItem('theme')
     if (saved) {
       return saved === 'dark'
+    }
+    // Check if dark class is already on document (from system preference or other source)
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark')
     }
     return false // Default to light mode for new users
   })
