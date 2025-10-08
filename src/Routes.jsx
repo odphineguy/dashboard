@@ -17,8 +17,6 @@ import PricingPage from './pages/Pricing'
 import { useAuth } from './contexts/AuthContext'
 import AppSidebar from './components/AppSidebar'
 import Header from './components/Header'
-import { Search } from 'lucide-react'
-import { Input } from './components/ui/input'
 import { useState } from 'react'
 
 const ProtectedRoute = ({ element }) => {
@@ -70,20 +68,6 @@ const MainLayout = ({ children }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <Header onMenuClick={toggleSidebar} />
-
-        {/* Search Bar */}
-        <div className="bg-background border-b border-border px-6 py-3">
-          <div className="max-w-7xl mx-auto flex justify-end">
-            <div className="relative max-w-md w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search..."
-                className="pl-10 w-full"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
