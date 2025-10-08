@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import NotificationsDropdown from './NotificationsDropdown'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../lib/supabaseClient'
 
 const Header = ({ onMenuClick }) => {
@@ -13,6 +14,7 @@ const Header = ({ onMenuClick }) => {
   const [unreadCount, setUnreadCount] = useState(0)
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const { isDark } = useTheme()
 
   // Load unread notification count
   useEffect(() => {
@@ -81,7 +83,7 @@ const Header = ({ onMenuClick }) => {
       {/* Center - Logo */}
       <div className="absolute left-1/2 transform -translate-x-1/2 z-10">
         <img
-          src="/Meal.svg"
+          src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"}
           alt="Meal Saver Logo"
           className="h-32 w-auto"
         />

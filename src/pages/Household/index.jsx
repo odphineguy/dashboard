@@ -12,6 +12,7 @@ import CreateHouseholdModal from './components/CreateHouseholdModal'
 import InviteMemberModal from './components/InviteMemberModal'
 import MembersList from './components/MembersList'
 import PendingInvitations from './components/PendingInvitations'
+import HouseholdInformation from '../Profile/components/HouseholdInformation'
 
 const Household = () => {
   const { user } = useAuth()
@@ -30,6 +31,27 @@ const Household = () => {
   const [members, setMembers] = useState([])
   const [pendingInvites, setPendingInvites] = useState([])
   const [loadingMembers, setLoadingMembers] = useState(false)
+
+  // Household data state
+  const [householdData, setHouseholdData] = useState({
+    familySize: '4',
+    cookingFrequency: 'daily',
+    dietaryRestrictions: {
+      vegetarian: false,
+      vegan: false,
+      glutenFree: false,
+      dairyFree: false,
+      nutFree: false,
+      lowSodium: false,
+      diabetic: false,
+      keto: false,
+      paleo: false,
+      halal: false,
+      kosher: false
+    },
+    favoriteCuisines: '',
+    allergies: ''
+  })
 
   // Load household members
   useEffect(() => {
@@ -110,6 +132,11 @@ const Household = () => {
         alert('Failed to leave household')
       }
     }
+  }
+
+  const handleUpdateHousehold = (newHouseholdData) => {
+    setHouseholdData(newHouseholdData)
+    console.log('Household information updated:', newHouseholdData)
   }
 
   return (
@@ -197,6 +224,12 @@ const Household = () => {
           )}
         </div>
       </Card>
+
+      {/* Household Preferences & Settings */}
+      <HouseholdInformation
+        householdData={householdData}
+        onUpdateHousehold={handleUpdateHousehold}
+      />
 
       {/* Current Household Details */}
       {!isPersonal && currentHousehold && (
