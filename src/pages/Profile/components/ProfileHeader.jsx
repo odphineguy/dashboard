@@ -79,6 +79,9 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
         return
       }
 
+      // Save just the src path for custom avatars
+      const avatarValue = avatar?.src || avatar
+
       // Check if profile exists
       const { data: existingProfile } = await supabase
         .from('profiles')
@@ -92,7 +95,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
         result = await supabase
           .from('profiles')
           .update({
-            avatar: avatar,
+            avatar: avatarValue,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId)
@@ -103,7 +106,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
           .from('profiles')
           .insert({
             id: userId,
-            avatar: avatar,
+            avatar: avatarValue,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -112,7 +115,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
 
       if (result.error) throw result.error
 
-      onUpdateProfile({ avatar })
+      onUpdateProfile({ avatar: avatarValue })
       alert('Avatar saved successfully!')
     } catch (error) {
       console.error('Error saving avatar:', error)
@@ -135,9 +138,9 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
         {/* Profile Photo */}
         <div className="relative">
           <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-            {user?.avatar?.src ? (
+            {user?.avatar?.src || (typeof user?.avatar === 'string' && user.avatar.startsWith('/')) ? (
               <img
-                src={user.avatar.src}
+                src={user.avatar?.src || user.avatar}
                 alt={user?.avatar?.name || 'Avatar'}
                 className="w-full h-full object-cover"
               />
