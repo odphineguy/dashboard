@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import ProfileHeader from './components/ProfileHeader'
 import PersonalGoals from './components/PersonalGoals'
 import AchievementSystem from './components/AchievementSystem'
-import HouseholdInformation from './components/HouseholdInformation'
 import NotificationPreferences from './components/NotificationPreferences'
 import AccountSettings from './components/AccountSettings'
 import { useAuth } from '../../contexts/AuthContext'
@@ -42,27 +41,6 @@ const Profile = () => {
     recipes: [],
     consistency: [],
     streaks: { daily: 0, weekly: 0, monthly: 0 }
-  })
-
-  // Household data state
-  const [householdData, setHouseholdData] = useState({
-    familySize: '4',
-    cookingFrequency: 'daily',
-    dietaryRestrictions: {
-      vegetarian: false,
-      vegan: false,
-      glutenFree: false,
-      dairyFree: false,
-      nutFree: false,
-      lowSodium: false,
-      diabetic: false,
-      keto: false,
-      paleo: false,
-      halal: false,
-      kosher: false
-    },
-    favoriteCuisines: '',
-    allergies: ''
   })
 
   // Notification preferences state
@@ -161,11 +139,6 @@ const Profile = () => {
     console.log('Goals updated:', newGoals)
   }
 
-  const handleUpdateHousehold = (newHouseholdData) => {
-    setHouseholdData(newHouseholdData)
-    console.log('Household information updated:', newHouseholdData)
-  }
-
   const handleUpdateNotifications = (newPreferences) => {
     setNotificationPreferences(newPreferences)
     console.log('Notification preferences updated:', newPreferences)
@@ -215,12 +188,6 @@ const Profile = () => {
       {/* Achievement System */}
       <AchievementSystem
         achievements={achievements}
-      />
-
-      {/* Household Information */}
-      <HouseholdInformation
-        householdData={householdData}
-        onUpdateHousehold={handleUpdateHousehold}
       />
 
       {/* Notification Preferences */}

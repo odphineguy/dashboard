@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Camera, Receipt, Upload, Loader2, CheckCircle, XCircle, Save } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Camera, Receipt, Upload, Loader2, CheckCircle, XCircle, Save, Mail, RefreshCw, LogOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -20,6 +20,36 @@ export default function ScannerTest() {
   const [receiptError, setReceiptError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Gmail integration state
+  const [gmailConnected, setGmailConnected] = useState(false)
+  const [gmailLoading, setGmailLoading] = useState(false)
+  const [gmailSyncing, setGmailSyncing] = useState(false)
+  const [gmailOrders, setGmailOrders] = useState([])
+  const [lastSynced, setLastSynced] = useState(null)
+
+  // Check Gmail connection status on mount
+  useEffect(() => {
+    const checkGmailConnection = async () => {
+      if (!user?.id) return
+
+      try {
+        const { data, error } = await supabase
+          .from('user_integrations')
+          .select('id, provider, expires_at, created_at')
+          .eq('user_id', user.id)
+          .eq('provider', 'gmail')
+          .maybeSingle()
+
+        if (error) throw error
+        setGmailConnected(Boolean(data?.id))
+      } catch (error) {
+        console.error('Error checking Gmail connection:', error)
+      }
+    }
+
+    checkGmailConnection()
+  }, [user?.id])
 
   // Initialize Google AI
   const getAI = () => {
@@ -221,6 +251,98 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
     }
   }
 
+  //Gmail OAuth handlers
+  const handleConnectGmail = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/gmail-connect`
+    const state = btoa(JSON.stringify({ uid: user?.id || null, ts: Date.now() }))
+
+    if (!clientId) {
+      toast.error('Gmail integration not configured', {
+        description: 'Please contact support to enable this feature'
+      })
+      return
+    }
+
+    const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+    url.searchParams.set('client_id', clientId)
+    url.searchParams.set('redirect_uri', redirectUri)
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('scope', 'https://www.googleapis.com/auth/gmail.readonly')
+    url.searchParams.set('access_type', 'offline')
+    url.searchParams.set('include_granted_scopes', 'true')
+    url.searchParams.set('prompt', 'consent')
+    url.searchParams.set('state', state)
+
+    window.location.href = url.toString()
+  }
+
+  const handleDisconnectGmail = async () => {
+    if (!user?.id) return
+
+    setGmailLoading(true)
+    try {
+      await supabase
+        .from('user_integrations')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('provider', 'gmail')
+
+      setGmailConnected(false)
+      setGmailOrders([])
+      toast.success('Gmail disconnected successfully')
+    } catch (error) {
+      console.error('Error disconnecting Gmail:', error)
+      toast.error('Failed to disconnect Gmail')
+    } finally {
+      setGmailLoading(false)
+    }
+  }
+
+  const handleSyncGmail = async () => {
+    setGmailSyncing(true)
+    setGmailOrders([])
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-sync`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!resp.ok) {
+        const errorData = await resp.json()
+        throw new Error(errorData.error || 'Sync failed')
+      }
+
+      const result = await resp.json()
+      setLastSynced(new Date().toISOString())
+      setGmailOrders(result.orders || [])
+
+      if (result.ordersFound > 0) {
+        toast.success(`Found ${result.ordersFound} grocery orders!`, {
+          description: 'Check the results below'
+        })
+      } else {
+        toast.info('No recent grocery orders found', {
+          description: 'Try connecting to a different email or check back later'
+        })
+      }
+    } catch (error) {
+      console.error('Gmail sync error:', error)
+      toast.error('Sync failed', {
+        description: error.message || 'Please try again'
+      })
+    } finally {
+      setGmailSyncing(false)
+    }
+  }
+
   const handleReceiptUpload = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -234,7 +356,7 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
       const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
       const imagePart = await fileToGenerativePart(file)
-      
+
       const prompt = `You are a receipt parser and food safety expert. Analyze this grocery receipt image and extract all FOOD items.
 
 For each item, provide:
@@ -613,6 +735,132 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
         </div>
       </Card>
 
+      {/* Gmail Receipt Scanner */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            <h3 className="text-xl font-semibold">Gmail Receipt Scanner</h3>
+            {gmailConnected && (
+              <span className="ml-auto inline-flex items-center px-2 py-1 rounded-full text-xs bg-emerald-600 text-white">
+                Connected
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Connect your Gmail to automatically scan for grocery receipts from Instacart, DoorDash, Walmart, Grub Hub, UberEats, Amazon, and more!
+          </p>
+
+          {!gmailConnected ? (
+            <div className="space-y-3">
+              <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-3">
+                  We'll scan your email for order confirmations from popular grocery and food delivery services.
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1 ml-4">
+                  <li>• Searches last 7 days of emails</li>
+                  <li>• Only reads order confirmation emails</li>
+                  <li>• No emails are stored or shared</li>
+                  <li>• You can disconnect anytime</li>
+                </ul>
+              </div>
+              <Button onClick={handleConnectGmail} disabled={gmailLoading}>
+                <Mail className="h-4 w-4 mr-2" />
+                Connect Gmail
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button onClick={handleSyncGmail} disabled={gmailSyncing}>
+                  {gmailSyncing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Scanning Emails...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Scan My Emails
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" onClick={handleDisconnectGmail} disabled={gmailLoading}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              </div>
+
+              {lastSynced && (
+                <p className="text-xs text-muted-foreground">
+                  Last synced: {new Date(lastSynced).toLocaleString()}
+                </p>
+              )}
+
+              {/* Gmail Orders Results */}
+              {gmailOrders.length > 0 && (
+                <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-green-700 dark:text-green-400 mb-2">
+                        Found {gmailOrders.length} Grocery Orders!
+                      </h4>
+
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                        {gmailOrders.map((order, index) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-background/50 rounded border border-border"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <div className="font-medium capitalize">{order.store.replace('.com', '')}</div>
+                                <div className="text-xs text-muted-foreground">{order.date}</div>
+                              </div>
+                              <div className="text-sm font-medium">{order.total}</div>
+                            </div>
+
+                            {order.items && order.items.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-border">
+                                <div className="text-xs font-medium text-muted-foreground mb-1">
+                                  Items detected:
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {order.items.map((item, i) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                                    >
+                                      {item}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="text-xs text-muted-foreground mt-2">
+                              Order ID: {order.orderId}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-green-500/20">
+                        <p className="text-xs text-muted-foreground">
+                          💡 Order summaries have been saved to your analytics. For detailed item extraction, use the Receipt Scanner above.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* Info Section */}
       <Card className="p-6 bg-blue-500/5 border-blue-500/20">
         <h3 className="font-semibold mb-2 text-blue-700 dark:text-blue-400">
@@ -635,6 +883,15 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
               <li>• 📊 Gets names, quantities, categories, prices</li>
               <li>• 🏪 Identifies store and date</li>
               <li>• ⚡ Processes multiple items in seconds</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-1">Gmail Scanner:</p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• 📧 Scans last 7 days of order confirmations</li>
+              <li>• 🛒 Supports 15+ stores (Instacart, Walmart, etc.)</li>
+              <li>• 🔒 Secure OAuth • Read-only access</li>
+              <li>• 📊 Auto-saves order summaries to analytics</li>
             </ul>
           </div>
           <div className="pt-2 border-t border-blue-500/20">

@@ -47,27 +47,9 @@ const AccountSettings = ({ onPasswordChange, onDataExport, onAccountDelete }) =>
 
   const exportOptions = [
     {
-      type: 'inventory',
-      title: 'Inventory Data',
-      description: 'Export all your food items and inventory history',
-      icon: Package
-    },
-    {
-      type: 'analytics',
-      title: 'Analytics Data',
-      description: 'Export your waste reduction and consumption analytics',
-      icon: BarChart3
-    },
-    {
-      type: 'recipes',
-      title: 'Recipe History',
-      description: 'Export your tried recipes and favorites',
-      icon: ChefHat
-    },
-    {
       type: 'complete',
-      title: 'Complete Profile',
-      description: 'Export all your data in a comprehensive package',
+      title: 'Complete Profile Data',
+      description: 'Export all your personal data including profile, settings, inventory, analytics, and recipes (GDPR compliance)',
       icon: Download
     }
   ]
@@ -169,35 +151,34 @@ const AccountSettings = ({ onPasswordChange, onDataExport, onAccountDelete }) =>
         {/* Data Export Section */}
         <div className="border border-border rounded-lg p-4">
           <div className="mb-4">
-            <h3 className="font-medium">Data Export</h3>
-            <p className="text-sm text-muted-foreground">Download your data in various formats</p>
+            <h3 className="font-medium">Data Export & Portability</h3>
+            <p className="text-sm text-muted-foreground">Download a complete copy of your personal data</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {exportOptions.map((option) => {
-              const IconComponent = option.icon
-              return (
-                <div key={option.type} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3 flex-1">
-                    <IconComponent className="h-4 w-4 text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{option.title}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-1">{option.description}</div>
-                    </div>
+          {exportOptions.map((option) => {
+            const IconComponent = option.icon
+            return (
+              <div key={option.type} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <IconComponent className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{option.title}</div>
+                    <div className="text-sm text-muted-foreground mt-1">{option.description}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      For specific reports (inventory, analytics, recipes), visit the <a href="/reports" className="text-primary hover:underline">Reports page</a>
+                    </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDataExport(option.type)}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    Export
-                  </Button>
                 </div>
-              )
-            })}
-          </div>
-        </div>
+                <Button
+                  variant="outline"
+                  onClick={() => onDataExport(option.type)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export All Data
+                </Button>
+              </div>
+            )
+          })}</div>
 
         {/* Account Deletion Section */}
         <div className="border-2 border-red-500 rounded-lg p-4 bg-red-500/5">

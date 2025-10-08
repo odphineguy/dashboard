@@ -10,6 +10,7 @@ import StorageLocations from './pages/StorageLocations'
 import Profile from './pages/Profile'
 import Reports from './pages/Reports'
 import ScannerTest from './components/ScannerTest'
+import GmailConnectCallback from './pages/GmailConnect'
 import SplashPage from './pages/Splash'
 import OnboardingPage from './pages/Onboarding'
 import PricingPage from './pages/Pricing'
@@ -172,6 +173,14 @@ const Routes = () => {
                   <ScannerTest />
                 </MainLayout>
               }
+            />
+          }
+        />
+        <Route
+          path="/gmail-connect"
+          element={
+            <ProtectedRoute
+              element={<GmailConnectCallback />}
             />
           }
         />
