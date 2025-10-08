@@ -85,7 +85,7 @@ const Header = ({ onMenuClick }) => {
         <img
           src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"}
           alt="Meal Saver Logo"
-          className={`w-auto py-2 ${isDark ? 'h-20' : 'h-40'}`}
+          className="w-auto py-2 h-20"
         />
       </div>
 
