@@ -9,16 +9,13 @@ import {
   ChefHat, 
   Scan, 
   BarChart3, 
-  Users, 
   ArrowRight, 
   ArrowLeft,
   CheckCircle,
-  User,
-  Mail,
-  Lock,
-  Home,
+  Heart,
   Target,
-  Heart
+  Trash2,
+  DollarSign
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -61,8 +58,8 @@ const OnboardingPage = () => {
   ]
 
   const goals = [
-    { id: 'reduce-waste', label: 'Reduce Food Waste', icon: <Heart className="h-5 w-5" /> },
-    { id: 'save-money', label: 'Save Money', icon: <Target className="h-5 w-5" /> },
+    { id: 'reduce-waste', label: 'Reduce Food Waste', icon: <Trash2 className="h-5 w-5" /> },
+    { id: 'save-money', label: 'Save Money', icon: <DollarSign className="h-5 w-5" /> },
     { id: 'meal-planning', label: 'Better Meal Planning', icon: <ChefHat className="h-5 w-5" /> },
     { id: 'health', label: 'Eat Healthier', icon: <Heart className="h-5 w-5" /> }
   ]
@@ -117,12 +114,14 @@ const OnboardingPage = () => {
       case 1:
         return (
           <div className="text-center">
-            <div className="mb-8">
-              <img 
-                src="/Meal.svg" 
-                alt="Meal Saver Logo" 
-                className="h-20 w-auto mx-auto mb-6"
-              />
+            <div className="mb-4">
+              <div className="flex justify-center mb-3">
+                <img 
+                  src="/Meal.svg" 
+                  alt="Meal Saver Logo" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
               <h2 className="text-3xl font-bold text-foreground mb-4">
                 Welcome to Meal Saver!
               </h2>
@@ -155,7 +154,13 @@ const OnboardingPage = () => {
         return (
           <div className="max-w-md mx-auto">
             <div className="mb-8 text-center">
-              <User className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <div className="flex justify-center mb-3">
+                <img 
+                  src="/Meal.svg" 
+                  alt="Meal Saver Logo" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Create Your Account</h2>
               <p className="text-muted-foreground">Let's set up your profile</p>
             </div>
@@ -169,6 +174,7 @@ const OnboardingPage = () => {
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="Enter your full name"
+                  className="bg-white dark:bg-white"
                 />
               </div>
               <div>
@@ -179,6 +185,7 @@ const OnboardingPage = () => {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="Enter your email"
+                  className="bg-white dark:bg-white"
                 />
               </div>
               <div>
@@ -189,6 +196,7 @@ const OnboardingPage = () => {
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   placeholder="Create a secure password"
+                  className="bg-white dark:bg-white"
                 />
               </div>
             </div>
@@ -199,7 +207,13 @@ const OnboardingPage = () => {
         return (
           <div className="max-w-md mx-auto">
             <div className="mb-8 text-center">
-              <Home className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <div className="flex justify-center mb-3">
+                <img 
+                  src="/Meal.svg" 
+                  alt="Meal Saver Logo" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Your Household</h2>
               <p className="text-muted-foreground">Help us personalize your experience</p>
             </div>
@@ -248,7 +262,13 @@ const OnboardingPage = () => {
         return (
           <div className="max-w-2xl mx-auto">
             <div className="mb-8 text-center">
-              <Target className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <div className="flex justify-center mb-3">
+                <img 
+                  src="/Meal.svg" 
+                  alt="Meal Saver Logo" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Set Your Goals</h2>
               <p className="text-muted-foreground">What would you like to achieve? (Select all that apply)</p>
             </div>
@@ -259,7 +279,7 @@ const OnboardingPage = () => {
                   key={goal.id}
                   className={`p-4 cursor-pointer transition-all ${
                     formData.goals.includes(goal.id) 
-                      ? 'border-blue-500 bg-blue-50' 
+                      ? 'border-green-500 bg-green-50' 
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => handleGoalToggle(goal.id)}
@@ -267,7 +287,7 @@ const OnboardingPage = () => {
                   <div className="flex items-center space-x-3">
                     <div className={`p-2 rounded-lg ${
                       formData.goals.includes(goal.id) 
-                        ? 'bg-blue-100 text-blue-600' 
+                        ? 'bg-green-100 text-green-600' 
                         : 'bg-gray-100 text-gray-600'
                     }`}>
                       {goal.icon}
@@ -276,7 +296,7 @@ const OnboardingPage = () => {
                       <h3 className="font-medium">{goal.label}</h3>
                     </div>
                     {formData.goals.includes(goal.id) && (
-                      <CheckCircle className="h-5 w-5 text-blue-500 ml-auto" />
+                      <CheckCircle className="h-5 w-5 text-green-500 ml-auto" />
                     )}
                   </div>
                 </Card>

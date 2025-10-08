@@ -44,8 +44,8 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
             <img 
               src="/Meal.svg" 
               alt="Meal Saver Logo" 
@@ -83,7 +83,7 @@ export default function Login() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white dark:bg-white"
                 required
                 disabled={loading}
               />
@@ -102,7 +102,7 @@ export default function Login() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white dark:bg-white"
                 required
                 minLength={6}
                 disabled={loading}
