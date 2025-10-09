@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react'
 import { Camera, Receipt, Upload, Loader2, CheckCircle, XCircle, Save, Mail, RefreshCw, LogOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
+import { Badge } from './ui/badge'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { useHousehold } from '../contexts/HouseholdContext'
 import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
 import BadgeCelebration from './BadgeCelebration'
 import { toast } from 'sonner'
 
 export default function ScannerTest() {
   const { user } = useAuth()
+  const { currentHousehold, isPersonal } = useHousehold()
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
   const [barcodeLoading, setBarcodeLoading] = useState(false)
   const [receiptLoading, setReceiptLoading] = useState(false)
@@ -99,6 +102,7 @@ export default function ScannerTest() {
       // Match Smart_Pantry's exact schema
       const insertData = {
         user_id: currentUser.id, // Explicitly set user_id
+        household_id: isPersonal ? null : currentHousehold?.id, // Respect current view
         name: item.name || 'Unknown Item',
         category: item.category || null,
         brand: item.brand || null,
@@ -423,7 +427,21 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">AI Scanner</h2>
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="text-2xl font-bold">AI Scanner</h2>
+          {!isPersonal && currentHousehold && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+              {currentHousehold.name}
+            </Badge>
+          )}
+          {isPersonal && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500"></span>
+              Personal
+            </Badge>
+          )}
+        </div>
         <p className="text-muted-foreground">
           Scan barcodes and receipts to quickly add items to your inventory. Works on web, iOS Safari, and Android Chrome!
         </p>
@@ -858,47 +876,6 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
               )}
             </div>
           )}
-        </div>
-      </Card>
-
-      {/* Info Section */}
-      <Card className="p-6 bg-blue-500/5 border-blue-500/20">
-        <h3 className="font-semibold mb-2 text-blue-700 dark:text-blue-400">
-          💡 How It Works
-        </h3>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm font-medium mb-1">Barcode Scanner:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• 🤖 AI reads barcode number from image</li>
-              <li>• 🌍 OpenFoodFacts database lookup (2M+ products)</li>
-              <li>• ✨ Fallback to AI if product not in database</li>
-              <li>• 📸 Works on any device with camera</li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-sm font-medium mb-1">Receipt Scanner:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• 🤖 AI extracts all items from receipt</li>
-              <li>• 📊 Gets names, quantities, categories, prices</li>
-              <li>• 🏪 Identifies store and date</li>
-              <li>• ⚡ Processes multiple items in seconds</li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-sm font-medium mb-1">Gmail Scanner:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• 📧 Scans last 7 days of order confirmations</li>
-              <li>• 🛒 Supports 15+ stores (Instacart, Walmart, etc.)</li>
-              <li>• 🔒 Secure OAuth • Read-only access</li>
-              <li>• 📊 Auto-saves order summaries to analytics</li>
-            </ul>
-          </div>
-          <div className="pt-2 border-t border-blue-500/20">
-            <p className="text-xs text-muted-foreground">
-              No native plugins • Works on iOS Safari • No App Store needed
-            </p>
-          </div>
         </div>
       </Card>
 

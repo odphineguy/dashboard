@@ -6,8 +6,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from './ui/chart'
 
 const AdvancedChartRecharts = () => {
@@ -91,41 +89,51 @@ const AdvancedChartRecharts = () => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <CardTitle>Total Visitors</CardTitle>
             <CardDescription>
-              {timeRange === '7d' ? 'Total for the last 7 days' : 
-               timeRange === '30d' ? 'Total for the last 30 days' : 
+              {timeRange === '7d' ? 'Total for the last 7 days' :
+               timeRange === '30d' ? 'Total for the last 30 days' :
                'Total for the last 3 months'}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={timeRange === '90d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTimeRange('90d')}
-              className={timeRange === '90d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
-            >
-              Last 3 months
-            </Button>
-            <Button
-              variant={timeRange === '30d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTimeRange('30d')}
-              className={timeRange === '30d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
-            >
-              Last 30 days
-            </Button>
-            <Button
-              variant={timeRange === '7d' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTimeRange('7d')}
-              className={timeRange === '7d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
-            >
-              Last 7 days
-            </Button>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-sm text-muted-foreground">Consumed</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <span className="text-sm text-muted-foreground">Wasted</span>
+            </div>
           </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant={timeRange === '90d' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTimeRange('90d')}
+            className={timeRange === '90d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
+          >
+            Last 3 months
+          </Button>
+          <Button
+            variant={timeRange === '30d' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTimeRange('30d')}
+            className={timeRange === '30d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
+          >
+            Last 30 days
+          </Button>
+          <Button
+            variant={timeRange === '7d' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTimeRange('7d')}
+            className={timeRange === '7d' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}
+          >
+            Last 7 days
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -192,10 +200,6 @@ const AdvancedChartRecharts = () => {
             />
           </AreaChart>
         </ChartContainer>
-        
-        <ChartLegend
-          content={<ChartLegendContent />}
-        />
       </CardContent>
     </Card>
   )

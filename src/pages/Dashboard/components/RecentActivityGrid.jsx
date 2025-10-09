@@ -82,7 +82,15 @@ const RecentActivityGrid = ({ events, loading }) => {
                   <td className="p-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border">
-                        <User size={16} className="text-muted-foreground" />
+                        {event.user_avatar ? (
+                          <img
+                            src={event.user_avatar}
+                            alt={event.user_name || 'User'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User size={16} className="text-muted-foreground" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground truncate">
@@ -151,7 +159,15 @@ const RecentActivityGrid = ({ events, loading }) => {
           <div key={event.id || index} className="bg-muted/30 rounded-lg border border-border p-4">
             <div className="flex items-start space-x-3">
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
-                <User size={18} className="text-muted-foreground" />
+                {event.user_avatar ? (
+                  <img
+                    src={event.user_avatar}
+                    alt={event.user_name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={18} className="text-muted-foreground" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">

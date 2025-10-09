@@ -196,12 +196,14 @@ Make the recipes creative, practical, and use as many of the expiring ingredient
               Recipe Suggestions
             </h1>
             {!isPersonal && currentHousehold && (
-              <Badge variant="outline" className="text-sm">
+              <Badge variant="outline" className="text-sm flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-orange-500"></span>
                 {currentHousehold.name}
               </Badge>
             )}
             {isPersonal && (
-              <Badge variant="outline" className="text-sm">
+              <Badge variant="outline" className="text-sm flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-green-500"></span>
                 Personal
               </Badge>
             )}
