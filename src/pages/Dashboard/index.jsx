@@ -156,14 +156,14 @@ const Dashboard = () => {
       }
 
       setUserProfile({
-        full_name: profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+        full_name: profile?.full_name || user?.user_metadata?.full_name || '',
         avatar: profile?.avatar || null,
         email: user?.email || ''
       })
     } catch (error) {
       console.error('Error loading user profile:', error)
       setUserProfile({
-        full_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+        full_name: user?.user_metadata?.full_name || '',
         avatar: null,
         email: user?.email || ''
       })
@@ -294,6 +294,30 @@ const Dashboard = () => {
 
       try {
         setLoading(true)
+
+        // Check for pending onboarding data (from Google OAuth redirect)
+        const pendingOnboarding = localStorage.getItem('pending_onboarding')
+        if (pendingOnboarding) {
+          try {
+            const onboardingData = JSON.parse(pendingOnboarding)
+            // Save to profiles table
+            await supabase
+              .from('profiles')
+              .update({
+                onboarding_data: {
+                  subscription_tier: onboardingData.subscription_tier,
+                  account_type: onboardingData.account_type,
+                  onboarded_at: new Date().toISOString()
+                }
+              })
+              .eq('id', user.id)
+
+            // Clear from localStorage
+            localStorage.removeItem('pending_onboarding')
+          } catch (err) {
+            console.error('Error saving pending onboarding data:', err)
+          }
+        }
 
         await loadUserProfile()
 
