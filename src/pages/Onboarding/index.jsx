@@ -18,9 +18,11 @@ import {
   DollarSign
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 
 const OnboardingPage = () => {
   const [currentStep, setCurrentStep] = useState(1)
+  const { isDark } = useTheme()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -117,7 +119,7 @@ const OnboardingPage = () => {
             <div className="mb-4">
               <div className="flex justify-center mb-3">
                 <img 
-                  src="/Meal.svg" 
+                  src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"} 
                   alt="Meal Saver Logo" 
                   className="h-24 w-auto object-contain"
                 />
@@ -156,7 +158,7 @@ const OnboardingPage = () => {
             <div className="mb-8 text-center">
               <div className="flex justify-center mb-3">
                 <img 
-                  src="/Meal.svg" 
+                  src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"} 
                   alt="Meal Saver Logo" 
                   className="h-24 w-auto object-contain"
                 />
@@ -174,7 +176,7 @@ const OnboardingPage = () => {
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="Enter your full name"
-                  className="bg-white dark:bg-white"
+                  className="!bg-white !text-gray-900 placeholder:text-gray-500"
                 />
               </div>
               <div>
@@ -185,7 +187,7 @@ const OnboardingPage = () => {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="Enter your email"
-                  className="bg-white dark:bg-white"
+                  className="!bg-white !text-gray-900 placeholder:text-gray-500"
                 />
               </div>
               <div>
@@ -196,7 +198,7 @@ const OnboardingPage = () => {
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   placeholder="Create a secure password"
-                  className="bg-white dark:bg-white"
+                  className="!bg-white !text-gray-900 placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -209,7 +211,7 @@ const OnboardingPage = () => {
             <div className="mb-8 text-center">
               <div className="flex justify-center mb-3">
                 <img 
-                  src="/Meal.svg" 
+                  src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"} 
                   alt="Meal Saver Logo" 
                   className="h-24 w-auto object-contain"
                 />
@@ -264,7 +266,7 @@ const OnboardingPage = () => {
             <div className="mb-8 text-center">
               <div className="flex justify-center mb-3">
                 <img 
-                  src="/Meal.svg" 
+                  src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"} 
                   alt="Meal Saver Logo" 
                   className="h-24 w-auto object-contain"
                 />
