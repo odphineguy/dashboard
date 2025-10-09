@@ -24,15 +24,32 @@ const MetricsCard = ({ title, value, subtitle, icon, trend, trendValue, color = 
   const getColorClasses = () => {
     switch (color) {
       case 'success':
-        return 'bg-green-500 text-white'
+        return 'text-white'
       case 'warning':
         return 'bg-orange-500 text-white'
       case 'accent':
-        return 'bg-blue-500 text-white'
+        return 'text-white'
       case 'error':
         return 'bg-red-500 text-white'
       default:
-        return 'bg-blue-500 text-white'
+        return 'text-white'
+    }
+  }
+
+  const getColorStyles = () => {
+    switch (color) {
+      case 'success':
+        return { backgroundColor: '#01433B' } // Brand green - matches "Fresh" status
+      case 'warning':
+        return { backgroundColor: '#ef4444' } // Red (red-500) - matches "Expires Today" status
+      case 'accent':
+        return { backgroundColor: '#0EA5E9' } // Brand blue
+      case 'orange':
+        return { backgroundColor: '#f97316' } // Orange (orange-500) - matches "Expiring Soon" status
+      case 'error':
+        return { backgroundColor: '#dc2626' } // Darker red (red-600) - matches "Expired" status
+      default:
+        return { backgroundColor: '#0EA5E9' } // Brand blue default
     }
   }
 
@@ -50,7 +67,10 @@ const MetricsCard = ({ title, value, subtitle, icon, trend, trendValue, color = 
           </div>
         </div>
         <div className="flex flex-col items-end justify-center space-y-3">
-          <div className={`p-3 rounded-lg ${getColorClasses()}`}>
+          <div
+            className={`p-3 rounded-lg ${getColorClasses()}`}
+            style={getColorStyles()}
+          >
             <Icon size={24} />
           </div>
           {trendValue && (

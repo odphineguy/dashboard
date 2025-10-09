@@ -65,7 +65,7 @@ const WasteReductionChart = ({ data }) => {
         <h3 className="text-lg font-semibold text-foreground">Waste Reduction Trends</h3>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
             <span className="text-sm text-muted-foreground">Consumed</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -80,8 +80,8 @@ const WasteReductionChart = ({ data }) => {
           <AreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <defs>
               <linearGradient id="consumedGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="wastedGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
@@ -104,7 +104,7 @@ const WasteReductionChart = ({ data }) => {
               type="monotone"
               dataKey="consumed"
               stackId="1"
-              stroke="#3b82f6"
+              stroke="#22c55e"
               fill="url(#consumedGradient)"
               strokeWidth={2}
             />

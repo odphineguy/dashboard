@@ -50,7 +50,7 @@ const Dashboard = () => {
       icon: "Clock",
       trend: "up",
       trendValue: "0%",
-      color: "accent"
+      color: "orange"
     },
     {
       title: "Waste Reduced",
@@ -299,12 +299,26 @@ const Dashboard = () => {
 
         const { data: rows } = await supabase
           .from('pantry_events')
-          .select('*')
+          .select(`
+            *,
+            profiles:user_id (
+              full_name,
+              avatar
+            )
+          `)
           .eq('user_id', user.id)
           .order('at', { ascending: false })
           .limit(10)
 
-        setEvents(rows || [])
+        // Transform the data to include profile info
+        const transformedEvents = rows?.map(event => ({
+          ...event,
+          user_name: event.profiles?.full_name || user?.email?.split('@')[0] || 'You',
+          user_avatar: event.profiles?.avatar || null,
+          user_email: user?.email || ''
+        })) || []
+
+        setEvents(transformedEvents)
 
         const chartData = await generateWasteReductionData(user.id)
         setWasteReductionData(chartData)
@@ -336,7 +350,7 @@ const Dashboard = () => {
             icon: "Clock",
             trend: "up",
             trendValue: "0%",
-            color: "accent"
+            color: "orange"
           },
           {
             title: "Waste Reduced",
@@ -437,12 +451,14 @@ const Dashboard = () => {
                   Good {currentTime?.getHours() < 12 ? 'Morning' : currentTime?.getHours() < 17 ? 'Afternoon' : 'Evening'}{userProfile.full_name ? `, ${userProfile.full_name}` : ''}!
                 </h1>
                 {!isPersonal && currentHousehold && (
-                  <Badge variant="outline" className="text-sm">
+                  <Badge variant="outline" className="text-sm flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-orange-500"></span>
                     {currentHousehold.name}
                   </Badge>
                 )}
                 {isPersonal && (
-                  <Badge variant="outline" className="text-sm">
+                  <Badge variant="outline" className="text-sm flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
                     Personal
                   </Badge>
                 )}
