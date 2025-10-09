@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Card } from './ui/card'
@@ -7,6 +8,7 @@ import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function Login() {
   const { signIn, signUp } = useAuth()
+  const { isDark } = useTheme()
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,9 +48,9 @@ export default function Login() {
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-4">
           <div className="flex justify-center mb-3">
-            <img 
-              src="/Meal.svg" 
-              alt="Meal Saver Logo" 
+            <img
+              src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"}
+              alt="Meal Saver Logo"
               className="h-24 w-auto object-contain"
             />
           </div>
@@ -83,7 +85,7 @@ export default function Login() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 bg-white dark:bg-white"
+                className="pl-10 !bg-white !text-gray-900 placeholder:text-gray-500"
                 required
                 disabled={loading}
               />
@@ -102,7 +104,7 @@ export default function Login() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 bg-white dark:bg-white"
+                className="pl-10 !bg-white !text-gray-900 placeholder:text-gray-500"
                 required
                 minLength={6}
                 disabled={loading}

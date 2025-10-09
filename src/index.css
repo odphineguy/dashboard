@@ -24,6 +24,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 45 40% 80%;
     --input: 45 40% 80%;
+    --input-foreground: 25 18% 25%;
     --ring: 32 91% 37%;
     --chart-1: 120 60% 50%;
     --chart-2: 25 85% 65%;
@@ -73,6 +74,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 30 6% 25%;
     --input: 30 6% 25%;
+    --input-foreground: 0 0% 96%;
     --ring: 24 95% 53%;
     --chart-1: 24 95% 53%;
     --chart-2: 199 89% 48%;
