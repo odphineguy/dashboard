@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Meal Saver Dashboard** is a React-based food pantry management application that helps users track inventory, reduce food waste, and get AI-powered recipe suggestions. The app uses Supabase for backend services and Google Gemini for AI features.
 
+> **Note on Project Name:** This project was initially named "smart_pantry" and you may see this name referenced in:
+> - Google Cloud Console (OAuth client names, API configurations)
+> - Supabase project settings and database names
+> - Git history and legacy documentation
+> - The reference project directory at `~/Documents/smart_pantry`
+>
+> The project has been renamed to "Meal Saver" but external services retain the original name for compatibility.
+
 ## Development Commands
 
 ```bash
