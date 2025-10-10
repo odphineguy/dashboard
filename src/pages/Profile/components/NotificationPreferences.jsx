@@ -21,9 +21,9 @@ const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
       title: 'Expiration Alerts',
       description: 'Get notified when items are about to expire',
       options: [
-        { key: 'push', label: 'Push Notifications' },
-        { key: 'email', label: 'Email Alerts' },
-        { key: 'sms', label: 'SMS Alerts' }
+        { key: 'daily', label: 'Daily Digest (items expiring in 3 days)' },
+        { key: 'critical', label: 'Critical Alerts (expiring today)' },
+        { key: 'weekly', label: 'Weekly Summary' }
       ]
     },
     {
@@ -31,8 +31,8 @@ const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
       title: 'Recipe Suggestions',
       description: 'Receive personalized recipe recommendations',
       options: [
-        { key: 'push', label: 'Push Notifications' },
-        { key: 'email', label: 'Weekly Digest' }
+        { key: 'weekly', label: 'Weekly Recipe Ideas' },
+        { key: 'expiring', label: 'Recipes for Expiring Items' }
       ]
     },
     {
@@ -40,8 +40,8 @@ const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
       title: 'Achievements & Milestones',
       description: 'Celebrate your progress and achievements',
       options: [
-        { key: 'push', label: 'Push Notifications' },
-        { key: 'email', label: 'Monthly Summary' }
+        { key: 'earned', label: 'When Achievement Earned' },
+        { key: 'monthly', label: 'Monthly Progress Summary' }
       ]
     },
     {
@@ -49,8 +49,8 @@ const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
       title: 'Inventory Reminders',
       description: 'Reminders to update and check your inventory',
       options: [
-        { key: 'push', label: 'Push Notifications' },
-        { key: 'email', label: 'Email Reminders' }
+        { key: 'weekly', label: 'Weekly Inventory Check Reminder' },
+        { key: 'lowStock', label: 'Low Stock Alerts' }
       ]
     }
   ]

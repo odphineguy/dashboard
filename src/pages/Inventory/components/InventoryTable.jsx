@@ -12,7 +12,8 @@ const InventoryTable = ({
   onDeleteItem,
   onConsumed,
   onWasted,
-  isAllSelected
+  isAllSelected,
+  onAddItem
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
@@ -81,7 +82,7 @@ const InventoryTable = ({
         <p className="text-muted-foreground mb-4">
           Start by adding your first item to your inventory
         </p>
-        <Button variant="default">
+        <Button variant="default" onClick={onAddItem}>
           Add Your First Item
         </Button>
       </div>

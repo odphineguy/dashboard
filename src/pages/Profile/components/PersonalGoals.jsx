@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Target, DollarSign, ChefHat, Package, Edit2, Check } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
@@ -10,7 +10,13 @@ const PersonalGoals = ({ goals, onUpdateGoals }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editGoals, setEditGoals] = useState(goals)
 
+  // Sync local state with parent goals prop when it changes
+  useEffect(() => {
+    setEditGoals(goals)
+  }, [goals])
+
   const handleSave = () => {
+    console.log('PersonalGoals - Saving goals:', editGoals)
     onUpdateGoals(editGoals)
     setIsEditing(false)
   }
@@ -93,11 +99,14 @@ const PersonalGoals = ({ goals, onUpdateGoals }) => {
                   <Input
                     id={item.key}
                     type="number"
-                    value={editGoals[item.key]}
-                    onChange={(e) => setEditGoals({
-                      ...editGoals,
-                      [item.key]: parseInt(e.target.value) || 0
-                    })}
+                    value={editGoals[item.key] || ''}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10)
+                      setEditGoals({
+                        ...editGoals,
+                        [item.key]: isNaN(value) ? 0 : value
+                      })
+                    }}
                     placeholder={`Enter ${item.label.toLowerCase()}`}
                   />
                 </div>

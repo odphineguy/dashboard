@@ -43,24 +43,24 @@ const Profile = () => {
     streaks: { daily: 0, weekly: 0, monthly: 0 }
   })
 
-  // Notification preferences state
+  // Notification preferences state (email only)
   const [notificationPreferences, setNotificationPreferences] = useState({
     expiration: {
-      push: true,
-      email: true,
-      sms: false
+      daily: true,
+      critical: true,
+      weekly: false
     },
     recipes: {
-      push: true,
-      email: true
+      weekly: false,
+      expiring: true
     },
     achievements: {
-      push: true,
-      email: false
+      earned: true,
+      monthly: false
     },
     inventory: {
-      push: false,
-      email: true
+      weekly: false,
+      lowStock: true
     }
   })
 

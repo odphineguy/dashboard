@@ -400,6 +400,10 @@ const Inventory = () => {
         onConsumed={handleConsumed}
         onWasted={handleWasted}
         isAllSelected={selectedItems?.length === filteredItems?.length && filteredItems?.length > 0}
+        onAddItem={() => {
+          setEditingItem(null)
+          setIsAddModalOpen(true)
+        }}
       />
 
       {/* Add/Edit Item Modal */}
