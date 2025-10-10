@@ -1,50 +1,67 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
 import { TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from './ui/chart'
 
-const PieChart = () => {
-  const data = [
-    { name: 'Chrome', value: 45, color: '#3b82f6' },
-    { name: 'Safari', value: 25, color: '#10b981' },
-    { name: 'Firefox', value: 15, color: '#f59e0b' },
-    { name: 'Edge', value: 10, color: '#ef4444' },
-    { name: 'Other', value: 5, color: '#8b5cf6' }
-  ]
+const PieChart = ({ data }) => {
+  const chartData = useMemo(() => {
+    if (!data?.pantryItems) return []
 
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-  const centerValue = '1,125'
-  const centerLabel = 'Visitors'
+    // Count items by category
+    const categoryCounts = {}
+    data.pantryItems.forEach(item => {
+      const category = item.category || 'Other'
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1
+    })
 
-  const chartConfig = {
-    Chrome: {
-      label: "Chrome",
-      color: "#3b82f6",
-    },
-    Safari: {
-      label: "Safari", 
-      color: "#10b981",
-    },
-    Firefox: {
-      label: "Firefox",
-      color: "#f59e0b",
-    },
-    Edge: {
-      label: "Edge",
-      color: "#ef4444",
-    },
-    Other: {
-      label: "Other",
-      color: "#8b5cf6",
-    },
+    // Convert to array and calculate percentages
+    const total = Object.values(categoryCounts).reduce((sum, count) => sum + count, 0)
+
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+
+    return Object.entries(categoryCounts)
+      .map(([name, count], index) => ({
+        name,
+        value: total > 0 ? Math.round((count / total) * 100) : 0,
+        count,
+        color: colors[index % colors.length]
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 7) // Top 7 categories
+  }, [data])
+
+  const total = chartData.reduce((sum, item) => sum + item.count, 0)
+
+  const chartConfig = chartData.reduce((config, item) => {
+    config[item.name] = {
+      label: item.name,
+      color: item.color
+    }
+    return config
+  }, {})
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Items by Category</CardTitle>
+          <CardDescription>Current inventory distribution</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[280px] text-muted-foreground">
+            No inventory data available
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Browser Usage</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Items by Category</CardTitle>
+        <CardDescription>Current inventory distribution</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-center mb-6">
@@ -55,7 +72,7 @@ const PieChart = () => {
             >
               <RechartsPieChart width={280} height={280}>
                 <Pie
-                  data={data}
+                  data={chartData}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -65,7 +82,7 @@ const PieChart = () => {
                   paddingAngle={2}
                   strokeWidth={0}
                 >
-                  {data.map((entry, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -82,11 +99,11 @@ const PieChart = () => {
                 />
               </RechartsPieChart>
             </ChartContainer>
-            
+
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-3xl font-bold text-foreground">{centerValue}</div>
-              <div className="text-sm text-muted-foreground">{centerLabel}</div>
+              <div className="text-3xl font-bold text-foreground">{total}</div>
+              <div className="text-sm text-muted-foreground">Total Items</div>
             </div>
           </div>
         </div>
@@ -97,12 +114,8 @@ const PieChart = () => {
 
         {/* Bottom description */}
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
-            Trending up by 5.2% this month
-            <TrendingUp className="h-4 w-4 text-chart-1" />
-          </div>
           <div className="text-sm text-muted-foreground">
-            Showing total visitors for the last 6 months
+            Showing current inventory distribution across categories
           </div>
         </div>
       </CardContent>

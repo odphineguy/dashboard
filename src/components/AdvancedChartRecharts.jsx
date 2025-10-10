@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
@@ -8,46 +8,53 @@ import {
   ChartTooltipContent,
 } from './ui/chart'
 
-const AdvancedChartRecharts = () => {
+const AdvancedChartRecharts = ({ data }) => {
   const [timeRange, setTimeRange] = useState('7d')
-  
-  // Dynamic data based on time range
-  const getDataForTimeRange = (range) => {
+
+  // Process real data based on time range
+  const chartData = useMemo(() => {
+    if (!data?.pantryEvents) return []
+
     const now = new Date()
-    const data = []
-    
-    if (range === '7d') {
+    const result = []
+
+    if (timeRange === '7d') {
       // Last 7 days - daily data
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        
-        // Generate realistic visitor data with similar but independent patterns
-        const baseConsumed = 250 + Math.sin(i * 0.8) * 100 + Math.random() * 50
-        const baseWasted = 150 + Math.sin(i * 0.7) * 80 + Math.random() * 40
-        
-        data.push({
-          date: dayName,
-          consumed: Math.round(baseConsumed),
-          wasted: Math.round(baseWasted)
+        const dayStart = new Date(date.setHours(0, 0, 0, 0))
+        const dayEnd = new Date(date.setHours(23, 59, 59, 999))
+
+        const dayEvents = data.pantryEvents.filter(e => {
+          const eventDate = new Date(e.at)
+          return eventDate >= dayStart && eventDate <= dayEnd
+        })
+
+        result.push({
+          date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          consumed: dayEvents.filter(e => e.type === 'consumed').length,
+          wasted: dayEvents.filter(e => e.type === 'wasted').length
         })
       }
-    } else if (range === '30d') {
+    } else if (timeRange === '30d') {
       // Last 30 days - every 2 days for better density
       for (let i = 28; i >= 0; i -= 2) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        
-        // Generate realistic visitor data with similar but independent patterns
-        const baseConsumed = 300 + Math.sin(i * 0.3) * 120 + Math.random() * 60
-        const baseWasted = 180 + Math.sin(i * 0.25) * 100 + Math.random() * 50
-        
-        data.push({
-          date: dayName,
-          consumed: Math.round(baseConsumed),
-          wasted: Math.round(baseWasted)
+        const dayStart = new Date(date.setHours(0, 0, 0, 0))
+        const dayEnd = new Date(dayStart)
+        dayEnd.setDate(dayEnd.getDate() + 2)
+
+        const periodEvents = data.pantryEvents.filter(e => {
+          const eventDate = new Date(e.at)
+          return eventDate >= dayStart && eventDate < dayEnd
+        })
+
+        result.push({
+          date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          consumed: periodEvents.filter(e => e.type === 'consumed').length,
+          wasted: periodEvents.filter(e => e.type === 'wasted').length
         })
       }
     } else {
@@ -55,24 +62,25 @@ const AdvancedChartRecharts = () => {
       for (let i = 12; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - (i * 7))
-        const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        
-        // Generate realistic visitor data with similar but independent patterns
-        const baseConsumed = 350 + Math.sin(i * 0.5) * 150 + Math.random() * 80
-        const baseWasted = 200 + Math.sin(i * 0.4) * 120 + Math.random() * 60
-        
-        data.push({
-          date: dayName,
-          consumed: Math.round(baseConsumed),
-          wasted: Math.round(baseWasted)
+        const weekStart = new Date(date.setHours(0, 0, 0, 0))
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekEnd.getDate() + 7)
+
+        const weekEvents = data.pantryEvents.filter(e => {
+          const eventDate = new Date(e.at)
+          return eventDate >= weekStart && eventDate < weekEnd
+        })
+
+        result.push({
+          date: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          consumed: weekEvents.filter(e => e.type === 'consumed').length,
+          wasted: weekEvents.filter(e => e.type === 'wasted').length
         })
       }
     }
-    
-    return data
-  }
-  
-  const chartData = getDataForTimeRange(timeRange)
+
+    return result
+  }, [data, timeRange])
   
   // Chart configuration
   const chartConfig = {
@@ -91,11 +99,11 @@ const AdvancedChartRecharts = () => {
       <CardHeader>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <CardTitle>Total Visitors</CardTitle>
+            <CardTitle>Consumption & Waste Trends</CardTitle>
             <CardDescription>
-              {timeRange === '7d' ? 'Total for the last 7 days' :
-               timeRange === '30d' ? 'Total for the last 30 days' :
-               'Total for the last 3 months'}
+              {timeRange === '7d' ? 'Daily activity for the last 7 days' :
+               timeRange === '30d' ? 'Activity for the last 30 days' :
+               'Weekly activity for the last 3 months'}
             </CardDescription>
           </div>
           <div className="flex items-center space-x-4">
