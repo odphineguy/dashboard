@@ -17,6 +17,8 @@ import PricingPage from './pages/Pricing'
 import { useAuth } from './contexts/AuthContext'
 import AppSidebar from './components/AppSidebar'
 import Header from './components/Header'
+import FloatingActionButton from './components/FloatingActionButton'
+import QuickAddItemModal from './components/QuickAddItemModal'
 import { useState } from 'react'
 
 const ProtectedRoute = ({ element }) => {
@@ -35,6 +37,7 @@ const ProtectedRoute = ({ element }) => {
 
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
@@ -42,6 +45,14 @@ const MainLayout = ({ children }) => {
 
   const closeSidebar = () => {
     setSidebarOpen(false)
+  }
+
+  const handleQuickAdd = () => {
+    setIsQuickAddOpen(true)
+  }
+
+  const closeQuickAdd = () => {
+    setIsQuickAddOpen(false)
   }
 
   return (
@@ -73,6 +84,12 @@ const MainLayout = ({ children }) => {
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
+
+        {/* Floating Action Button */}
+        <FloatingActionButton onQuickAdd={handleQuickAdd} />
+
+        {/* Quick Add Item Modal */}
+        <QuickAddItemModal isOpen={isQuickAddOpen} onClose={closeQuickAdd} />
       </div>
     </div>
   )
