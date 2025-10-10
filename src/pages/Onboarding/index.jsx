@@ -276,9 +276,7 @@ const OnboardingPage = () => {
     setLoading(true)
     try {
       // Create auth user
-      const { data: authData, error: authError } = await signUp(formData.email, formData.password)
-
-      if (authError) throw authError
+      const authData = await signUp(formData.email, formData.password)
 
       const userId = authData?.user?.id
 
@@ -286,9 +284,16 @@ const OnboardingPage = () => {
         throw new Error('Failed to get user ID after signup')
       }
 
-      // Show email verification notification
-      setShowEmailVerification(true)
+      // Check if email verification is required
+      const needsVerification = authData?.needsEmailVerification || !authData?.session
 
+      if (needsVerification) {
+        // Email verification required - show modal and stop here
+        setShowEmailVerification(true)
+        return
+      }
+
+      // No email verification required - proceed with profile setup
       // Save onboarding data to profiles table
       const { error: profileError } = await supabase
         .from('profiles')
@@ -327,8 +332,8 @@ const OnboardingPage = () => {
         }
       }
 
-      // Don't navigate to dashboard - show email verification modal instead
-      // User will need to verify email before logging in
+      // Navigate to dashboard if email verification not required
+      navigate('/dashboard')
     } catch (error) {
       console.error('Signup error:', error)
 
