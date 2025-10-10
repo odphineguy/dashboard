@@ -47,12 +47,10 @@ const PricingPage = () => {
         'Expiry notifications',
         'Priority support',
         'Export data',
-        'Advanced meal planning'
+        'Advanced meal planning',
+        'Up to 3 household members'
       ],
-      limitations: [
-        'Single user only',
-        'No team collaboration'
-      ],
+      limitations: [],
       popular: true,
       cta: 'Start Premium Trial',
       icon: <Star className="h-6 w-6" />
@@ -266,11 +264,11 @@ const PricingPage = () => {
                   </div>
 
                   <Link to="/onboarding">
-                    <Button 
+                    <Button
                       className={`w-full ${
                         plan.popular
-                          ? 'bg-primary hover:bg-primary/90'
-                          : 'bg-secondary hover:bg-secondary/90'
+                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                          : 'bg-gray-900 hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900'
                       }`}
                     >
                       {plan.cta}
@@ -312,7 +310,7 @@ const PricingPage = () => {
                   { feature: 'AI Scanner Scans', basic: '10/month', premium: 'Unlimited', household: 'Unlimited' },
                   { feature: 'Recipe Suggestions', basic: 'Basic', premium: 'Advanced AI', household: 'Advanced AI' },
                   { feature: 'Analytics', basic: 'Basic', premium: 'Detailed', household: 'Household Analytics' },
-                  { feature: 'Household Members', basic: '1', premium: '1', household: 'Up to 6' },
+                  { feature: 'Household Members', basic: '1', premium: '3', household: 'Up to 6' },
                   { feature: 'Storage Locations', basic: 'Basic', premium: 'Advanced', household: 'Advanced' },
                   { feature: 'Support', basic: 'Email', premium: 'Priority', household: 'Priority' },
                   { feature: 'Data Export', basic: 'No', premium: 'Yes', household: 'Yes' }

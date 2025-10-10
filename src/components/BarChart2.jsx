@@ -1,100 +1,119 @@
-import React from 'react'
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import React, { useMemo } from 'react'
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Legend } from 'recharts'
 import { TrendingDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from './ui/chart'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart'
 
-const BarChart2 = () => {
-  const data = [
-    { name: 'Q1', value: 85, color: '#06b6d4' },
-    { name: 'Q2', value: 92, color: '#8b5cf6' },
-    { name: 'Q3', value: 78, color: '#f59e0b' },
-    { name: 'Q4', value: 88, color: '#10b981' }
-  ]
+const BarChart2 = ({ data }) => {
+  const chartData = useMemo(() => {
+    if (!data?.pantryEvents) return []
+
+    const now = new Date()
+    const result = []
+
+    // Last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
+
+      const monthEvents = data.pantryEvents.filter(e => {
+        const eventDate = new Date(e.at)
+        return eventDate >= monthStart && eventDate <= monthEnd
+      })
+
+      const consumed = monthEvents.filter(e => e.type === 'consumed').length
+      const wasted = monthEvents.filter(e => e.type === 'wasted').length
+
+      result.push({
+        name: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+        consumed,
+        wasted
+      })
+    }
+
+    return result
+  }, [data])
 
   const chartConfig = {
-    Q1: {
-      label: "Q1",
-      color: "#06b6d4",
-    },
-    Q2: {
-      label: "Q2", 
-      color: "#8b5cf6",
-    },
-    Q3: {
-      label: "Q3",
-      color: "#f59e0b",
-    },
-    Q4: {
-      label: "Q4",
+    consumed: {
+      label: "Consumed",
       color: "#10b981",
     },
+    wasted: {
+      label: "Wasted",
+      color: "#ef4444",
+    },
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Comparison</CardTitle>
+          <CardDescription>Last 6 months activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            No monthly data available
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quarterly Performance</CardTitle>
-        <CardDescription>2024 Performance Metrics</CardDescription>
+        <CardTitle>Monthly Comparison</CardTitle>
+        <CardDescription>Last 6 months activity</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-[300px] w-full"
         >
-          <RechartsBarChart 
-            data={data} 
+          <RechartsBarChart
+            data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             width={undefined}
             height={300}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="name" 
+            <XAxis
+              dataKey="name"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
             />
-            <YAxis 
+            <YAxis
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => `${value}%`}
             />
             <ChartTooltip
               content={
-                <ChartTooltipContent
-                  formatter={(value, name) => [
-                    `${value}%`,
-                    name
-                  ]}
-                />
+                <ChartTooltipContent />
               }
             />
-            <Bar 
-              dataKey="value" 
+            <Legend />
+            <Bar
+              dataKey="consumed"
+              fill={chartConfig.consumed.color}
               radius={[4, 4, 0, 0]}
-              fill="#06b6d4"
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Bar>
+            />
+            <Bar
+              dataKey="wasted"
+              fill={chartConfig.wasted.color}
+              radius={[4, 4, 0, 0]}
+            />
           </RechartsBarChart>
         </ChartContainer>
 
-        <ChartLegend
-          content={<ChartLegendContent nameKey="name" />}
-        />
-
         {/* Bottom description */}
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
-            Trending down by 1.8% this quarter
-            <TrendingDown className="h-4 w-4 text-chart-2" />
-          </div>
           <div className="text-sm text-muted-foreground">
-            Showing quarterly performance metrics
+            Comparing consumed vs wasted items over the last 6 months
           </div>
         </div>
       </CardContent>

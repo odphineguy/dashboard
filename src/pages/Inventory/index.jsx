@@ -305,27 +305,25 @@ const Inventory = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
-            {!isPersonal && currentHousehold && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-                {currentHousehold.name}
-              </Badge>
-            )}
-            {isPersonal && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                Personal
-              </Badge>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-muted-foreground mt-1">
             Track and manage your food items efficiently
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
+          {!isPersonal && currentHousehold && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+              {currentHousehold.name}
+            </Badge>
+          )}
+          {isPersonal && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500"></span>
+              Personal
+            </Badge>
+          )}
           <Button
             variant="default"
             onClick={() => {

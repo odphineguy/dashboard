@@ -204,22 +204,44 @@ const Dashboard = () => {
         return item.expiry_date > todayStr && item.expiry_date <= threeDaysStr
       }).length || 0
 
+      // Get events for last 30 days and previous 30 days for comparison
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+
       const { data: recentEvents } = await supabase
         .from('pantry_events')
-        .select('type')
+        .select('type, at')
         .eq('user_id', userId)
-        .gte('at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('at', sixtyDaysAgo.toISOString())
 
-      const consumedCount = recentEvents?.filter(e => e.type === 'consumed').length || 0
-      const wastedCount = recentEvents?.filter(e => e.type === 'wasted').length || 0
+      // Split into current and previous periods
+      const currentPeriodEvents = recentEvents?.filter(e => new Date(e.at) >= thirtyDaysAgo) || []
+      const previousPeriodEvents = recentEvents?.filter(e => {
+        const date = new Date(e.at)
+        return date >= sixtyDaysAgo && date < thirtyDaysAgo
+      }) || []
+
+      // Current period
+      const consumedCount = currentPeriodEvents.filter(e => e.type === 'consumed').length
+      const wastedCount = currentPeriodEvents.filter(e => e.type === 'wasted').length
       const totalEvents = consumedCount + wastedCount
       const wasteReduction = totalEvents > 0 ? Math.round((consumedCount / totalEvents) * 100) : 0
+
+      // Previous period
+      const prevConsumedCount = previousPeriodEvents.filter(e => e.type === 'consumed').length
+      const prevWastedCount = previousPeriodEvents.filter(e => e.type === 'wasted').length
+      const prevTotalEvents = prevConsumedCount + prevWastedCount
+      const prevWasteReduction = prevTotalEvents > 0 ? Math.round((prevConsumedCount / prevTotalEvents) * 100) : 0
+
+      // Calculate changes
+      const wasteReductionChange = wasteReduction - prevWasteReduction
 
       return {
         totalInventory,
         expiringToday,
         expiringSoon,
-        wasteReduction
+        wasteReduction,
+        wasteReductionChange
       }
     } catch (error) {
       console.error('Error calculating dashboard metrics:', error)
@@ -227,7 +249,8 @@ const Dashboard = () => {
         totalInventory: 0,
         expiringToday: 0,
         expiringSoon: 0,
-        wasteReduction: 0
+        wasteReduction: 0,
+        wasteReductionChange: 0
       }
     }
   }
@@ -354,8 +377,8 @@ const Dashboard = () => {
             value: metrics.totalInventory.toString(),
             subtitle: "items in pantry",
             icon: "Package",
-            trend: "up",
-            trendValue: "+0%",
+            trend: "neutral",
+            trendValue: "Current total",
             color: "primary"
           },
           {
@@ -364,7 +387,7 @@ const Dashboard = () => {
             subtitle: "items need attention",
             icon: "AlertTriangle",
             trend: metrics.expiringToday > 0 ? "up" : "down",
-            trendValue: "0%",
+            trendValue: metrics.expiringToday > 0 ? "Take action now" : "All good!",
             color: "warning"
           },
           {
@@ -372,17 +395,17 @@ const Dashboard = () => {
             value: metrics.expiringSoon.toString(),
             subtitle: "within 3 days",
             icon: "Clock",
-            trend: "up",
-            trendValue: "0%",
+            trend: metrics.expiringSoon > 0 ? "up" : "down",
+            trendValue: metrics.expiringSoon > 0 ? "Use soon" : "No urgent items",
             color: "orange"
           },
           {
-            title: "Waste Reduced",
+            title: "Success Rate",
             value: `${metrics.wasteReduction}%`,
-            subtitle: "consumption rate",
-            icon: "TrendingDown",
-            trend: "up",
-            trendValue: "0%",
+            subtitle: "food consumed (not wasted)",
+            icon: "TrendingUp",
+            trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
+            trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
             color: "success"
           }
         ])
@@ -470,29 +493,30 @@ const Dashboard = () => {
         <div className="px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                  Good {currentTime?.getHours() < 12 ? 'Morning' : currentTime?.getHours() < 17 ? 'Afternoon' : 'Evening'}{userProfile.full_name ? `, ${userProfile.full_name}` : ''}!
-                </h1>
-                {!isPersonal && currentHousehold && (
-                  <Badge variant="outline" className="text-sm flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-                    {currentHousehold.name}
-                  </Badge>
-                )}
-                {isPersonal && (
-                  <Badge variant="outline" className="text-sm flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                    Personal
-                  </Badge>
-                )}
-              </div>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Good {currentTime?.getHours() < 12 ? 'Morning' : currentTime?.getHours() < 17 ? 'Afternoon' : 'Evening'}{userProfile.full_name ? `, ${userProfile.full_name}` : ''}!
+              </h1>
+              <p className="text-muted-foreground mt-2">
                 {formatDate(currentTime)} • {formatTime(currentTime)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Let's check your pantry and reduce food waste today
               </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {!isPersonal && currentHousehold && (
+                <Badge variant="outline" className="text-sm flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+                  {currentHousehold.name}
+                </Badge>
+              )}
+              {isPersonal && (
+                <Badge variant="outline" className="text-sm flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                  Personal
+                </Badge>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { FileText, Download, Calendar, TrendingUp, Package, ChefHat, Users, FileSpreadsheet, FileJson } from 'lucide-react'
 import { Card } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
+import { Badge } from '../../components/ui/badge'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { supabase } from '../../lib/supabaseClient'
@@ -258,24 +259,25 @@ const Reports = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold">Reports & Data Export</h1>
-            {!isPersonal && currentHousehold && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-                {currentHousehold.name}
-              </Badge>
-            )}
-            {isPersonal && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                Personal
-              </Badge>
-            )}
-          </div>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold">Reports & Data Export</h1>
+          <p className="text-muted-foreground mt-2">
             Generate reports and export your data in various formats
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {!isPersonal && currentHousehold && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+              {currentHousehold.name}
+            </Badge>
+          )}
+          {isPersonal && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500"></span>
+              Personal
+            </Badge>
+          )}
         </div>
       </div>
 

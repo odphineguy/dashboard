@@ -425,10 +425,21 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
           <h2 className="text-2xl font-bold">AI Scanner</h2>
+          <p className="text-muted-foreground mt-1">
+            Scan barcodes and receipts to quickly add items to your inventory. Works on web, iOS Safari, and Android Chrome!
+          </p>
+          {!user && (
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+              ⚠️ Not logged in - items will be saved anonymously
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
           {!isPersonal && currentHousehold && (
             <Badge variant="outline" className="text-sm flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-orange-500"></span>
@@ -442,14 +453,6 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
             </Badge>
           )}
         </div>
-        <p className="text-muted-foreground">
-          Scan barcodes and receipts to quickly add items to your inventory. Works on web, iOS Safari, and Android Chrome!
-        </p>
-        {!user && (
-          <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
-            ⚠️ Not logged in - items will be saved anonymously
-          </p>
-        )}
       </div>
 
       {/* Barcode Scanner */}

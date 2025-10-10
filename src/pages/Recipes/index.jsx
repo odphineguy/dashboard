@@ -190,27 +190,28 @@ Make the recipes creative, practical, and use as many of the expiring ingredient
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <ChefHat className="h-7 w-7" />
-              Recipe Suggestions
-            </h1>
-            {!isPersonal && currentHousehold && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-                {currentHousehold.name}
-              </Badge>
-            )}
-            {isPersonal && (
-              <Badge variant="outline" className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                Personal
-              </Badge>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ChefHat className="h-7 w-7" />
+            Recipe Suggestions
+          </h1>
           <p className="text-muted-foreground mt-1">
             AI-powered recipes using your expiring ingredients
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {!isPersonal && currentHousehold && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+              {currentHousehold.name}
+            </Badge>
+          )}
+          {isPersonal && (
+            <Badge variant="outline" className="text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500"></span>
+              Personal
+            </Badge>
+          )}
         </div>
       </div>
 
