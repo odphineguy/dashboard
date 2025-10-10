@@ -126,6 +126,36 @@ src/pages/PageName/
 
 **Important:** Scanner modals should NOT be integrated into other pages due to API stability issues. Keep scanner on dedicated `/scanner` page.
 
+### Email Notifications
+
+**Status:** ✅ Implemented (Email only - no SMS or Push)
+
+**Architecture:**
+- **Edge Function**: `supabase/functions/send-email-notifications/index.ts`
+- **Email Service**: Resend API (free tier: 3,000 emails/month)
+- **Scheduling**: Supabase pg_cron for automated sending
+- **Templates**: Responsive HTML emails with item tables
+
+**Notification Types:**
+1. **Daily Digest** - Items expiring in 0-3 days (8 AM daily)
+2. **Critical Alerts** - Items expiring today (7 AM & 6 PM)
+3. **Weekly Summary** - Items expiring in next 7 days (Monday 8 AM)
+
+**User Control:**
+- Profile → Notification Preferences (email-only checkboxes)
+- Preferences stored in `profiles.notification_preferences` (JSONB)
+- Function respects user preferences before sending
+
+**Setup & Testing:**
+- See `EMAIL_NOTIFICATIONS_SETUP.md` for full deployment guide
+- Test script: `./test-email-notification.sh [daily|critical|weekly]`
+- Deploy: `supabase functions deploy send-email-notifications`
+
+**Key Files:**
+- `supabase/functions/send-email-notifications/index.ts` - Main edge function
+- `src/pages/Profile/components/NotificationPreferences.jsx` - UI component
+- `EMAIL_NOTIFICATIONS_SETUP.md` - Complete setup documentation
+
 ### Component Library
 
 **UI Components** (`src/components/ui/`):
