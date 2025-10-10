@@ -35,8 +35,18 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`
+      }
     })
     if (error) throw error
+
+    // Check if email confirmation is required
+    if (data?.user && !data?.session) {
+      // User created but needs to verify email - no session created
+      return { ...data, needsEmailVerification: true }
+    }
+
     return data
   }
 

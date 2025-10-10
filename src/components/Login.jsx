@@ -24,13 +24,22 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        await signUp(email, password)
-        setSuccess('Account created! Check your email to verify, or sign in directly.')
-        // Auto switch to sign in
-        setTimeout(() => {
-          setIsSignUp(false)
-          setSuccess(null)
-        }, 3000)
+        const result = await signUp(email, password)
+
+        // Check if email verification is required
+        if (result?.needsEmailVerification) {
+          setSuccess('✅ Account created! Please check your email to verify your account before signing in.')
+          setEmail('')
+          setPassword('')
+          // Don't auto-switch - keep the message visible
+        } else {
+          // Auto-confirm is enabled in Supabase - user can sign in immediately
+          setSuccess('Account created! You can now sign in.')
+          setTimeout(() => {
+            setIsSignUp(false)
+            setSuccess(null)
+          }, 2000)
+        }
       } else {
         await signIn(email, password)
         // Auth context will handle the user state change
