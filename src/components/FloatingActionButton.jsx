@@ -73,7 +73,7 @@ const FloatingActionButton = ({ onQuickAdd }) => {
         />
       )}
 
-      <div className="fixed bottom-6 right-6 z-50 pointer-events-none">
+      <div className="fixed bottom-6 right-6 z-50 pointer-events-none flex flex-col items-end">
         {/* Action Buttons */}
         <div className={cn(
           "flex flex-col-reverse gap-3 mb-3 transition-all duration-300 ease-in-out",
