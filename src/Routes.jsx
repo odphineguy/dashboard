@@ -20,10 +20,11 @@ import Header from './components/Header'
 import FloatingActionButton from './components/FloatingActionButton'
 import QuickAddItemModal from './components/QuickAddItemModal'
 import QuickScanModal from './components/QuickScanModal'
+import OnboardingGuard from './components/OnboardingGuard'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const ProtectedRoute = ({ element }) => {
+const ProtectedRoute = ({ element, skipOnboarding = false }) => {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -34,7 +35,12 @@ const ProtectedRoute = ({ element }) => {
     )
   }
 
-  return user ? element : <Login />
+  if (!user) return <Login />
+
+  // Skip onboarding check for onboarding page itself
+  if (skipOnboarding) return element
+
+  return <OnboardingGuard>{element}</OnboardingGuard>
 }
 
 const MainLayout = ({ children }) => {
@@ -126,7 +132,7 @@ const Routes = () => {
       <RouterRoutes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/onboarding" element={<ProtectedRoute skipOnboarding element={<OnboardingPage />} />} />
         <Route path="/pricing" element={<PricingPage />} />
 
         {/* Protected Routes */}
