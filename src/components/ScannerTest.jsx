@@ -28,6 +28,7 @@ export default function ScannerTest() {
   const [receiptError, setReceiptError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [autoTrigger, setAutoTrigger] = useState(null)
 
   // Gmail integration state
   const [gmailConnected, setGmailConnected] = useState(false)
@@ -61,22 +62,29 @@ export default function ScannerTest() {
 
   // Auto-trigger camera based on navigation state
   useEffect(() => {
-    if (location.state?.mode === 'barcode') {
-      // Trigger barcode camera
-      setTimeout(() => {
-        barcodeInputRef.current?.click()
-      }, 300)
-      // Clear state after triggering
-      window.history.replaceState({}, document.title)
-    } else if (location.state?.mode === 'receipt') {
-      // Trigger receipt camera
-      setTimeout(() => {
-        receiptInputRef.current?.click()
-      }, 300)
-      // Clear state after triggering
+    if (location.state?.mode) {
+      setAutoTrigger(location.state.mode)
+      // Clear state after setting
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
+
+  // Trigger camera input when autoTrigger is set
+  useEffect(() => {
+    if (autoTrigger === 'barcode' && barcodeInputRef.current) {
+      const timer = setTimeout(() => {
+        barcodeInputRef.current?.click()
+        setAutoTrigger(null)
+      }, 100)
+      return () => clearTimeout(timer)
+    } else if (autoTrigger === 'receipt' && receiptInputRef.current) {
+      const timer = setTimeout(() => {
+        receiptInputRef.current?.click()
+        setAutoTrigger(null)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [autoTrigger])
 
   // Initialize Google AI
   const getAI = () => {
