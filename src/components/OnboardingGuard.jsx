@@ -27,16 +27,17 @@ const OnboardingGuard = ({ children }) => {
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (error) {
           console.error('Error checking onboarding status:', error)
+          // If error, let them through and try to create profile
           setChecking(false)
           return
         }
 
-        // If onboarding not completed, redirect to onboarding
-        if (!profile?.onboarding_completed) {
+        // If profile doesn't exist OR onboarding not completed, redirect to onboarding
+        if (!profile || profile.onboarding_completed === false || profile.onboarding_completed === null) {
           navigate('/onboarding', { replace: true })
         } else {
           setChecking(false)
