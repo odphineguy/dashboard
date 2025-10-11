@@ -19,7 +19,9 @@ import AppSidebar from './components/AppSidebar'
 import Header from './components/Header'
 import FloatingActionButton from './components/FloatingActionButton'
 import QuickAddItemModal from './components/QuickAddItemModal'
+import QuickScanModal from './components/QuickScanModal'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const ProtectedRoute = ({ element }) => {
   const { user, loading } = useAuth()
@@ -38,6 +40,8 @@ const ProtectedRoute = ({ element }) => {
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
+  const [quickScanMode, setQuickScanMode] = useState(null)
+  const navigate = useNavigate()
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
@@ -53,6 +57,19 @@ const MainLayout = ({ children }) => {
 
   const closeQuickAdd = () => {
     setIsQuickAddOpen(false)
+  }
+
+  const handleQuickScan = (mode) => {
+    setQuickScanMode(mode)
+  }
+
+  const closeQuickScan = () => {
+    setQuickScanMode(null)
+  }
+
+  const handleScanFileSelect = (file, mode) => {
+    // Navigate to scanner with the file ready to process
+    navigate('/scanner', { state: { mode, file } })
   }
 
   return (
@@ -86,10 +103,18 @@ const MainLayout = ({ children }) => {
         </main>
 
         {/* Floating Action Button */}
-        <FloatingActionButton onQuickAdd={handleQuickAdd} />
+        <FloatingActionButton onQuickAdd={handleQuickAdd} onQuickScan={handleQuickScan} />
 
         {/* Quick Add Item Modal */}
         <QuickAddItemModal isOpen={isQuickAddOpen} onClose={closeQuickAdd} />
+
+        {/* Quick Scan Modal */}
+        <QuickScanModal
+          isOpen={!!quickScanMode}
+          onClose={closeQuickScan}
+          mode={quickScanMode}
+          onFileSelect={handleScanFileSelect}
+        />
       </div>
     </div>
   )

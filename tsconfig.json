@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": ["deno.ns"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
