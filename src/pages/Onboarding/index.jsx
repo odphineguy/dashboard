@@ -47,7 +47,44 @@ const OnboardingPage = () => {
   const [phoneScanAnimation, setPhoneScanAnimation] = useState(null)
   const [dashboardAnimation, setDashboardAnimation] = useState(null)
   const navigate = useNavigate()
-  const { signUp, signInWithGoogle, signInWithApple } = useAuth()
+  const { user, signUp, signInWithGoogle, signInWithApple } = useAuth()
+
+  // Handle OAuth users returning from redirect with pending onboarding data
+  React.useEffect(() => {
+    const handleOAuthReturn = async () => {
+      if (!user?.id) return
+
+      const pendingData = localStorage.getItem('pending_onboarding')
+      if (pendingData) {
+        try {
+          const data = JSON.parse(pendingData)
+
+          // Save onboarding completion to profile
+          await supabase
+            .from('profiles')
+            .update({
+              onboarding_completed: true,
+              onboarding_data: {
+                subscription_tier: data.subscription_tier,
+                account_type: data.account_type,
+                onboarded_at: new Date().toISOString()
+              }
+            })
+            .eq('id', user.id)
+
+          // Clear pending data
+          localStorage.removeItem('pending_onboarding')
+
+          // Redirect to dashboard
+          navigate('/dashboard')
+        } catch (error) {
+          console.error('Error saving OAuth onboarding data:', error)
+        }
+      }
+    }
+
+    handleOAuthReturn()
+  }, [user, navigate])
 
   // Load animations
   React.useEffect(() => {
@@ -299,6 +336,7 @@ const OnboardingPage = () => {
         .from('profiles')
         .update({
           full_name: formData.name || null,
+          onboarding_completed: true,
           onboarding_data: {
             subscription_tier: formData.subscriptionTier,
             account_type: formData.accountType,
