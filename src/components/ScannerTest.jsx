@@ -60,31 +60,23 @@ export default function ScannerTest() {
     checkGmailConnection()
   }, [user?.id])
 
-  // Auto-trigger camera based on navigation state
+  // Handle file from QuickScan modal
   useEffect(() => {
-    if (location.state?.mode) {
-      setAutoTrigger(location.state.mode)
-      // Clear state after setting
+    const file = location.state?.file
+    const mode = location.state?.mode
+
+    if (file && mode) {
+      // Process the file directly
+      const fakeEvent = { target: { files: [file] } }
+      if (mode === 'barcode') {
+        handleBarcodeUpload(fakeEvent)
+      } else if (mode === 'receipt') {
+        handleReceiptUpload(fakeEvent)
+      }
+      // Clear state after processing
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
-
-  // Trigger camera input when autoTrigger is set
-  useEffect(() => {
-    if (autoTrigger === 'barcode' && barcodeInputRef.current) {
-      const timer = setTimeout(() => {
-        barcodeInputRef.current?.click()
-        setAutoTrigger(null)
-      }, 100)
-      return () => clearTimeout(timer)
-    } else if (autoTrigger === 'receipt' && receiptInputRef.current) {
-      const timer = setTimeout(() => {
-        receiptInputRef.current?.click()
-        setAutoTrigger(null)
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [autoTrigger])
 
   // Initialize Google AI
   const getAI = () => {

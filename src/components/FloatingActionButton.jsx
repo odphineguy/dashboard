@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, X, Camera, ScanLine, PlusCircle, ChefHat } from 'lucide-react'
 import { cn } from '../lib/utils'
 
-const FloatingActionButton = ({ onQuickAdd }) => {
+const FloatingActionButton = ({ onQuickAdd, onQuickScan }) => {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -16,10 +16,10 @@ const FloatingActionButton = ({ onQuickAdd }) => {
 
     switch (action) {
       case 'scan-receipt':
-        navigate('/scanner', { state: { mode: 'receipt' } })
+        onQuickScan?.('receipt')
         break
       case 'scan-barcode':
-        navigate('/scanner', { state: { mode: 'barcode' } })
+        onQuickScan?.('barcode')
         break
       case 'add-item':
         onQuickAdd?.()
