@@ -201,51 +201,52 @@ const Inventory = () => {
     setIsAddModalOpen(true)
   }
 
-  const handleDeleteItem = async (itemId) => {
-    if (!confirm('Are you sure you want to delete this item?')) return
-
-    const { error } = await supabase
-      .from('pantry_items')
-      .delete()
-      .eq('id', itemId)
-
-    if (error) {
-      console.error('Error deleting item:', error)
-      return
-    }
-
-    setInventoryItems(prev => prev.filter(item => item.id !== itemId))
-    setSelectedItems(prev => prev.filter(id => id !== itemId))
-  }
 
   const handleConsumed = async (item) => {
     if (!user?.id) return
 
     try {
-      // Create pantry event
+      // Record 1 unit consumed
       const { error: eventError } = await supabase
         .from('pantry_events')
         .insert([{
           user_id: user.id,
           item_id: item.id,
           type: 'consumed',
-          quantity: item.quantity,
+          quantity: 1,
           at: new Date().toISOString()
         }])
 
       if (eventError) throw eventError
 
-      // Delete the item from inventory
-      const { error: deleteError } = await supabase
-        .from('pantry_items')
-        .delete()
-        .eq('id', item.id)
+      const newQuantity = item.quantity - 1
 
-      if (deleteError) throw deleteError
+      if (newQuantity <= 0) {
+        // Delete the item if quantity reaches 0
+        const { error: deleteError } = await supabase
+          .from('pantry_items')
+          .delete()
+          .eq('id', item.id)
 
-      // Update UI
-      setInventoryItems(prev => prev.filter(i => i.id !== item.id))
-      setSelectedItems(prev => prev.filter(id => id !== item.id))
+        if (deleteError) throw deleteError
+
+        // Update UI - remove item
+        setInventoryItems(prev => prev.filter(i => i.id !== item.id))
+        setSelectedItems(prev => prev.filter(id => id !== item.id))
+      } else {
+        // Update the quantity
+        const { error: updateError } = await supabase
+          .from('pantry_items')
+          .update({ quantity: newQuantity })
+          .eq('id', item.id)
+
+        if (updateError) throw updateError
+
+        // Update UI - reduce quantity
+        setInventoryItems(prev => prev.map(i =>
+          i.id === item.id ? { ...i, quantity: newQuantity } : i
+        ))
+      }
 
       // Check for badges
       await checkBadges('item_consumed')
@@ -259,30 +260,47 @@ const Inventory = () => {
     if (!user?.id) return
 
     try {
-      // Create pantry event
+      // Record 1 unit wasted
       const { error: eventError } = await supabase
         .from('pantry_events')
         .insert([{
           user_id: user.id,
           item_id: item.id,
           type: 'wasted',
-          quantity: item.quantity,
+          quantity: 1,
           at: new Date().toISOString()
         }])
 
       if (eventError) throw eventError
 
-      // Delete the item from inventory
-      const { error: deleteError } = await supabase
-        .from('pantry_items')
-        .delete()
-        .eq('id', item.id)
+      const newQuantity = item.quantity - 1
 
-      if (deleteError) throw deleteError
+      if (newQuantity <= 0) {
+        // Delete the item if quantity reaches 0
+        const { error: deleteError } = await supabase
+          .from('pantry_items')
+          .delete()
+          .eq('id', item.id)
 
-      // Update UI
-      setInventoryItems(prev => prev.filter(i => i.id !== item.id))
-      setSelectedItems(prev => prev.filter(id => id !== item.id))
+        if (deleteError) throw deleteError
+
+        // Update UI - remove item
+        setInventoryItems(prev => prev.filter(i => i.id !== item.id))
+        setSelectedItems(prev => prev.filter(id => id !== item.id))
+      } else {
+        // Update the quantity
+        const { error: updateError } = await supabase
+          .from('pantry_items')
+          .update({ quantity: newQuantity })
+          .eq('id', item.id)
+
+        if (updateError) throw updateError
+
+        // Update UI - reduce quantity
+        setInventoryItems(prev => prev.map(i =>
+          i.id === item.id ? { ...i, quantity: newQuantity } : i
+        ))
+      }
     } catch (error) {
       console.error('Error marking item as wasted:', error)
       alert('Failed to mark item as wasted')
@@ -374,17 +392,6 @@ const Inventory = () => {
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (confirm(`Delete ${selectedItems.length} item(s)?`)) {
-                  selectedItems.forEach(id => handleDeleteItem(id))
-                }
-              }}
-            >
-              Delete Selected
-            </Button>
           </div>
         </div>
       )}
@@ -396,7 +403,6 @@ const Inventory = () => {
         onSelectItem={handleSelectItem}
         onSelectAll={handleSelectAll}
         onEditItem={handleEditItem}
-        onDeleteItem={handleDeleteItem}
         onConsumed={handleConsumed}
         onWasted={handleWasted}
         isAllSelected={selectedItems?.length === filteredItems?.length && filteredItems?.length > 0}
