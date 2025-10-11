@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { supabase } from '../../lib/supabaseClient'
 import { Badge } from '../../components/ui/badge'
+import ViewSwitcher from '../../components/ViewSwitcher'
 import KPICards from '../../components/KPICards'
 import AdvancedChart from '../../components/AdvancedChartRecharts'
 import PieChart from '../../components/PieChart'
@@ -99,18 +100,7 @@ const Analytics = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {!isPersonal && currentHousehold && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-              {currentHousehold.name}
-            </Badge>
-          )}
-          {isPersonal && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500"></span>
-              Personal
-            </Badge>
-          )}
+          <ViewSwitcher />
         </div>
       </div>
 
