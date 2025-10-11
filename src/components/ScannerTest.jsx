@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Camera, Receipt, Upload, Loader2, CheckCircle, XCircle, Save, Mail, RefreshCw, LogOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -11,11 +11,15 @@ import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
 import BadgeCelebration from './BadgeCelebration'
 import ViewSwitcher from './ViewSwitcher'
 import { toast } from 'sonner'
+import { useLocation } from 'react-router-dom'
 
 export default function ScannerTest() {
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
+  const location = useLocation()
+  const barcodeInputRef = useRef(null)
+  const receiptInputRef = useRef(null)
   const [barcodeLoading, setBarcodeLoading] = useState(false)
   const [receiptLoading, setReceiptLoading] = useState(false)
   const [barcodeResult, setBarcodeResult] = useState(null)
@@ -54,6 +58,25 @@ export default function ScannerTest() {
 
     checkGmailConnection()
   }, [user?.id])
+
+  // Auto-trigger camera based on navigation state
+  useEffect(() => {
+    if (location.state?.mode === 'barcode') {
+      // Trigger barcode camera
+      setTimeout(() => {
+        barcodeInputRef.current?.click()
+      }, 300)
+      // Clear state after triggering
+      window.history.replaceState({}, document.title)
+    } else if (location.state?.mode === 'receipt') {
+      // Trigger receipt camera
+      setTimeout(() => {
+        receiptInputRef.current?.click()
+      }, 300)
+      // Clear state after triggering
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   // Initialize Google AI
   const getAI = () => {
@@ -464,6 +487,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
               disabled={barcodeLoading}
             >
               <input
+                ref={barcodeInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
@@ -637,6 +661,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
               disabled={receiptLoading}
             >
               <input
+                ref={receiptInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
