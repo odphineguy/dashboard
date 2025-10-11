@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
 import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
 import BadgeCelebration from './BadgeCelebration'
+import ViewSwitcher from './ViewSwitcher'
 import { toast } from 'sonner'
 
 export default function ScannerTest() {
@@ -440,18 +441,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
         </div>
 
         <div className="flex items-center gap-3">
-          {!isPersonal && currentHousehold && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-              {currentHousehold.name}
-            </Badge>
-          )}
-          {isPersonal && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500"></span>
-              Personal
-            </Badge>
-          )}
+          <ViewSwitcher />
         </div>
       </div>
 

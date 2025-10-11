@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Meal Saver Dashboard** is a React-based food pantry management application that helps users track inventory, reduce food waste, and get AI-powered recipe suggestions. The app uses Supabase for backend services and Google Gemini for AI features.
 
+## Working with the Project Owner
+
+**CRITICAL: Design Decision Authority**
+
+The project owner is the final decision-maker on ALL design-related aspects of this project. When working on this codebase:
+
+- **NEVER make autonomous design choices** - Always implement exactly what is requested
+- **DO NOT offer design suggestions or alternatives** unless explicitly asked
+- **DO NOT question design decisions** - Execute them as specified
+- **FOCUS on implementation efficiency** - Avoid wasting time/tokens on unnecessary analysis
+- If something seems unclear, ask for clarification on implementation details, not design rationale
+
+**Performance Expectations:**
+- Use efficient approaches from the start (Task tool for complex operations, avoid repeated Read calls)
+- Stop immediately if an approach isn't working - don't retry the same failing strategy
+- Be mindful of token usage - avoid verbose explanations or over-analysis
+- Complete tasks quickly and move on
+
 > **Note on Project Name:** This project was initially named "smart_pantry" and you may see this name referenced in:
 > - Google Cloud Console (OAuth client names, API configurations)
 > - Supabase project settings and database names

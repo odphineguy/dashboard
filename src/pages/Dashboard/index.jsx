@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { Badge } from '../../components/ui/badge'
 import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
 import BadgeCelebration from '../../components/BadgeCelebration'
+import ViewSwitcher from '../../components/ViewSwitcher'
 
 const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -505,18 +506,7 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              {!isPersonal && currentHousehold && (
-                <Badge variant="outline" className="text-sm flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-                  {currentHousehold.name}
-                </Badge>
-              )}
-              {isPersonal && (
-                <Badge variant="outline" className="text-sm flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                  Personal
-                </Badge>
-              )}
+              <ViewSwitcher />
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { supabase } from '../../lib/supabaseClient'
+import ViewSwitcher from '../../components/ViewSwitcher'
 
 const StorageLocations = () => {
   const { user } = useAuth()
@@ -165,18 +166,7 @@ const StorageLocations = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {!isPersonal && currentHousehold && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-              {currentHousehold.name}
-            </Badge>
-          )}
-          {isPersonal && (
-            <Badge variant="outline" className="text-sm flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500"></span>
-              Personal
-            </Badge>
-          )}
+          <ViewSwitcher />
           {locations.length === 0 && (
             <Button onClick={handleAddDefaultLocations} variant="outline">
               <Home className="h-4 w-4 mr-2" />
