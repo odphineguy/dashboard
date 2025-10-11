@@ -9,7 +9,6 @@ const InventoryTable = ({
   onSelectItem,
   onSelectAll,
   onEditItem,
-  onDeleteItem,
   onConsumed,
   onWasted,
   isAllSelected,
@@ -215,15 +214,6 @@ const InventoryTable = ({
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDeleteItem(item?.id)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete item"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -291,15 +281,6 @@ const InventoryTable = ({
                     >
                       <Edit2 className="h-3 w-3 mr-1" />
                       Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDeleteItem(item?.id)}
-                      className="text-red-500 border-red-200 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
                     </Button>
                   </div>
                 </div>
