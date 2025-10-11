@@ -28,11 +28,17 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabaseClient'
 
 const OnboardingPage = () => {
-  const [currentStep, setCurrentStep] = useState(1)
+  const { user, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { isDark } = useTheme()
+  const navigate = useNavigate()
+
+  // If user is already authenticated (OAuth), skip to step 2 (plan selection)
+  const isOAuthUser = !!user
+  const [currentStep, setCurrentStep] = useState(isOAuthUser ? 2 : 1)
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: user?.user_metadata?.full_name || '',
+    email: user?.email || '',
     password: '',
     accountType: '', // 'personal' or 'household'
     subscriptionTier: '', // 'free', 'premium', 'household_premium'
@@ -46,45 +52,7 @@ const OnboardingPage = () => {
   const [recipeBookAnimation, setRecipeBookAnimation] = useState(null)
   const [phoneScanAnimation, setPhoneScanAnimation] = useState(null)
   const [dashboardAnimation, setDashboardAnimation] = useState(null)
-  const navigate = useNavigate()
-  const { user, signUp, signInWithGoogle, signInWithApple } = useAuth()
 
-  // Handle OAuth users returning from redirect with pending onboarding data
-  React.useEffect(() => {
-    const handleOAuthReturn = async () => {
-      if (!user?.id) return
-
-      const pendingData = localStorage.getItem('pending_onboarding')
-      if (pendingData) {
-        try {
-          const data = JSON.parse(pendingData)
-
-          // Save onboarding completion to profile
-          await supabase
-            .from('profiles')
-            .update({
-              onboarding_completed: true,
-              onboarding_data: {
-                subscription_tier: data.subscription_tier,
-                account_type: data.account_type,
-                onboarded_at: new Date().toISOString()
-              }
-            })
-            .eq('id', user.id)
-
-          // Clear pending data
-          localStorage.removeItem('pending_onboarding')
-
-          // Redirect to dashboard
-          navigate('/dashboard')
-        } catch (error) {
-          console.error('Error saving OAuth onboarding data:', error)
-        }
-      }
-    }
-
-    handleOAuthReturn()
-  }, [user, navigate])
 
   // Load animations
   React.useEffect(() => {
@@ -224,12 +192,18 @@ const OnboardingPage = () => {
       return
     }
 
-    // Validation for step 3 (account creation)
-    if (currentStep === 3) {
+    // Validation for step 3 (account creation) - skip for OAuth users
+    if (currentStep === 3 && !isOAuthUser) {
       if (!formData.email || !formData.password) {
         alert('Please fill in email and password')
         return
       }
+    }
+
+    // For OAuth users, skip step 3 (account creation) since they're already authenticated
+    if (currentStep === 2 && isOAuthUser) {
+      setCurrentStep(4) // Skip to step 4
+      return
     }
 
     if (currentStep < steps.length) {
@@ -238,25 +212,22 @@ const OnboardingPage = () => {
   }
 
   const handleBack = () => {
+    // For OAuth users on step 4, go back to step 2 (skip step 3)
+    if (currentStep === 4 && isOAuthUser) {
+      setCurrentStep(2)
+      return
+    }
+
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
   }
 
   const handleGoogleSignIn = async () => {
-    // For Google sign-in during onboarding, we'll save the onboarding data after redirect
-    // Store subscription tier selection in localStorage to retrieve after OAuth redirect
-    if (formData.subscriptionTier) {
-      localStorage.setItem('pending_onboarding', JSON.stringify({
-        subscription_tier: formData.subscriptionTier,
-        account_type: formData.accountType
-      }))
-    }
-
     setLoading(true)
     try {
       await signInWithGoogle()
-      // OAuth will handle the redirect - onboarding data will be saved after redirect
+      // OAuth will redirect to /onboarding where user completes the flow
     } catch (err) {
       console.error('Google sign-in error:', err)
       alert(err.message || 'Google sign-in failed')
@@ -265,19 +236,10 @@ const OnboardingPage = () => {
   }
 
   const handleAppleSignIn = async () => {
-    // For Apple sign-in during onboarding, we'll save the onboarding data after redirect
-    // Store subscription tier selection in localStorage to retrieve after OAuth redirect
-    if (formData.subscriptionTier) {
-      localStorage.setItem('pending_onboarding', JSON.stringify({
-        subscription_tier: formData.subscriptionTier,
-        account_type: formData.accountType
-      }))
-    }
-
     setLoading(true)
     try {
       await signInWithApple()
-      // OAuth will handle the redirect - onboarding data will be saved after redirect
+      // OAuth will redirect to /onboarding where user completes the flow
     } catch (err) {
       console.error('Apple sign-in error:', err)
       alert(err.message || 'Apple sign-in failed')
@@ -286,25 +248,6 @@ const OnboardingPage = () => {
   }
 
   const handleSubmit = async () => {
-    // Validate required fields
-    if (!formData.email || !formData.password) {
-      alert('Please fill in all required fields')
-      return
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      alert('Please enter a valid email address')
-      return
-    }
-
-    // Validate password length
-    if (formData.password.length < 6) {
-      alert('Password must be at least 6 characters long')
-      return
-    }
-
     if (!formData.subscriptionTier) {
       alert('Please select a subscription plan')
       return
@@ -312,26 +255,53 @@ const OnboardingPage = () => {
 
     setLoading(true)
     try {
-      // Create auth user
-      const authData = await signUp(formData.email, formData.password)
+      let userId = user?.id
 
-      const userId = authData?.user?.id
-
+      // If not OAuth user (no user yet), create account with email/password
       if (!userId) {
-        throw new Error('Failed to get user ID after signup')
+        // Validate required fields for email signup
+        if (!formData.email || !formData.password) {
+          alert('Please fill in all required fields')
+          setLoading(false)
+          return
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(formData.email)) {
+          alert('Please enter a valid email address')
+          setLoading(false)
+          return
+        }
+
+        // Validate password length
+        if (formData.password.length < 6) {
+          alert('Password must be at least 6 characters long')
+          setLoading(false)
+          return
+        }
+
+        // Create auth user
+        const authData = await signUp(formData.email, formData.password)
+
+        userId = authData?.user?.id
+
+        if (!userId) {
+          throw new Error('Failed to get user ID after signup')
+        }
+
+        // Check if email verification is required
+        const needsVerification = authData?.needsEmailVerification || !authData?.session
+
+        if (needsVerification) {
+          // Email verification required - show modal and stop here
+          setShowEmailVerification(true)
+          setLoading(false)
+          return
+        }
       }
 
-      // Check if email verification is required
-      const needsVerification = authData?.needsEmailVerification || !authData?.session
-
-      if (needsVerification) {
-        // Email verification required - show modal and stop here
-        setShowEmailVerification(true)
-        return
-      }
-
-      // No email verification required - proceed with profile setup
-      // Save onboarding data to profiles table
+      // Save onboarding data to profiles table (for both OAuth and email users)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -370,7 +340,7 @@ const OnboardingPage = () => {
         }
       }
 
-      // Navigate to dashboard if email verification not required
+      // Navigate to dashboard
       navigate('/dashboard')
     } catch (error) {
       console.error('Signup error:', error)
@@ -897,10 +867,10 @@ const OnboardingPage = () => {
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || !formData.email || !formData.password}
+                    disabled={loading || (!isOAuthUser && (!formData.email || !formData.password))}
                     className="bg-primary hover:bg-primary/90 flex items-center"
                   >
-                    {loading ? 'Creating Account...' : 'Get Started'}
+                    {loading ? 'Completing Setup...' : 'Get Started'}
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
