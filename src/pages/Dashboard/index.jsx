@@ -297,7 +297,9 @@ const Dashboard = () => {
         return {
           id: item.id,
           name: item.name,
-          quantity: `${item.quantity || 1} ${item.unit || 'unit'}`,
+          quantity: item.quantity,
+          unit: item.unit,
+          quantityDisplay: `${item.quantity || 1} ${item.unit || 'unit'}`,
           expiryDate: item.expiry_date,
           category: item.category || 'other',
           image: null,
@@ -309,6 +311,199 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error loading expiring items:', error)
       setExpiringItems([])
+    }
+  }
+
+  const handleConsumed = async (item) => {
+    if (!user?.id) return
+
+    try {
+      // Record 1 unit consumed
+      const { error: eventError } = await supabase
+        .from('pantry_events')
+        .insert([{
+          user_id: user.id,
+          item_id: item.id,
+          type: 'consumed',
+          quantity: 1,
+          at: new Date().toISOString()
+        }])
+
+      if (eventError) throw eventError
+
+      const newQuantity = item.quantity - 1
+
+      if (newQuantity <= 0) {
+        // Delete the item if quantity reaches 0
+        const { error: deleteError } = await supabase
+          .from('pantry_items')
+          .delete()
+          .eq('id', item.id)
+
+        if (deleteError) throw deleteError
+
+        // Update UI - remove item
+        setExpiringItems(prev => prev.filter(i => i.id !== item.id))
+      } else {
+        // Update the quantity
+        const { error: updateError } = await supabase
+          .from('pantry_items')
+          .update({ quantity: newQuantity })
+          .eq('id', item.id)
+
+        if (updateError) throw updateError
+
+        // Update UI - reduce quantity
+        setExpiringItems(prev => prev.map(i =>
+          i.id === item.id ? {
+            ...i,
+            quantity: newQuantity,
+            quantityDisplay: `${newQuantity} ${i.unit || 'unit'}`
+          } : i
+        ))
+      }
+
+      // Check for badges
+      await checkBadges('item_consumed')
+
+      // Refresh metrics
+      const metrics = await calculateDashboardMetrics(user.id)
+      setMetricsData([
+        {
+          title: "Total Inventory",
+          value: metrics.totalInventory.toString(),
+          subtitle: "items in pantry",
+          icon: "Package",
+          trend: "neutral",
+          trendValue: "Current total",
+          color: "primary"
+        },
+        {
+          title: "Expiring Today",
+          value: metrics.expiringToday.toString(),
+          subtitle: "items need attention",
+          icon: "AlertTriangle",
+          trend: metrics.expiringToday > 0 ? "up" : "down",
+          trendValue: metrics.expiringToday > 0 ? "Take action now" : "All good!",
+          color: "warning"
+        },
+        {
+          title: "Expiring Soon",
+          value: metrics.expiringSoon.toString(),
+          subtitle: "within 3 days",
+          icon: "Clock",
+          trend: metrics.expiringSoon > 0 ? "up" : "down",
+          trendValue: metrics.expiringSoon > 0 ? "Use soon" : "No urgent items",
+          color: "orange"
+        },
+        {
+          title: "Success Rate",
+          value: `${metrics.wasteReduction}%`,
+          subtitle: "food consumed (not wasted)",
+          icon: "TrendingUp",
+          trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
+          trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
+          color: "success"
+        }
+      ])
+    } catch (error) {
+      console.error('Error marking item as consumed:', error)
+      alert('Failed to mark item as consumed')
+    }
+  }
+
+  const handleWasted = async (item) => {
+    if (!user?.id) return
+
+    try {
+      // Record 1 unit wasted
+      const { error: eventError } = await supabase
+        .from('pantry_events')
+        .insert([{
+          user_id: user.id,
+          item_id: item.id,
+          type: 'wasted',
+          quantity: 1,
+          at: new Date().toISOString()
+        }])
+
+      if (eventError) throw eventError
+
+      const newQuantity = item.quantity - 1
+
+      if (newQuantity <= 0) {
+        // Delete the item if quantity reaches 0
+        const { error: deleteError } = await supabase
+          .from('pantry_items')
+          .delete()
+          .eq('id', item.id)
+
+        if (deleteError) throw deleteError
+
+        // Update UI - remove item
+        setExpiringItems(prev => prev.filter(i => i.id !== item.id))
+      } else {
+        // Update the quantity
+        const { error: updateError } = await supabase
+          .from('pantry_items')
+          .update({ quantity: newQuantity })
+          .eq('id', item.id)
+
+        if (updateError) throw updateError
+
+        // Update UI - reduce quantity
+        setExpiringItems(prev => prev.map(i =>
+          i.id === item.id ? {
+            ...i,
+            quantity: newQuantity,
+            quantityDisplay: `${newQuantity} ${i.unit || 'unit'}`
+          } : i
+        ))
+      }
+
+      // Refresh metrics
+      const metrics = await calculateDashboardMetrics(user.id)
+      setMetricsData([
+        {
+          title: "Total Inventory",
+          value: metrics.totalInventory.toString(),
+          subtitle: "items in pantry",
+          icon: "Package",
+          trend: "neutral",
+          trendValue: "Current total",
+          color: "primary"
+        },
+        {
+          title: "Expiring Today",
+          value: metrics.expiringToday.toString(),
+          subtitle: "items need attention",
+          icon: "AlertTriangle",
+          trend: metrics.expiringToday > 0 ? "up" : "down",
+          trendValue: metrics.expiringToday > 0 ? "Take action now" : "All good!",
+          color: "warning"
+        },
+        {
+          title: "Expiring Soon",
+          value: metrics.expiringSoon.toString(),
+          subtitle: "within 3 days",
+          icon: "Clock",
+          trend: metrics.expiringSoon > 0 ? "up" : "down",
+          trendValue: metrics.expiringSoon > 0 ? "Use soon" : "No urgent items",
+          color: "orange"
+        },
+        {
+          title: "Success Rate",
+          value: `${metrics.wasteReduction}%`,
+          subtitle: "food consumed (not wasted)",
+          icon: "TrendingUp",
+          trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
+          trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
+          color: "success"
+        }
+      ])
+    } catch (error) {
+      console.error('Error marking item as wasted:', error)
+      alert('Failed to mark item as wasted')
     }
   }
 
@@ -541,7 +736,12 @@ const Dashboard = () => {
           <div className="overflow-x-auto">
             <div className="flex space-x-4 pb-4">
               {expiringItems?.map((item) => (
-                <ExpiringItemCard key={item?.id} item={item} />
+                <ExpiringItemCard
+                  key={item?.id}
+                  item={item}
+                  onConsumed={handleConsumed}
+                  onWasted={handleWasted}
+                />
               ))}
             </div>
           </div>

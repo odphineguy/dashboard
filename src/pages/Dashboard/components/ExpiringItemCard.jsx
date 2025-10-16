@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Package, Check, Trash2 } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 
-const ExpiringItemCard = ({ item }) => {
+const ExpiringItemCard = ({ item, onConsumed, onWasted }) => {
+  const [isProcessing, setIsProcessing] = useState(false)
   const getUrgencyConfig = (status) => {
     switch (status) {
       case 'expired':
@@ -79,14 +80,23 @@ const ExpiringItemCard = ({ item }) => {
 
       <div className="flex items-center text-sm text-muted-foreground mb-3">
         <Package size={14} className="mr-1.5" />
-        <span className="truncate">{item?.quantity}</span>
+        <span className="truncate">{item?.quantityDisplay || item?.quantity}</span>
       </div>
 
       <div className="flex items-center gap-2 mt-auto">
         <Button
           variant="outline"
           size="sm"
-          className="flex-1 h-8 text-xs border-green-500 text-green-600 hover:bg-green-50"
+          className="flex-1 h-8 text-xs border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+          onClick={async () => {
+            setIsProcessing(true)
+            try {
+              await onConsumed?.(item)
+            } finally {
+              setIsProcessing(false)
+            }
+          }}
+          disabled={isProcessing}
         >
           <Check className="h-3 w-3 mr-1" />
           Consumed
@@ -94,7 +104,16 @@ const ExpiringItemCard = ({ item }) => {
         <Button
           variant="outline"
           size="sm"
-          className="flex-1 h-8 text-xs border-red-500 text-red-600 hover:bg-red-50"
+          className="flex-1 h-8 text-xs border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+          onClick={async () => {
+            setIsProcessing(true)
+            try {
+              await onWasted?.(item)
+            } finally {
+              setIsProcessing(false)
+            }
+          }}
+          disabled={isProcessing}
         >
           <Trash2 className="h-3 w-3 mr-1" />
           Wasted

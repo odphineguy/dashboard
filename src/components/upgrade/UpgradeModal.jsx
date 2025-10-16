@@ -15,8 +15,8 @@ const UpgradeModal = ({ isOpen, onClose, currentTier = 'free' }) => {
     {
       id: 'premium',
       name: 'Premium',
-      price: '$14.99/mo',
-      yearlyPrice: '$99/year',
+      price: '$9.99/mo',
+      yearlyPrice: '$99.99/year',
       icon: <Sparkles className="h-6 w-6" />,
       description: 'Perfect for power users',
       features: [
@@ -32,8 +32,8 @@ const UpgradeModal = ({ isOpen, onClose, currentTier = 'free' }) => {
     {
       id: 'household_premium',
       name: 'Household Premium',
-      price: '$14.99/mo',
-      yearlyPrice: '$149/year',
+      price: '$9.99/mo',
+      yearlyPrice: '$99.99/year',
       icon: <Users className="h-6 w-6" />,
       description: 'Best for families',
       popular: true,
