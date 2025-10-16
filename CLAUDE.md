@@ -59,9 +59,18 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Google AI (Scanner & Recipe Generation)
 VITE_GOOGLE_GENAI_API_KEY=your_google_ai_key
+
+# Stripe (Payment Processing)
+VITE_STRIPE_PUBLIC_KEY=your_stripe_public_key
 ```
 
 **Note:** All environment variables must be prefixed with `VITE_` to be accessible in the React app.
+
+**Supabase Secrets** (for Edge Functions):
+```bash
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_webhook_signing_secret
+```
 
 ## Architecture
 
@@ -97,8 +106,10 @@ Managed by `AuthContext` (`src/contexts/AuthContext.jsx`):
 **Key Tables:**
 - `pantry_items` - User's food inventory (name, quantity, expiry_date, category, user_id, household_id)
 - `pantry_events` - Consumption/waste tracking (type: 'consumed'|'wasted', quantity, at, user_id)
-- `profiles` - User profiles (full_name, avatar)
-- `households` - Multi-user household groups (planned, not yet implemented)
+- `profiles` - User profiles (full_name, avatar, subscription_tier, subscription_status, stripe_customer_id)
+- `subscriptions` - Stripe subscription tracking (stripe_subscription_id, plan_tier, status, current_period_end)
+- `payment_history` - Payment audit trail (stripe_payment_intent_id, amount, status)
+- `households` - Multi-user household groups (implemented)
 
 **Data Access Pattern:**
 ```javascript
@@ -126,6 +137,8 @@ src/pages/PageName/
 3. **Inventory** (`/inventory`) - Full CRUD for pantry items with search, filters, bulk actions
 4. **Recipes** (`/recipes`) - AI-generated recipes based on expiring ingredients
 5. **Scanner** (`/scanner`) - AI-powered barcode/receipt scanning (dedicated page)
+6. **Pricing** (`/pricing`) - Subscription plan comparison and selection
+7. **Profile** (`/profile`) - User settings, subscription management, notification preferences
 
 ### AI Integration
 
@@ -283,20 +296,112 @@ const generateRecipes = async () => {
 }
 ```
 
+## Subscription & Payment System
+
+**Status:** ✅ Implemented with Stripe
+
+### Subscription Tiers
+
+**1. Basic (Free Forever)**
+- Price: $0/month
+- Up to 50 pantry items
+- AI scanner (10 scans/month)
+- Basic recipe suggestions (3/week)
+- 3 storage locations (1 Pantry, 1 Refrigerator, 1 Freezer)
+- Single user only
+- Basic analytics
+
+**2. Premium**
+- Price: **$14.99/month** or **$99/year** (save 2 months)
+- Unlimited pantry items
+- Unlimited AI scanner
+- Advanced recipe generation (unlimited)
+- 5 storage locations (+ Counter, Cabinet)
+- Up to 3 household members
+- Advanced analytics
+- Priority support
+- All email notifications
+
+**3. Household Premium**
+- Price: **$14.99/month** or **$149/year** (save 2 months)
+- Everything in Premium PLUS:
+- Unlimited household members
+- Unlimited storage locations
+- Shared household inventory management
+- Family meal planning
+- Household analytics
+- Role-based permissions
+
+### Payment Flow
+
+**Onboarding Journey:**
+```
+Step 1: Welcome & Features
+Step 2: Plan Selection (Basic/Premium/Household Premium)
+Step 3: Account Creation (Email/OAuth)
+Step 4: Personalization (Household setup or preferences)
+Step 5: Goal Selection
+Step 6: Payment (NEW - only for Premium/Household Premium)
+  → Redirect to Stripe Checkout
+  → On success: Return to dashboard
+  → On cancel: Return to step 6
+→ Dashboard
+```
+
+**Subscription Management:**
+- Located in Profile page (`/profile`)
+- Users can upgrade, downgrade, or cancel subscriptions
+- Access Stripe Customer Portal for payment method updates
+- View billing history and next payment date
+
+### Feature Access Control
+
+Features are protected using `SubscriptionGuard` component:
+
+```jsx
+<SubscriptionGuard requiredTier="premium" fallback={<UpgradePrompt />}>
+  <PremiumFeature />
+</SubscriptionGuard>
+```
+
+**Database function for access control:**
+```sql
+SELECT has_feature_access(user_id, 'feature_name')
+```
+
+### Stripe Integration
+
+**Edge Functions:**
+- `create-checkout-session` - Initiates Stripe Checkout
+- `stripe-webhook` - Handles Stripe events (subscriptions, payments)
+- `create-customer-portal-session` - Opens Stripe Customer Portal
+- `cancel-subscription` - Cancels subscription at period end
+
+**Webhook Events Handled:**
+- `checkout.session.completed`
+- `customer.subscription.created/updated/deleted`
+- `invoice.payment_succeeded/failed`
+
+**Database Sync:**
+- Subscription status synced from Stripe to `subscriptions` table
+- Profile subscription tier updated via trigger
+- Payment history logged for audit trail
+
 ## Known Issues & Limitations
 
 1. **Scanner Integration**: Do NOT attempt to integrate scanner modals into Inventory or other pages. Google Gemini Vision API returns 500 errors when called from modal contexts. Keep scanner on dedicated `/scanner` page.
 
-2. **Household Management**: Database tables exist but feature is not yet implemented. When building:
-   - Filter data by `household_id` when `isPersonal = false`
-   - Always include `user_id` for ownership tracking
-   - Add household context to all pantry operations
+2. **Subscription Downgrade**: When users downgrade from Premium to Basic:
+   - All data is kept (not deleted)
+   - Items beyond 50-item limit are hidden (not deleted)
+   - Users can re-upgrade anytime to restore full access
+   - Household members are removed with email notification
 
-3. **Missing Features**:
-   - User profile page
-   - Storage location management (tables exist, UI incomplete)
+3. **Missing Features** (Future Enhancements):
+   - Refund handling workflow
+   - Proration for mid-cycle upgrades/downgrades (Stripe handles automatically)
+   - Gift subscriptions
    - Bulk operations for inventory
-   - Export/import functionality
 
 ## Reference Project
 
