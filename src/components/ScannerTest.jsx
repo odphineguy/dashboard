@@ -110,11 +110,11 @@ export default function ScannerTest() {
     setSaving(true)
     setSaveSuccess(false)
     setBarcodeError(null)
-    
+
     try {
       // Get current user ID
       const { data: { user: currentUser } } = await supabase.auth.getUser()
-      
+
       if (!currentUser) {
         throw new Error('You must be logged in to save items')
       }
@@ -130,8 +130,8 @@ export default function ScannerTest() {
         name: item.name || 'Unknown Item',
         category: item.category || null,
         brand: item.brand || null,
-        quantity: 1,
-        unit: item.defaultUnit || 'units',
+        quantity: item.quantity || 1,
+        unit: item.unit || item.defaultUnit || 'units',
         expiry_date: expirationDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
       }
 
@@ -168,6 +168,78 @@ export default function ScannerTest() {
 
       // Show error toast
       toast.error('Failed to save item', {
+        description: error.message || 'Please try again',
+        duration: 4000,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Save all receipt items to inventory
+  const saveReceiptItemsToInventory = async () => {
+    if (!receiptResult?.items || receiptResult.items.length === 0) return
+
+    setSaving(true)
+    setReceiptError(null)
+
+    try {
+      // Get current user ID
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+      if (!currentUser) {
+        throw new Error('You must be logged in to save items')
+      }
+
+      // Prepare all items for bulk insert
+      const itemsToInsert = receiptResult.items.map(item => {
+        const expirationDate = new Date()
+        expirationDate.setDate(expirationDate.getDate() + (item.suggestedExpirationDays || 7))
+
+        return {
+          user_id: currentUser.id,
+          household_id: isPersonal ? null : currentHousehold?.id,
+          name: item.name || 'Unknown Item',
+          category: item.category || null,
+          quantity: item.quantity || 1,
+          unit: item.unit || 'units',
+          expiry_date: expirationDate.toISOString().split('T')[0],
+        }
+      })
+
+      // Bulk insert all items
+      const { data, error } = await supabase
+        .from('pantry_items')
+        .insert(itemsToInsert)
+        .select()
+
+      if (error) {
+        console.error('Save error:', error)
+        throw error
+      }
+
+      console.log('Saved all items successfully:', data)
+
+      // Show success toast
+      toast.success('All items saved to inventory!', {
+        description: `${data.length} items have been added to your pantry`,
+        duration: 4000,
+      })
+
+      // Check for inventory badges after successful save
+      await checkBadges('inventory_updated')
+
+      // Clear receipt result after successful save
+      setReceiptResult(null)
+
+      return data
+    } catch (error) {
+      console.error('Save error details:', error)
+      const errorMsg = `Save failed: ${error.message || 'Unknown error'}`
+      setReceiptError(errorMsg)
+
+      // Show error toast
+      toast.error('Failed to save items', {
         description: error.message || 'Please try again',
         duration: 4000,
       })
@@ -749,6 +821,27 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Save All to Inventory Button */}
+                  <div className="mt-4 pt-4 border-t border-green-500/20">
+                    <Button
+                      onClick={saveReceiptItemsToInventory}
+                      disabled={saving}
+                      className="w-full"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving {receiptResult.items?.length || 0} items...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save All to Inventory
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
