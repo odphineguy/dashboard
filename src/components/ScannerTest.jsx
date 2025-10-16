@@ -248,6 +248,79 @@ export default function ScannerTest() {
     }
   }
 
+  // Save Gmail order items to inventory
+  const saveGmailOrderToInventory = async (order) => {
+    if (!order?.items || order.items.length === 0) {
+      toast.error('No items to save', {
+        description: 'This order has no detected items',
+        duration: 3000,
+      })
+      return
+    }
+
+    setSaving(true)
+
+    try {
+      // Get current user ID
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+      if (!currentUser) {
+        throw new Error('You must be logged in to save items')
+      }
+
+      // Prepare items for bulk insert (Gmail items are just strings, so we need to parse them)
+      const itemsToInsert = order.items.map(itemName => {
+        // Default expiration: 7 days for unknown items
+        const expirationDate = new Date()
+        expirationDate.setDate(expirationDate.getDate() + 7)
+
+        return {
+          user_id: currentUser.id,
+          household_id: isPersonal ? null : currentHousehold?.id,
+          name: itemName,
+          category: null, // Gmail doesn't provide category
+          quantity: 1,
+          unit: 'units',
+          expiry_date: expirationDate.toISOString().split('T')[0],
+        }
+      })
+
+      // Bulk insert all items
+      const { data, error } = await supabase
+        .from('pantry_items')
+        .insert(itemsToInsert)
+        .select()
+
+      if (error) {
+        console.error('Save error:', error)
+        throw error
+      }
+
+      console.log('Saved Gmail order items successfully:', data)
+
+      // Show success toast
+      toast.success('Order items saved to inventory!', {
+        description: `${data.length} items from ${order.store} have been added to your pantry`,
+        duration: 4000,
+      })
+
+      // Check for inventory badges after successful save
+      await checkBadges('inventory_updated')
+
+      return data
+    } catch (error) {
+      console.error('Save error details:', error)
+
+      // Show error toast
+      toast.error('Failed to save order items', {
+        description: error.message || 'Please try again',
+        duration: 4000,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Look up product info from OpenFoodFacts by barcode
   const lookupProductByBarcode = async (barcode) => {
     try {
@@ -972,6 +1045,31 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
                             <div className="text-xs text-muted-foreground mt-2">
                               Order ID: {order.orderId}
                             </div>
+
+                            {/* Add to Inventory Button for each order */}
+                            {order.items && order.items.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-border">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => saveGmailOrderToInventory(order)}
+                                  disabled={saving}
+                                  className="w-full"
+                                >
+                                  {saving ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                                      Saving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save className="h-3 w-3 mr-2" />
+                                      Add {order.items.length} Items to Inventory
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
