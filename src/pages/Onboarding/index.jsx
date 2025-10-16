@@ -132,17 +132,20 @@ const OnboardingPage = () => {
       id: 'premium',
       name: 'Premium',
       accountType: 'personal',
-      price: '$9.99/mo',
+      price: '$14.99/mo',
+      yearlyPrice: '$99/year',
       icon: <Sparkles className="h-6 w-6" />,
       description: 'Advanced features for power users',
       popular: true,
       features: [
-        '2 of each: Food Storage, Refrigerator, Freezer',
-        'Counter & Cabinet storage',
+        'Unlimited pantry items',
+        'Unlimited AI scanner',
+        '5 storage locations (Pantry, Fridge, Freezer, Counter, Cabinet)',
         'Advanced AI recipe generation',
-        'Priority support',
+        'Up to 3 household members',
         'Advanced analytics & insights',
-        'Custom categories'
+        'Priority support',
+        'All email notifications'
       ],
       limitations: []
     },
@@ -151,15 +154,17 @@ const OnboardingPage = () => {
       name: 'Household Premium',
       accountType: 'household',
       price: '$14.99/mo',
+      yearlyPrice: '$149/year',
       icon: <Users className="h-6 w-6" />,
       description: 'Perfect for families and shared households',
       features: [
+        'Everything in Premium',
+        'Unlimited household members',
         'Unlimited storage locations',
-        'Multi-user access',
         'Shared household inventory',
         'Family meal planning',
-        'All Premium features',
-        'Household analytics'
+        'Household analytics',
+        'Role-based permissions'
       ],
       limitations: []
     }
