@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import { Button } from '../../components/ui/button'
@@ -32,13 +32,11 @@ const OnboardingPage = () => {
   const { isDark } = useTheme()
   const navigate = useNavigate()
 
-  // If user is already authenticated (OAuth), skip to step 2 (plan selection)
-  const isOAuthUser = !!user
-  const [currentStep, setCurrentStep] = useState(isOAuthUser ? 2 : 1)
+  const [currentStep, setCurrentStep] = useState(1)
 
   const [formData, setFormData] = useState({
-    name: user?.user_metadata?.full_name || '',
-    email: user?.email || '',
+    name: '',
+    email: '',
     password: '',
     accountType: '', // 'personal' or 'household'
     subscriptionTier: '', // 'free', 'premium', 'household_premium'
@@ -53,6 +51,16 @@ const OnboardingPage = () => {
   const [phoneScanAnimation, setPhoneScanAnimation] = useState(null)
   const [dashboardAnimation, setDashboardAnimation] = useState(null)
 
+  // Update form data when user becomes available
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+        email: user.email || ''
+      }))
+    }
+  }, [user])
 
   // Load animations
   React.useEffect(() => {
@@ -186,38 +194,30 @@ const OnboardingPage = () => {
   }
 
   const handleNext = () => {
-    // Validation for step 2 (plan selection)
-    if (currentStep === 2 && !formData.subscriptionTier) {
-      alert('Please select a subscription plan to continue')
-      return
-    }
-
-    // Validation for step 3 (account creation) - skip for OAuth users
-    if (currentStep === 3 && !isOAuthUser) {
-      if (!formData.email || !formData.password) {
-        alert('Please fill in email and password')
+    try {
+      // Validation for step 2 (plan selection)
+      if (currentStep === 2 && !formData.subscriptionTier) {
+        alert('Please select a subscription plan to continue')
         return
       }
-    }
 
-    // For OAuth users, skip step 3 (account creation) since they're already authenticated
-    if (currentStep === 2 && isOAuthUser) {
-      setCurrentStep(4) // Skip to step 4
-      return
-    }
+      // Validation for step 3 (account creation) - only validate for non-authenticated users
+      if (currentStep === 3 && !user) {
+        if (!formData.email || !formData.password) {
+          alert('Please fill in email and password')
+          return
+        }
+      }
 
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1)
+      if (currentStep < steps.length) {
+        setCurrentStep(currentStep + 1)
+      }
+    } catch (error) {
+      console.error('Error in handleNext:', error)
     }
   }
 
   const handleBack = () => {
-    // For OAuth users on step 4, go back to step 2 (skip step 3)
-    if (currentStep === 4 && isOAuthUser) {
-      setCurrentStep(2)
-      return
-    }
-
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
@@ -867,7 +867,7 @@ const OnboardingPage = () => {
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || (!isOAuthUser && (!formData.email || !formData.password))}
+                    disabled={loading || (!user && (!formData.email || !formData.password))}
                     className="bg-primary hover:bg-primary/90 flex items-center"
                   >
                     {loading ? 'Completing Setup...' : 'Get Started'}

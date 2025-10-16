@@ -132,7 +132,7 @@ const Routes = () => {
       <RouterRoutes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/onboarding" element={<ProtectedRoute skipOnboarding element={<OnboardingPage />} />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
 
         {/* Protected Routes */}
