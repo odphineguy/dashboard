@@ -153,8 +153,8 @@ const OnboardingPage = () => {
       id: 'household_premium',
       name: 'Household Premium',
       accountType: 'household',
-      price: '$9.99/mo',
-      yearlyPrice: '$99.99/year',
+      price: '$14.99/mo',
+      yearlyPrice: '$149.99/year',
       icon: <Users className="h-6 w-6" />,
       description: 'Perfect for families and shared households',
       features: [
@@ -264,7 +264,7 @@ const OnboardingPage = () => {
 
     // Require authentication before completing onboarding
     if (!user) {
-      alert('Please sign in with Google or Apple to continue. You can access these options from the login page.')
+      alert('Please sign in to continue. You can access login options from the login page.')
       setLoading(false)
       navigate('/login')
       return
@@ -458,7 +458,10 @@ const OnboardingPage = () => {
                         {plan.icon}
                       </div>
                       <h3 className="text-xl font-bold text-foreground mb-1">{plan.name}</h3>
-                      <div className="text-2xl font-bold text-green-600 mb-2">{plan.price}</div>
+                      <div className="text-2xl font-bold text-green-600 mb-1">{plan.price}</div>
+                      {plan.yearlyPrice && (
+                        <p className="text-sm text-muted-foreground mb-2">or {plan.yearlyPrice}</p>
+                      )}
                       <p className="text-sm text-muted-foreground">{plan.description}</p>
                     </div>
 
@@ -732,20 +735,21 @@ const OnboardingPage = () => {
 
               {/* Navigation */}
               <div className="flex justify-between mt-8 pt-6 border-t">
-                <Button
-                  variant="outline"
-                  onClick={handleBack}
-                  disabled={currentStep === 1}
-                  className="flex items-center"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
+                {currentStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="flex items-center"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                )}
 
                 {currentStep < steps.length ? (
                   <Button
                     onClick={handleNext}
-                    className="bg-primary hover:bg-primary/90 flex items-center"
+                    className={`bg-primary hover:bg-primary/90 flex items-center ${currentStep === 1 ? 'ml-auto' : ''}`}
                   >
                     Next
                     <ArrowRight className="h-4 w-4 ml-2" />
@@ -753,7 +757,7 @@ const OnboardingPage = () => {
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || (!user && (!formData.email || !formData.password))}
+                    disabled={loading || !user}
                     className="bg-primary hover:bg-primary/90 flex items-center"
                   >
                     {loading ? 'Completing Setup...' : 'Get Started'}
