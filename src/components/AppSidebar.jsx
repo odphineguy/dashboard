@@ -18,7 +18,6 @@ import {
   Building,
   Scan,
   MapPin,
-  Crown,
   LogOut
 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -236,20 +235,6 @@ const AppSidebar = ({ onClose }) => {
             >
               <User className="h-5 w-5" />
               <span className="text-sm">Profile</span>
-            </NavLink>
-            <NavLink
-              to="/pricing"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
-                  isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                }`
-              }
-            >
-              <Crown className="h-5 w-5" />
-              <span className="text-sm">Pricing</span>
             </NavLink>
             <a
               href="https://mealsaver.app/app-support"

@@ -176,6 +176,54 @@ export default function ScannerTest() {
     }
   }
 
+  // Helper function to find or create storage location by name
+  const findOrCreateStorageLocation = async (locationName) => {
+    if (!locationName || !user?.id) return null
+
+    try {
+      // First, try to find existing storage location
+      let query = supabase
+        .from('storage_locations')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .ilike('name', locationName)
+
+      // Filter by household context
+      if (isPersonal) {
+        query = query.is('household_id', null)
+      } else if (currentHousehold?.id) {
+        query = query.eq('household_id', currentHousehold.id)
+      }
+
+      const { data: existing } = await query.maybeSingle()
+
+      if (existing?.id) {
+        return existing.id
+      }
+
+      // If not found, create new storage location
+      const { data: newLocation, error } = await supabase
+        .from('storage_locations')
+        .insert({
+          name: locationName,
+          user_id: user.id,
+          household_id: isPersonal ? null : currentHousehold?.id,
+        })
+        .select('id')
+        .single()
+
+      if (error) {
+        console.error('Error creating storage location:', error)
+        return null
+      }
+
+      return newLocation?.id
+    } catch (error) {
+      console.error('Error finding/creating storage location:', error)
+      return null
+    }
+  }
+
   // Save all receipt items to inventory
   const saveReceiptItemsToInventory = async () => {
     if (!receiptResult?.items || receiptResult.items.length === 0) return
@@ -191,6 +239,17 @@ export default function ScannerTest() {
         throw new Error('You must be logged in to save items')
       }
 
+      // Map storage locations to IDs (batch process to avoid multiple queries)
+      const uniqueLocations = [...new Set(receiptResult.items.map(item => item.storageLocation).filter(Boolean))]
+      const locationMap = {}
+
+      for (const locationName of uniqueLocations) {
+        const locationId = await findOrCreateStorageLocation(locationName)
+        if (locationId) {
+          locationMap[locationName] = locationId
+        }
+      }
+
       // Prepare all items for bulk insert
       const itemsToInsert = receiptResult.items.map(item => {
         const expirationDate = new Date()
@@ -204,6 +263,7 @@ export default function ScannerTest() {
           quantity: item.quantity || 1,
           unit: item.unit || 'units',
           expiry_date: expirationDate.toISOString().split('T')[0],
+          storage_location_id: item.storageLocation ? locationMap[item.storageLocation] : null,
         }
       })
 
@@ -537,7 +597,8 @@ For each item, provide:
 - quantity: Number of items (default 1 if not shown)
 - unit: "units", "lbs", "oz", "each", or "pieces"
 - price: The price as a number, or null if not visible
-- category: Best guess category ("Produce", "Dairy", "Meat", "Bakery", "Beverages", "Canned Goods", "Frozen", "Snacks")
+- category: Best guess category ("Produce", "Dairy", "Meat", "Bakery", "Beverages", "Canned Goods", "Frozen", "Snacks", "Pantry")
+- storageLocation: Best guess storage location ("Refrigerator", "Freezer", "Pantry", "Counter", "Cabinet")
 - suggestedExpirationDays: Number of days from today until typical expiration based on food safety guidelines
 
 Also extract:
@@ -545,6 +606,13 @@ Also extract:
 - date: The purchase date
 
 Focus ONLY on food items. Skip non-food items like bags, cleaning supplies, etc.
+
+Storage Location Guidelines:
+- Refrigerator: Dairy, fresh produce (except bananas/tomatoes), meat, eggs, condiments
+- Freezer: Frozen foods, ice cream, frozen meat/vegetables
+- Pantry: Canned goods, dry pasta, rice, cereal, baking supplies, chips
+- Counter: Fresh fruits (bananas, apples, tomatoes), bread, onions
+- Cabinet: Spices, oils, vinegar, coffee, tea
 
 Expiration guidelines:
 - Fresh produce: 3-7 days
@@ -564,6 +632,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
       "unit": "lbs",
       "price": 1.29,
       "category": "Produce",
+      "storageLocation": "Counter",
       "suggestedExpirationDays": 5
     }
   ],
@@ -889,6 +958,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
                         <div className="text-muted-foreground text-xs mt-1 flex gap-3 flex-wrap">
                           <span>Qty: {item.quantity} {item.unit}</span>
                           {item.category && <span>Category: {item.category}</span>}
+                          {item.storageLocation && <span>Storage: {item.storageLocation}</span>}
                           {item.price && <span>Price: ${item.price.toFixed(2)}</span>}
                           {item.suggestedExpirationDays && <span className="text-orange-600 dark:text-orange-400">Expires in: {item.suggestedExpirationDays} days</span>}
                         </div>

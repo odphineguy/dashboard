@@ -150,8 +150,25 @@ export const HouseholdProvider = ({ children }) => {
 
       if (error) throw error
 
-      // TODO: Send invitation email via Supabase edge function
-      // For now, the invitation is just created in the database
+      // Send invitation email via Supabase edge function
+      try {
+        const { data: functionData, error: functionError } = await supabase.functions.invoke(
+          'send-household-invitation',
+          {
+            body: { invitationId: invitation.id }
+          }
+        )
+
+        if (functionError) {
+          console.error('Error sending invitation email:', functionError)
+          // Don't throw - invitation was created, just email failed
+        } else {
+          console.log('Invitation email sent successfully')
+        }
+      } catch (emailError) {
+        console.error('Failed to send invitation email:', emailError)
+        // Don't throw - invitation was created, just email failed
+      }
 
       return invitation
     } catch (error) {
