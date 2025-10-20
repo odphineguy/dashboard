@@ -25,14 +25,17 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 import { supabase } from '../../lib/supabaseClient'
 
 const OnboardingPage = () => {
   const { user, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { isDark } = useTheme()
+  const { createCheckoutSession } = useSubscription()
   const navigate = useNavigate()
 
   const [currentStep, setCurrentStep] = useState(1)
+  const [billingInterval, setBillingInterval] = useState('month') // 'month' or 'year'
 
   const [formData, setFormData] = useState({
     name: '',
@@ -61,6 +64,23 @@ const OnboardingPage = () => {
       }))
     }
   }, [user])
+
+  // Handle payment success/cancel callbacks
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const success = urlParams.get('success')
+    const canceled = urlParams.get('canceled')
+    const sessionId = urlParams.get('session_id')
+
+    if (success === 'true' && sessionId) {
+      // Payment successful - complete onboarding
+      handleSubmit()
+    } else if (canceled === 'true') {
+      // Payment canceled - return to payment step
+      setCurrentStep(6)
+      alert('Payment was canceled. Please try again or choose a different plan.')
+    }
+  }, [])
 
   // Load animations
   React.useEffect(() => {
@@ -105,6 +125,11 @@ const OnboardingPage = () => {
       number: 5,
       title: "Set Your Goals",
       subtitle: "What would you like to achieve?"
+    },
+    {
+      number: 6,
+      title: "Complete Your Subscription",
+      subtitle: "Secure payment powered by Stripe"
     }
   ]
 
@@ -212,6 +237,18 @@ const OnboardingPage = () => {
         return
       }
 
+      // Handle navigation from Step 5 (Goals)
+      if (currentStep === 5) {
+        // If free tier, skip payment and complete onboarding
+        if (formData.subscriptionTier === 'free') {
+          handleSubmit()
+          return
+        }
+        // If paid tier, go to payment step
+        setCurrentStep(6)
+        return
+      }
+
       if (currentStep < steps.length) {
         setCurrentStep(currentStep + 1)
       }
@@ -227,8 +264,56 @@ const OnboardingPage = () => {
       return
     }
 
+    // Go back from payment step to goals
+    if (currentStep === 6) {
+      setCurrentStep(5)
+      return
+    }
+
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+    }
+  }
+
+  // Handle payment - redirect to Stripe Checkout
+  const handlePayment = async () => {
+    if (!user) {
+      alert('Please sign in to continue with payment')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Map tier to price IDs (from Stripe)
+      const PRICE_IDS = {
+        premium: {
+          month: 'price_1SIuGJIqliEA9UotDyzveUhI',
+          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+        },
+        household_premium: {
+          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+        }
+      }
+
+      const priceId = PRICE_IDS[formData.subscriptionTier]?.[billingInterval]
+      if (!priceId) {
+        throw new Error('Invalid subscription plan selected')
+      }
+
+      // Create checkout session
+      const { sessionId, url } = await createCheckoutSession({
+        priceId,
+        planTier: formData.subscriptionTier,
+        billingInterval
+      })
+
+      // Redirect to Stripe Checkout
+      window.location.href = url
+    } catch (error) {
+      console.error('Payment error:', error)
+      alert('Failed to initiate payment. Please try again.')
+      setLoading(false)
     }
   }
 
@@ -656,6 +741,111 @@ const OnboardingPage = () => {
           </div>
         )
 
+      case 6:
+        // Payment step - only shown for premium tiers
+        const selectedPlan = subscriptionPlans.find(p => p.id === formData.subscriptionTier)
+        const monthlyPrice = selectedPlan?.id === 'premium' ? '$9.99' : '$14.99'
+        const yearlyPrice = selectedPlan?.id === 'premium' ? '$99.99' : '$149.99'
+        const monthlySavings = selectedPlan?.id === 'premium' ? '$19.88' : '$29.88'
+
+        return (
+          <div className="max-w-2xl mx-auto">
+            <div className="mb-8 text-center">
+              <div className="flex justify-center mb-3">
+                <img
+                  src={isDark ? "/MealSaverLogosDark.svg" : "/Meal.svg"}
+                  alt="Meal Saver Logo"
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Complete Your Subscription</h2>
+              <p className="text-muted-foreground">Choose your billing cycle and proceed to secure payment</p>
+            </div>
+
+            <Card className="p-6 mb-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Selected Plan: {selectedPlan?.name}</h3>
+                <p className="text-sm text-muted-foreground">{selectedPlan?.description}</p>
+              </div>
+
+              {/* Billing Interval Toggle */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium mb-3 block">Billing Cycle</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Card
+                    className={`p-4 cursor-pointer transition-all ${
+                      billingInterval === 'month'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setBillingInterval('month')}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">Monthly</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">{monthlyPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+                        <p className="text-xs text-muted-foreground mt-1">Billed monthly</p>
+                      </div>
+                      {billingInterval === 'month' && (
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card
+                    className={`p-4 cursor-pointer transition-all relative ${
+                      billingInterval === 'year'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setBillingInterval('year')}
+                  >
+                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                      Save {monthlySavings}
+                    </div>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">Yearly</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">{yearlyPrice}<span className="text-sm font-normal text-muted-foreground">/year</span></p>
+                        <p className="text-xs text-muted-foreground mt-1">Billed annually</p>
+                      </div>
+                      {billingInterval === 'year' && (
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Features Summary */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <p className="text-sm font-medium mb-2">What's included:</p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  {selectedPlan?.features?.slice(0, 4).map((feature, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <Check className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+
+            {/* Payment Button */}
+            <Button
+              onClick={handlePayment}
+              disabled={loading}
+              className="w-full h-12 text-lg"
+            >
+              {loading ? 'Processing...' : 'Proceed to Payment'}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              Secure payment powered by Stripe. You can cancel anytime.
+            </p>
+          </div>
+        )
+
       default:
         return null
     }
@@ -746,24 +936,17 @@ const OnboardingPage = () => {
                   </Button>
                 )}
 
-                {currentStep < steps.length ? (
+                {currentStep < 6 ? (
                   <Button
                     onClick={handleNext}
                     className={`bg-primary hover:bg-primary/90 flex items-center ${currentStep === 1 ? 'ml-auto' : ''}`}
                   >
-                    Next
+                    {currentStep === 5 && formData.subscriptionTier === 'free'
+                      ? 'Get Started'
+                      : 'Next'}
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
-                ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={loading || !user}
-                    className="bg-primary hover:bg-primary/90 flex items-center"
-                  >
-                    {loading ? 'Completing Setup...' : 'Get Started'}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                )}
+                ) : null}
               </div>
             </CardContent>
           </Card>
