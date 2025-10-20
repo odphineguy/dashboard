@@ -174,6 +174,15 @@ export const SubscriptionProvider = ({ children }) => {
     const successUrl = `${window.location.origin}/onboarding?success=true&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = `${window.location.origin}/onboarding?canceled=true`
 
+    console.log('Invoking create-checkout-session with:', {
+      priceId,
+      successUrl,
+      cancelUrl,
+      planTier,
+      billingInterval,
+      userId: user.id
+    })
+
     const { data, error } = await supabase.functions.invoke('create-checkout-session', {
       body: {
         priceId,
@@ -184,7 +193,16 @@ export const SubscriptionProvider = ({ children }) => {
       },
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Edge function error:', error)
+      throw new Error(error.message || 'Failed to create checkout session')
+    }
+
+    if (!data) {
+      throw new Error('No data returned from checkout session')
+    }
+
+    console.log('Checkout session response:', data)
     return data
   }
 
