@@ -18,7 +18,8 @@ import {
   Building,
   Scan,
   MapPin,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from './ui/button'
 import {
@@ -244,6 +245,15 @@ const AppSidebar = ({ onClose }) => {
             >
               <HelpCircle className="h-5 w-5" />
               <span className="text-sm">Get Help</span>
+            </a>
+            <a
+              href="https://forms.gle/2yfUSYDYepG699Xc7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span className="text-sm">Report Feedback</span>
             </a>
           </div>
         </div>
