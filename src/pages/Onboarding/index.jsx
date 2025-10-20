@@ -34,25 +34,42 @@ const OnboardingPage = () => {
   const { createCheckoutSession } = useSubscription()
   const navigate = useNavigate()
 
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Restore step from sessionStorage if available
+    const saved = sessionStorage.getItem('onboarding_step')
+    return saved ? parseInt(saved) : 1
+  })
   const [billingInterval, setBillingInterval] = useState('month') // 'month' or 'year'
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    accountType: '', // 'personal' or 'household'
-    subscriptionTier: '', // 'free', 'premium', 'household_premium'
-    householdName: '',
-    householdSize: '',
-    goals: [],
-    notifications: true
+  const [formData, setFormData] = useState(() => {
+    // Restore form data from sessionStorage if available
+    const saved = sessionStorage.getItem('onboarding_data')
+    return saved ? JSON.parse(saved) : {
+      name: '',
+      email: '',
+      password: '',
+      accountType: '', // 'personal' or 'household'
+      subscriptionTier: '', // 'free', 'premium', 'household_premium'
+      householdName: '',
+      householdSize: '',
+      goals: [],
+      notifications: true
+    }
   })
   const [loading, setLoading] = useState(false)
   const [showEmailVerification, setShowEmailVerification] = useState(false)
   const [recipeBookAnimation, setRecipeBookAnimation] = useState(null)
   const [phoneScanAnimation, setPhoneScanAnimation] = useState(null)
   const [dashboardAnimation, setDashboardAnimation] = useState(null)
+
+  // Save onboarding state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('onboarding_step', currentStep.toString())
+  }, [currentStep])
+
+  useEffect(() => {
+    sessionStorage.setItem('onboarding_data', JSON.stringify(formData))
+  }, [formData])
 
   // Update form data when user becomes available
   useEffect(() => {
@@ -321,6 +338,13 @@ const OnboardingPage = () => {
         throw new Error('Invalid subscription plan selected')
       }
 
+      console.log('Creating checkout session with:', {
+        priceId,
+        planTier: formData.subscriptionTier,
+        billingInterval,
+        userId: user.id
+      })
+
       // Create checkout session
       const { sessionId, url } = await createCheckoutSession({
         priceId,
@@ -328,11 +352,23 @@ const OnboardingPage = () => {
         billingInterval
       })
 
+      if (!url) {
+        throw new Error('No checkout URL returned from server')
+      }
+
+      console.log('Checkout session created, redirecting to:', url)
+
       // Redirect to Stripe Checkout
       window.location.href = url
     } catch (error) {
-      console.error('Payment error:', error)
-      alert('Failed to initiate payment. Please try again.')
+      console.error('Payment error details:', {
+        message: error.message,
+        error: error,
+        user: user?.id,
+        tier: formData.subscriptionTier,
+        interval: billingInterval
+      })
+      alert(`Failed to initiate payment: ${error.message || 'Unknown error'}. Please try again.`)
       setLoading(false)
     }
   }
@@ -433,6 +469,10 @@ const OnboardingPage = () => {
           }
         }
       }
+
+      // Clear onboarding data from sessionStorage
+      sessionStorage.removeItem('onboarding_step')
+      sessionStorage.removeItem('onboarding_data')
 
       // Navigate to dashboard
       navigate('/dashboard')
