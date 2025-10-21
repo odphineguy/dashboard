@@ -196,7 +196,7 @@ const StorageLocations = () => {
             </p>
           </div>
           {subscriptionTier !== 'household_premium' && (
-            <Link to="/pricing">
+            <Link to="/profile">
               <Button size="sm" variant="default">
                 Upgrade
               </Button>
@@ -305,7 +305,7 @@ const StorageLocations = () => {
                           Requires {location.tier === 'premium' ? 'Premium' : 'Upgrade'}
                         </p>
                       </div>
-                      <Link to="/pricing">
+                      <Link to="/profile">
                         <Button size="sm" variant="outline">
                           Upgrade
                         </Button>

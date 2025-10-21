@@ -13,7 +13,6 @@ import ScannerTest from './components/ScannerTest'
 import GmailConnectCallback from './pages/GmailConnect'
 import SplashPage from './pages/Splash'
 import OnboardingPage from './pages/Onboarding'
-import PricingPage from './pages/Pricing'
 import { useAuth } from './contexts/AuthContext'
 import AppSidebar from './components/AppSidebar'
 import Header from './components/Header'
@@ -133,7 +132,6 @@ const Routes = () => {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
 
         {/* Protected Routes */}
         <Route

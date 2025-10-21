@@ -119,8 +119,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const handleUpgrade = () => {
-    // Redirect to pricing page
-    window.location.href = '/pricing'
+    // Redirect to onboarding to select a new plan
+    window.location.href = '/onboarding'
   }
 
   const formatDate = (dateString) => {
@@ -209,7 +209,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Billing</span>
                   <span className="text-sm font-medium">
-                    ${subscription.plan_tier === 'premium' ? '14.99' : '14.99'}/{subscription.billing_interval}
+                    ${subscription.plan_tier === 'premium' ? '9.99' : '14.99'}/{subscription.billing_interval}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
