@@ -487,10 +487,13 @@ const OnboardingPage = () => {
       sessionStorage.removeItem('onboarding_step')
       sessionStorage.removeItem('onboarding_data')
 
+      // Set a flag to bypass onboarding guard
+      sessionStorage.setItem('skip_onboarding_check', 'true')
+
       console.log('Onboarding completed successfully, navigating to dashboard')
 
       // Navigate to dashboard with replace to prevent going back to onboarding
-      navigate('/dashboard', { replace: true })
+      window.location.href = '/dashboard'
     } catch (error) {
       console.error('Signup error:', error)
 
