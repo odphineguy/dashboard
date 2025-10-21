@@ -431,7 +431,8 @@ const OnboardingPage = () => {
       // Save onboarding data to profiles table (for both OAuth and email users)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: userId,
           full_name: formData.name || null,
           onboarding_completed: true,
           onboarding_data: {
@@ -444,11 +445,10 @@ const OnboardingPage = () => {
             onboarded_at: new Date().toISOString()
           }
         })
-        .eq('id', userId)
 
       if (profileError) {
         console.error('Profile update error:', profileError)
-        // Don't block signup if profile update fails
+        throw profileError // Block if profile creation fails
       }
 
       // If household account, create household entry
