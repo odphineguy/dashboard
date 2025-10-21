@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }) => {
         console.log('Initial session check result:', {
           sessionExists: !!session,
           userId: session?.user?.id,
-          error
+          error,
+          currentPath: window.location.pathname,
+          url: window.location.href
         })
 
         setUser(session?.user ?? null)
@@ -43,7 +45,10 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    initializeAuth()
+    // Add a small delay for OAuth redirect scenarios
+    const initTimeout = setTimeout(() => {
+      initializeAuth()
+    }, 100)
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -51,7 +56,8 @@ export const AuthProvider = ({ children }) => {
         event,
         userId: session?.user?.id,
         sessionExists: !!session,
-        currentPath: window.location.pathname
+        currentPath: window.location.pathname,
+        url: window.location.href
       })
 
       // Handle OAuth redirect scenarios
@@ -70,7 +76,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(initTimeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email, password) => {
