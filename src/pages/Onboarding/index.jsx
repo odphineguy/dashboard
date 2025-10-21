@@ -420,17 +420,28 @@ const OnboardingPage = () => {
       return
     }
 
+    setLoading(true)
+
+    // Wait for auth session to load (retry up to 3 times)
+    let currentUser = user
+    let retries = 0
+    while (!currentUser && retries < 3) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      const { data: { session } } = await supabase.auth.getSession()
+      currentUser = session?.user
+      retries++
+    }
+
     // Require authentication before completing onboarding
-    if (!user) {
+    if (!currentUser) {
       alert('Please sign in to continue. You can access login options from the login page.')
       setLoading(false)
       navigate('/login')
       return
     }
 
-    setLoading(true)
     try {
-      const userId = user.id
+      const userId = currentUser.id
 
       // Save onboarding data to profiles table (for both OAuth and email users)
       const { error: profileError } = await supabase
