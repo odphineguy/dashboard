@@ -12,11 +12,11 @@ BEGIN
   );
 
   -- Create default storage locations (Pantry, Refrigerator, Freezer)
-  INSERT INTO public.storage_locations (user_id, name, type, icon, color)
+  INSERT INTO public.storage_locations (user_id, name, icon, color)
   VALUES
-    (NEW.id, 'Pantry', 'pantry', '🍞', '#8B4513'),
-    (NEW.id, 'Refrigerator', 'refrigerator', '❄️', '#4169E1'),
-    (NEW.id, 'Freezer', 'freezer', '🧊', '#87CEEB');
+    (NEW.id, 'Pantry', '🍞', '#8B4513'),
+    (NEW.id, 'Refrigerator', '❄️', '#4169E1'),
+    (NEW.id, 'Freezer', '🧊', '#87CEEB');
 
   RETURN NEW;
 EXCEPTION
@@ -27,11 +27,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create default storage locations for existing users who don't have any
-INSERT INTO public.storage_locations (user_id, name, type, icon, color)
+INSERT INTO public.storage_locations (user_id, name, icon, color)
 SELECT
   p.id,
   unnest(ARRAY['Pantry', 'Refrigerator', 'Freezer']),
-  unnest(ARRAY['pantry', 'refrigerator', 'freezer']),
   unnest(ARRAY['🍞', '❄️', '🧊']),
   unnest(ARRAY['#8B4513', '#4169E1', '#87CEEB'])
 FROM public.profiles p
