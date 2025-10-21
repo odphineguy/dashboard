@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar } from 'lucide-react'
+import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
@@ -9,6 +9,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [showPlanSelector, setShowPlanSelector] = useState(false)
 
   // Load subscription data
   useEffect(() => {
@@ -124,49 +125,51 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     }
   }
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = () => {
+    // Free users: show plan selector modal
+    if (userData?.subscriptionTier === 'free') {
+      setShowPlanSelector(true)
+    } else {
+      // Paid users: use customer portal
+      handleManageSubscription()
+    }
+  }
+
+  const handlePlanSelect = async (planTier, billingInterval) => {
     try {
       setActionLoading(true)
+      setShowPlanSelector(false)
 
-      // Free users need to create a new checkout session
-      if (userData?.subscriptionTier === 'free') {
-        // Import price IDs (same as onboarding)
-        const PRICE_IDS = {
-          premium: {
-            month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
-            year: 'price_1SIuGNIqliEA9UotGD93WZdc'
-          },
-          household_premium: {
-            month: 'price_1SIuGPIqliEA9UotfLjoddkj',
-            year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
-          }
+      const PRICE_IDS = {
+        premium: {
+          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
+          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+        },
+        household_premium: {
+          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
         }
-
-        // Default to premium monthly
-        const priceId = PRICE_IDS.premium.month
-
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: {
-            priceId,
-            successUrl: `${window.location.origin}/profile?upgrade=success`,
-            cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
-            planTier: 'premium',
-            billingInterval: 'month'
-          }
-        })
-
-        if (error) {
-          console.error('Error creating checkout session:', error)
-          alert('Failed to start upgrade process. Please try again.')
-          return
-        }
-
-        // Redirect to Stripe Checkout
-        window.location.href = data.url
-      } else {
-        // Paid users use customer portal
-        await handleManageSubscription()
       }
+
+      const priceId = PRICE_IDS[planTier][billingInterval]
+
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId,
+          successUrl: `${window.location.origin}/profile?upgrade=success`,
+          cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
+          planTier,
+          billingInterval
+        }
+      })
+
+      if (error) {
+        console.error('Error creating checkout session:', error)
+        alert('Failed to start upgrade process. Please try again.')
+        return
+      }
+
+      window.location.href = data.url
     } catch (error) {
       console.error('Error upgrading:', error)
       alert('Failed to start upgrade process. Please try again.')
@@ -196,7 +199,94 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   return (
-    <Card className="p-6">
+    <>
+      {/* Plan Selector Modal */}
+      {showPlanSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-4xl w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Choose Your Plan</h2>
+              <button onClick={() => setShowPlanSelector(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Premium Plan */}
+              <Card className="p-6 border-2 hover:border-primary cursor-pointer transition-colors">
+                <div className="text-center mb-4">
+                  <Crown className="h-12 w-12 text-yellow-600 mx-auto mb-2" />
+                  <h3 className="text-xl font-bold">Premium</h3>
+                  <p className="text-sm text-muted-foreground">Advanced features for power users</p>
+                </div>
+
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => handlePlanSelect('premium', 'month')}
+                    className="w-full"
+                    disabled={actionLoading}
+                  >
+                    $9.99/month
+                  </Button>
+                  <Button
+                    onClick={() => handlePlanSelect('premium', 'year')}
+                    variant="outline"
+                    className="w-full"
+                    disabled={actionLoading}
+                  >
+                    $99.99/year <span className="text-xs text-green-600 ml-2">(Save $19.89)</span>
+                  </Button>
+                </div>
+
+                <ul className="mt-4 text-sm space-y-2">
+                  <li>✓ Unlimited pantry items</li>
+                  <li>✓ Unlimited AI scanner</li>
+                  <li>✓ Advanced recipe generation</li>
+                  <li>✓ Up to 3 household members</li>
+                  <li>✓ 5 storage locations</li>
+                </ul>
+              </Card>
+
+              {/* Household Premium Plan */}
+              <Card className="p-6 border-2 hover:border-primary cursor-pointer transition-colors">
+                <div className="text-center mb-4">
+                  <Users className="h-12 w-12 text-purple-600 mx-auto mb-2" />
+                  <h3 className="text-xl font-bold">Household Premium</h3>
+                  <p className="text-sm text-muted-foreground">Perfect for families</p>
+                </div>
+
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => handlePlanSelect('household_premium', 'month')}
+                    className="w-full"
+                    disabled={actionLoading}
+                  >
+                    $14.99/month
+                  </Button>
+                  <Button
+                    onClick={() => handlePlanSelect('household_premium', 'year')}
+                    variant="outline"
+                    className="w-full"
+                    disabled={actionLoading}
+                  >
+                    $149.99/year <span className="text-xs text-green-600 ml-2">(Save $29.89)</span>
+                  </Button>
+                </div>
+
+                <ul className="mt-4 text-sm space-y-2">
+                  <li>✓ Everything in Premium</li>
+                  <li>✓ Unlimited household members</li>
+                  <li>✓ Unlimited storage locations</li>
+                  <li>✓ Shared inventory management</li>
+                  <li>✓ Family meal planning</li>
+                </ul>
+              </Card>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />
@@ -318,6 +408,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
         </div>
       )}
     </Card>
+    </>
   )
 }
 
