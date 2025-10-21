@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { User, Edit2, Calendar } from 'lucide-react'
+import { User, Edit2, Calendar, Crown } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Input } from '../../../components/ui/input'
@@ -208,6 +208,12 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
                   <Calendar className="h-4 w-4" />
                   <span>Joined {formatDate(user?.joinDate)}</span>
                 </div>
+                {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
+                  <div className="flex items-center gap-1">
+                    <Crown className="h-4 w-4" />
+                    <span className="capitalize">{user.subscriptionTier.replace('_', ' ')}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
