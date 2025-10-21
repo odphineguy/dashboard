@@ -97,14 +97,20 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const handleManageSubscription = async () => {
     try {
       setActionLoading(true)
-      
+
       const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
         body: { return_url: window.location.href }
       })
 
       if (error) {
         console.error('Error creating customer portal session:', error)
-        alert('Failed to open subscription management. Please try again.')
+
+        // Better error message for missing customer ID
+        if (error.message?.includes('No Stripe customer found')) {
+          alert('Your subscription is still being set up. Please wait a few moments and try again.')
+        } else {
+          alert('Failed to open subscription management. Please try again.')
+        }
         return
       }
 
@@ -118,9 +124,9 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     }
   }
 
-  const handleUpgrade = () => {
-    // Redirect to onboarding to select a new plan
-    window.location.href = '/onboarding'
+  const handleUpgrade = async () => {
+    // Use the customer portal for plan changes
+    await handleManageSubscription()
   }
 
   const formatDate = (dateString) => {
