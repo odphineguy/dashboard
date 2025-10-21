@@ -100,13 +100,27 @@ const OnboardingPage = () => {
     const canceled = urlParams.get('canceled')
     const sessionId = urlParams.get('session_id')
 
-    // Check if this is an OAuth redirect by looking for auth tokens in URL
+    // Check if this is an OAuth redirect by looking for auth tokens in URL or error parameters
     const isOAuthRedirect = window.location.hash.includes('access_token') ||
                            window.location.search.includes('code') ||
                            urlParams.has('token') ||
-                           urlParams.has('refresh_token')
+                           urlParams.has('refresh_token') ||
+                           (urlParams.has('error') && urlParams.get('error') === 'access_denied')
 
     if (isOAuthRedirect) {
+      console.log('OAuth redirect detected:', {
+        hash: window.location.hash,
+        search: window.location.search,
+        error: urlParams.get('error'),
+        errorDescription: urlParams.get('error_description')
+      })
+
+      if (urlParams.has('error') && urlParams.get('error') === 'access_denied') {
+        console.error('OAuth access denied:', urlParams.get('error_description'))
+        alert('OAuth access was denied. Please check your OAuth configuration in Supabase.')
+        return
+      }
+
       console.log('OAuth redirect detected, waiting for session to be established...')
       // Wait for auth to be properly initialized after OAuth redirect
       const checkOAuthSession = async () => {
@@ -133,6 +147,11 @@ const OnboardingPage = () => {
 
           await new Promise(resolve => setTimeout(resolve, 500))
           retries++
+        }
+
+        if (retries >= 10) {
+          console.error('OAuth session establishment failed after maximum retries')
+          alert('Failed to establish session after OAuth. Please try signing in again.')
         }
       }
 

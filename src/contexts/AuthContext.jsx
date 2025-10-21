@@ -125,11 +125,15 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signInWithGoogle = async () => {
-    console.log('Starting Google OAuth sign-in, redirecting to:', `${window.location.origin}/onboarding`)
+    const redirectUrl = `${window.location.origin}/onboarding`
+    console.log('Starting Google OAuth sign-in, redirecting to:', redirectUrl)
+    console.log('Current origin:', window.location.origin)
+    console.log('Full redirect URL:', redirectUrl)
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/onboarding`
+        redirectTo: redirectUrl
       }
     })
     if (error) {
@@ -141,11 +145,15 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signInWithApple = async () => {
-    console.log('Starting Apple OAuth sign-in, redirecting to:', `${window.location.origin}/onboarding`)
+    const redirectUrl = `${window.location.origin}/onboarding`
+    console.log('Starting Apple OAuth sign-in, redirecting to:', redirectUrl)
+    console.log('Current origin:', window.location.origin)
+    console.log('Full redirect URL:', redirectUrl)
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: {
-        redirectTo: `${window.location.origin}/onboarding`
+        redirectTo: redirectUrl
       }
     })
     if (error) {
