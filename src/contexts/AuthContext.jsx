@@ -20,11 +20,18 @@ export const AuthProvider = ({ children }) => {
     // Check active sessions and sets the user
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth, checking for existing session...')
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('Error getting session:', error)
+          console.error('Error getting session during initialization:', error)
         }
+
+        console.log('Initial session check result:', {
+          sessionExists: !!session,
+          userId: session?.user?.id,
+          error
+        })
 
         setUser(session?.user ?? null)
         setSessionLoaded(true)
@@ -50,6 +57,12 @@ export const AuthProvider = ({ children }) => {
       // Handle OAuth redirect scenarios
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('OAuth sign in detected, session loaded for user:', session.user.id)
+        // Force a session refresh to ensure it's properly stored
+        try {
+          await supabase.auth.getSession()
+        } catch (refreshError) {
+          console.error('Error refreshing session after OAuth:', refreshError)
+        }
       }
 
       setUser(session?.user ?? null)
