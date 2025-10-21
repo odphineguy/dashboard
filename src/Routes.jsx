@@ -1,5 +1,39 @@
 import React from 'react'
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router-dom'
+
+// Fallback component for when Supabase isn't configured
+const SupabaseErrorFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="max-w-md w-full bg-card border border-border rounded-lg p-8 text-center">
+      <div className="mb-6">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Configuration Error</h1>
+        <p className="text-muted-foreground">
+          The application is not properly configured. Please check your environment variables and try again.
+        </p>
+      </div>
+      <div className="space-y-3 text-sm text-left">
+        <div className="bg-muted p-3 rounded">
+          <p className="font-medium mb-1">Missing Environment Variables:</p>
+          <ul className="text-muted-foreground space-y-1">
+            <li>• VITE_SUPABASE_URL</li>
+            <li>• VITE_SUPABASE_ANON_KEY</li>
+          </ul>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  </div>
+)
 import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
 import Analytics from './pages/Analytics'
@@ -126,6 +160,15 @@ const MainLayout = ({ children }) => {
 }
 
 const Routes = () => {
+  // Check if Supabase is properly configured
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  // If Supabase environment variables are missing, show configuration error
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return <SupabaseErrorFallback />
+  }
+
   return (
     <BrowserRouter>
       <RouterRoutes>
