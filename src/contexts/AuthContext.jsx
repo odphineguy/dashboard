@@ -14,17 +14,41 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [sessionLoaded, setSessionLoaded] = useState(false)
 
   useEffect(() => {
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error('Error getting session:', error)
+        }
+
+        setUser(session?.user ?? null)
+        setSessionLoaded(true)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        setSessionLoaded(true)
+        setLoading(false)
+      }
+    }
+
+    initializeAuth()
 
     // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id)
+
+      // Handle OAuth redirect scenarios
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('OAuth sign in detected, session loaded')
+      }
+
       setUser(session?.user ?? null)
+      setSessionLoaded(true)
       setLoading(false)
     })
 
@@ -98,6 +122,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    sessionLoaded,
     signUp,
     signIn,
     signOut,

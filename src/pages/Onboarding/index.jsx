@@ -29,7 +29,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext'
 import { supabase } from '../../lib/supabaseClient'
 
 const OnboardingPage = () => {
-  const { user, loading: authLoading, signUp, signInWithGoogle, signInWithApple } = useAuth()
+  const { user, loading: authLoading, sessionLoaded, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { isDark } = useTheme()
   const { createCheckoutSession } = useSubscription()
   const navigate = useNavigate()
@@ -100,16 +100,51 @@ const OnboardingPage = () => {
     const canceled = urlParams.get('canceled')
     const sessionId = urlParams.get('session_id')
 
-    if (success === 'true' && sessionId && user && !loading) {
-      // Payment successful - complete onboarding (wait for user to be loaded)
-      console.log('Payment success detected, completing onboarding for user:', user.id)
-      handleSubmit()
+    if (success === 'true' && sessionId) {
+      // Payment successful - wait for session to be loaded before completing onboarding
+      const completeOnboarding = async () => {
+        console.log('Payment success detected, waiting for auth session...')
+
+        // Wait for auth session to be fully loaded
+        let retries = 0
+        while (!sessionLoaded && retries < 10) {
+          console.log(`Waiting for sessionLoaded... attempt ${retries + 1}/10`)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          retries++
+        }
+
+        if (user) {
+          console.log('Payment success detected, completing onboarding for user:', user.id)
+          handleSubmit()
+        } else {
+          console.error('Payment success but no user session found after waiting')
+          // Try to get session directly
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            console.log('Found session via direct check, proceeding...')
+            // Update context state manually if needed
+            setFormData(prev => ({
+              ...prev,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              email: session.user.email || ''
+            }))
+            handleSubmit()
+          } else {
+            alert('Payment successful but authentication session not found. Please try logging in again.')
+            navigate('/login')
+          }
+        }
+      }
+
+      if (sessionLoaded) {
+        completeOnboarding()
+      }
     } else if (canceled === 'true') {
       // Payment canceled - return to payment step
       setCurrentStep(6)
       alert('Payment was canceled. Please try again or choose a different plan.')
     }
-  }, [user, loading])
+  }, [user, sessionLoaded, navigate])
 
   // Load animations
   React.useEffect(() => {
@@ -422,25 +457,51 @@ const OnboardingPage = () => {
 
     setLoading(true)
 
-    // Wait for auth session to load (retry up to 3 times)
+    // Wait for auth session to be fully loaded with better retry mechanism
     let currentUser = user
     let retries = 0
-    while (!currentUser && retries < 3) {
+    const maxRetries = 5
+
+    while (!currentUser && retries < maxRetries) {
+      console.log(`Waiting for auth session... attempt ${retries + 1}/${maxRetries}`)
       await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Check both the context user and direct session
+      if (!currentUser) {
+        const { data: { session } } = await supabase.auth.getSession()
+        currentUser = session?.user
+      }
+
+      retries++
+    }
+
+    // Additional check - wait for sessionLoaded flag
+    if (!currentUser) {
+      retries = 0
+      while (!sessionLoaded && retries < maxRetries) {
+        console.log(`Waiting for sessionLoaded flag... attempt ${retries + 1}/${maxRetries}`)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        retries++
+      }
+    }
+
+    // Final check for current user
+    if (!currentUser) {
       const { data: { session } } = await supabase.auth.getSession()
       currentUser = session?.user
-      retries++
     }
 
     // Require authentication before completing onboarding
     if (!currentUser) {
-      alert('Please sign in to continue. You can access login options from the login page.')
+      console.error('No user session found after all retry attempts')
+      alert('Authentication session not found. Please sign in again to continue.')
       setLoading(false)
       navigate('/login')
       return
     }
 
     try {
+      console.log('Completing onboarding for user:', currentUser.id)
       const userId = currentUser.id
 
       // Save onboarding data to profiles table (for both OAuth and email users)

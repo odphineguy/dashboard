@@ -4,14 +4,19 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
 const OnboardingGuard = ({ children }) => {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, sessionLoaded } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (authLoading || !user) {
+      // Wait for auth to be fully loaded before checking onboarding status
+      if (authLoading || !sessionLoaded) {
+        return
+      }
+
+      if (!user) {
         setChecking(false)
         return
       }
@@ -59,9 +64,9 @@ const OnboardingGuard = ({ children }) => {
     }
 
     checkOnboardingStatus()
-  }, [user, authLoading, navigate, location.pathname])
+  }, [user, authLoading, sessionLoaded, navigate, location.pathname])
 
-  if (authLoading || checking) {
+  if (authLoading || checking || !sessionLoaded) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
