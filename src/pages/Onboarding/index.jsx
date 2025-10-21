@@ -35,6 +35,17 @@ const OnboardingPage = () => {
   const navigate = useNavigate()
 
   const [currentStep, setCurrentStep] = useState(() => {
+    // Check if returning from payment - don't restore state in that case
+    const urlParams = new URLSearchParams(window.location.search)
+    const success = urlParams.get('success')
+    const sessionId = urlParams.get('session_id')
+
+    if (success === 'true' && sessionId) {
+      // Returning from successful payment - keep state, don't reset to step 1
+      const saved = sessionStorage.getItem('onboarding_step')
+      return saved ? parseInt(saved) : 6
+    }
+
     // Restore step from sessionStorage if available
     const saved = sessionStorage.getItem('onboarding_step')
     return saved ? parseInt(saved) : 1
@@ -89,15 +100,16 @@ const OnboardingPage = () => {
     const canceled = urlParams.get('canceled')
     const sessionId = urlParams.get('session_id')
 
-    if (success === 'true' && sessionId && user) {
+    if (success === 'true' && sessionId && user && !loading) {
       // Payment successful - complete onboarding (wait for user to be loaded)
+      console.log('Payment success detected, completing onboarding for user:', user.id)
       handleSubmit()
     } else if (canceled === 'true') {
       // Payment canceled - return to payment step
       setCurrentStep(6)
       alert('Payment was canceled. Please try again or choose a different plan.')
     }
-  }, [user])
+  }, [user, loading])
 
   // Load animations
   React.useEffect(() => {
@@ -475,8 +487,10 @@ const OnboardingPage = () => {
       sessionStorage.removeItem('onboarding_step')
       sessionStorage.removeItem('onboarding_data')
 
-      // Navigate to dashboard
-      navigate('/dashboard')
+      console.log('Onboarding completed successfully, navigating to dashboard')
+
+      // Navigate to dashboard with replace to prevent going back to onboarding
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       console.error('Signup error:', error)
 
