@@ -45,8 +45,10 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    // Initialize auth immediately (no delay needed)
-    initializeAuth()
+    // Add a small delay for OAuth redirect scenarios
+    const initTimeout = setTimeout(() => {
+      initializeAuth()
+    }, 100)
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -75,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     })
 
     return () => {
+      clearTimeout(initTimeout)
       subscription.unsubscribe()
     }
   }, [])
