@@ -59,8 +59,8 @@ const PricingPage = () => {
       name: 'Household Premium',
       description: 'For families and shared households',
       price: {
-        monthly: 19.99,
-        yearly: 199.99
+        monthly: 14.99,
+        yearly: 149.99
       },
       features: [
         'Everything in Premium',

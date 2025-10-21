@@ -322,14 +322,15 @@ const OnboardingPage = () => {
     setLoading(true)
     try {
       // Map tier to price IDs (from Stripe)
+      // TODO: UPDATE THESE PRICE IDs WHEN SWITCHING TO PRODUCTION
       const PRICE_IDS = {
         premium: {
-          month: 'price_1SIuGJIqliEA9UotDyzveUhI',
-          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M', // $9.99/month (TEST MODE)
+          year: 'price_1SIuGNIqliEA9UotGD93WZdc'   // $99.00/year (TEST MODE - should be $99.99 in prod)
         },
         household_premium: {
-          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
-          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+          month: 'price_1SIuGPIqliEA9UotfLjoddkj', // $14.99/month (TEST MODE)
+          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'   // $149.00/year (TEST MODE - should be $149.99 in prod)
         }
       }
 
@@ -890,7 +891,7 @@ const OnboardingPage = () => {
         const selectedPlan = subscriptionPlans.find(p => p.id === formData.subscriptionTier)
         const monthlyPrice = selectedPlan?.id === 'premium' ? '$9.99' : '$14.99'
         const yearlyPrice = selectedPlan?.id === 'premium' ? '$99.99' : '$149.99'
-        const monthlySavings = selectedPlan?.id === 'premium' ? '$19.88' : '$29.88'
+        const monthlySavings = selectedPlan?.id === 'premium' ? '$19.89' : '$29.89'
 
         return (
           <div className="max-w-2xl mx-auto">

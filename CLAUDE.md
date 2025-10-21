@@ -137,8 +137,7 @@ src/pages/PageName/
 3. **Inventory** (`/inventory`) - Full CRUD for pantry items with search, filters, bulk actions
 4. **Recipes** (`/recipes`) - AI-generated recipes based on expiring ingredients
 5. **Scanner** (`/scanner`) - AI-powered barcode/receipt scanning (dedicated page)
-6. **Pricing** (`/pricing`) - Subscription plan comparison and selection
-7. **Profile** (`/profile`) - User settings, subscription management, notification preferences
+6. **Profile** (`/profile`) - User settings, subscription management, notification preferences, upgrade/downgrade plans
 
 ### AI Integration
 

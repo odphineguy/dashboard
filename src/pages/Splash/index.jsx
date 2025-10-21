@@ -76,9 +76,6 @@ const SplashPage = () => {
             </span>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/pricing">
-              <Button variant="ghost">Pricing</Button>
-            </Link>
             <Link to="/login">
               <Button variant="outline">Sign In</Button>
             </Link>
@@ -255,9 +252,9 @@ const SplashPage = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link to="/pricing">
+            <Link to="/login">
               <Button size="lg" variant="outline" className="text-lg px-8 py-4">
-                View Pricing Plans
+                Sign In
               </Button>
             </Link>
           </div>
@@ -282,9 +279,8 @@ const SplashPage = () => {
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><Link to="/features" className="hover:text-white">Features</Link></li>
-                <li><Link to="/pricing" className="hover:text-white">Pricing</Link></li>
-                <li><Link to="/demo" className="hover:text-white">Demo</Link></li>
+                <li><Link to="/onboarding" className="hover:text-white">Get Started</Link></li>
+                <li><Link to="/login" className="hover:text-white">Sign In</Link></li>
               </ul>
             </div>
             <div>
