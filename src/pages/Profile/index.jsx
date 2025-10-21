@@ -4,6 +4,7 @@ import PersonalGoals from './components/PersonalGoals'
 import AchievementSystem from './components/AchievementSystem'
 import NotificationPreferences from './components/NotificationPreferences'
 import AccountSettings from './components/AccountSettings'
+import SubscriptionManagement from './components/SubscriptionManagement'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabaseClient'
 import { getUserAchievementsByCategory } from '../../services/achievements'
@@ -18,6 +19,8 @@ const Profile = () => {
     email: '',
     avatar: null,
     joinDate: '',
+    subscriptionTier: 'free',
+    subscriptionStatus: 'active',
     stats: {
       daysActive: 0,
       wasteReduced: 0,
@@ -111,6 +114,8 @@ const Profile = () => {
           email: user.email || '',
           avatar: profile?.avatar || null,
           joinDate: profile?.created_at || new Date().toISOString(),
+          subscriptionTier: profile?.subscription_tier || 'free',
+          subscriptionStatus: profile?.subscription_status || 'active',
           stats: {
             daysActive,
             wasteReduced,
@@ -341,6 +346,12 @@ const Profile = () => {
         user={userData}
         onUpdateProfile={handleUpdateProfile}
         userId={user?.id}
+      />
+
+      {/* Subscription Management */}
+      <SubscriptionManagement
+        userData={userData}
+        onUpdateSubscription={handleUpdateProfile}
       />
 
       {/* Personal Goals */}

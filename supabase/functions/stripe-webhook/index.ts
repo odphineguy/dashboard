@@ -177,6 +177,29 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supab
   }
 
   console.log(`Subscription ${subscription.id} updated for user ${userId}`)
+
+  // Send subscription confirmation email
+  try {
+    const { error: emailError } = await supabase.functions.invoke('send-subscription-email', {
+      body: {
+        user_id: userId,
+        subscription_tier: planTier,
+        subscription_status: subscription.status,
+        billing_interval: billingInterval,
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        amount: subscription.items.data[0]?.price.unit_amount || 1499,
+        currency: subscription.items.data[0]?.price.currency || 'usd'
+      }
+    })
+
+    if (emailError) {
+      console.error('Error sending subscription email:', emailError)
+    } else {
+      console.log(`Subscription confirmation email sent to user ${userId}`)
+    }
+  } catch (emailError) {
+    console.error('Error sending subscription email:', emailError)
+  }
 }
 
 // Handler: Subscription Deleted
