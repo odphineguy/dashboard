@@ -60,8 +60,17 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
+      if (error) throw error
+    } catch (error) {
+      // If session is missing, clear local storage manually
+      console.error('Sign out error:', error)
+      localStorage.clear()
+      sessionStorage.clear()
+      setUser(null)
+      window.location.href = '/login'
+    }
   }
 
   const signInWithGoogle = async () => {
