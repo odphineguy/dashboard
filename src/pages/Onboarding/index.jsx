@@ -473,70 +473,50 @@ const OnboardingPage = () => {
 
     setLoading(true)
 
-    // Wait for auth session to be fully loaded with better retry mechanism
-    let currentUser = user
-    let retries = 0
-    const maxRetries = 5
+    // First, try to get the current session synchronously
+    console.log('Attempting to get current session...')
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
 
-    console.log('Starting session check:', { currentUser: currentUser?.id, retries })
+    console.log('Current session check:', {
+      sessionExists: !!currentSession,
+      userId: currentSession?.user?.id,
+      error: sessionError
+    })
 
-    while (!currentUser && retries < maxRetries) {
-      console.log(`Waiting for auth session... attempt ${retries + 1}/${maxRetries}`)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Check both the context user and direct session
-      if (!currentUser) {
-        console.log('Checking session directly...')
-        const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('Direct session check result:', { session: session?.user?.id, error })
-        currentUser = session?.user
-      }
-
-      retries++
-    }
-
-    // Additional check - wait for sessionLoaded flag
-    if (!currentUser) {
-      retries = 0
-      while (!sessionLoaded && retries < maxRetries) {
-        console.log(`Waiting for sessionLoaded flag... attempt ${retries + 1}/${maxRetries}`)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        retries++
-      }
-
-      // After waiting for sessionLoaded, try to get session again
-      if (!currentUser) {
-        const { data: { session } } = await supabase.auth.getSession()
-        currentUser = session?.user
-        console.log('Session after waiting for sessionLoaded:', currentUser?.id)
-      }
-    }
-
-    // Final fallback - refresh the session if still not found
-    if (!currentUser) {
-      console.log('Final session check - trying to refresh...')
-      try {
-        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
-        console.log('Session refresh result:', { session: session?.user?.id, error: refreshError })
-        currentUser = session?.user
-      } catch (refreshError) {
-        console.error('Session refresh failed:', refreshError)
-      }
-    }
-
-    // Require authentication before completing onboarding
-    if (!currentUser) {
-      console.error('No user session found after all retry attempts')
-      alert('Authentication session not found. Please sign in again to continue.')
-      setLoading(false)
-      navigate('/login')
+    if (currentSession?.user) {
+      console.log('Found existing session, proceeding with user:', currentSession.user.id)
+      const userId = currentSession.user.id
+      await completeOnboarding(userId, currentSession.user)
       return
     }
 
+    // If no session found, try to refresh it
+    console.log('No session found, attempting to refresh...')
     try {
-      console.log('Completing onboarding for user:', currentUser.id)
-      const userId = currentUser.id
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
 
+      console.log('Session refresh result:', {
+        sessionExists: !!refreshedSession,
+        userId: refreshedSession?.user?.id,
+        error: refreshError
+      })
+
+      if (refreshedSession?.user) {
+        console.log('Session refreshed successfully, proceeding with user:', refreshedSession.user.id)
+        const userId = refreshedSession.user.id
+        await completeOnboarding(userId, refreshedSession.user)
+        return
+      }
+    } catch (refreshError) {
+      console.error('Session refresh failed:', refreshError)
+    }
+
+  }
+
+  const completeOnboarding = async (userId, currentUser) => {
+    console.log('Completing onboarding for user:', userId)
+
+    try {
       // Save onboarding data to profiles table (for both OAuth and email users)
       const { error: profileError } = await supabase
         .from('profiles')
@@ -606,10 +586,10 @@ const OnboardingPage = () => {
       // Navigate to dashboard with replace to prevent going back to onboarding
       window.location.href = '/dashboard'
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('Onboarding completion error:', error)
 
       // Provide user-friendly error messages
-      let errorMessage = 'Failed to create account. Please try again.'
+      let errorMessage = 'Failed to complete setup. Please try again.'
 
       if (error.message?.includes('email')) {
         errorMessage = 'Invalid email address. Please check your email and try again.'
