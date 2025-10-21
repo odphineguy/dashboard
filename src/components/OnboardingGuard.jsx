@@ -23,11 +23,32 @@ const OnboardingGuard = ({ children }) => {
       }
 
       try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('id', user.id)
-          .maybeSingle()
+        // Add a small retry mechanism for database sync after payment
+        let retries = 0
+        let profile = null
+        let error = null
+
+        while (retries < 3) {
+          const result = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', user.id)
+            .maybeSingle()
+
+          profile = result.data
+          error = result.error
+
+          // If we got a profile with onboarding completed, break out
+          if (profile && profile.onboarding_completed === true) {
+            break
+          }
+
+          // If no profile or not completed, wait a bit before retrying
+          if (retries < 2) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+          retries++
+        }
 
         if (error) {
           console.error('Error checking onboarding status:', error)
@@ -38,6 +59,7 @@ const OnboardingGuard = ({ children }) => {
 
         // If profile doesn't exist OR onboarding not completed, redirect to onboarding
         if (!profile || profile.onboarding_completed === false || profile.onboarding_completed === null) {
+          console.log('Redirecting to onboarding - onboarding_completed:', profile?.onboarding_completed)
           navigate('/onboarding', { replace: true })
         } else {
           setChecking(false)
