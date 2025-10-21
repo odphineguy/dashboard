@@ -125,8 +125,54 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const handleUpgrade = async () => {
-    // Use the customer portal for plan changes
-    await handleManageSubscription()
+    try {
+      setActionLoading(true)
+
+      // Free users need to create a new checkout session
+      if (userData?.subscriptionTier === 'free') {
+        // Import price IDs (same as onboarding)
+        const PRICE_IDS = {
+          premium: {
+            month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
+            year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+          },
+          household_premium: {
+            month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+            year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+          }
+        }
+
+        // Default to premium monthly
+        const priceId = PRICE_IDS.premium.month
+
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: {
+            priceId,
+            successUrl: `${window.location.origin}/profile?upgrade=success`,
+            cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
+            planTier: 'premium',
+            billingInterval: 'month'
+          }
+        })
+
+        if (error) {
+          console.error('Error creating checkout session:', error)
+          alert('Failed to start upgrade process. Please try again.')
+          return
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url
+      } else {
+        // Paid users use customer portal
+        await handleManageSubscription()
+      }
+    } catch (error) {
+      console.error('Error upgrading:', error)
+      alert('Failed to start upgrade process. Please try again.')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const formatDate = (dateString) => {
