@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [events, setEvents] = useState([])
   const [wasteReductionData, setWasteReductionData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [userProfile, setUserProfile] = useState({
     full_name: '',
     avatar: null,
@@ -86,7 +87,17 @@ const Dashboard = () => {
         .gte('at', sixMonthsAgo.toISOString())
         .order('at', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error generating waste reduction data:', error)
+        return [
+          { month: 'Jul', consumed: 0, wasted: 0 },
+          { month: 'Aug', consumed: 0, wasted: 0 },
+          { month: 'Sep', consumed: 0, wasted: 0 },
+          { month: 'Oct', consumed: 0, wasted: 0 },
+          { month: 'Nov', consumed: 0, wasted: 0 },
+          { month: 'Dec', consumed: 0, wasted: 0 }
+        ]
+      }
 
       const monthlyData = {}
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -186,7 +197,16 @@ const Dashboard = () => {
 
       const { data: pantryItems, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('Error calculating dashboard metrics:', error)
+        return {
+          totalInventory: 0,
+          expiringToday: 0,
+          expiringSoon: 0,
+          wasteReduction: 0,
+          wasteReductionChange: 0
+        }
+      }
 
       const today = new Date()
       const todayStr = today.toISOString().split('T')[0]
@@ -283,7 +303,10 @@ const Dashboard = () => {
 
       const { data: pantryItems, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('Error loading expiring items:', error)
+        return []
+      }
 
       const transformedItems = pantryItems?.map(item => {
         let status = 'expiring-soon'
@@ -509,10 +532,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (!user?.id) return
+      if (!user?.id) {
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
+        setError(null)
 
         // Check for pending onboarding data (from Google OAuth redirect)
         const pendingOnboarding = localStorage.getItem('pending_onboarding')
@@ -522,14 +549,16 @@ const Dashboard = () => {
             // Save to profiles table
             await supabase
               .from('profiles')
-              .update({
+              .upsert({
+                id: user.id,
+                full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                avatar_url: user.user_metadata?.avatar_url || '',
                 onboarding_data: {
                   subscription_tier: onboardingData.subscription_tier,
                   account_type: onboardingData.account_type,
                   onboarded_at: new Date().toISOString()
                 }
               })
-              .eq('id', user.id)
 
             // Clear from localStorage
             localStorage.removeItem('pending_onboarding')
@@ -538,7 +567,30 @@ const Dashboard = () => {
           }
         }
 
-        await loadUserProfile()
+        // Ensure user profile exists
+        try {
+          await loadUserProfile()
+        } catch (profileError) {
+          console.error('Error loading user profile:', profileError)
+          // Try to create a basic profile if it doesn't exist
+          if (profileError.code === 'PGRST116') { // No rows returned
+            try {
+              await supabase
+                .from('profiles')
+                .upsert({
+                  id: user.id,
+                  full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                  avatar_url: user.user_metadata?.avatar_url || '',
+                  subscription_tier: 'free',
+                  subscription_status: 'active',
+                  onboarding_completed: false
+                })
+              console.log('Created basic profile for user')
+            } catch (createError) {
+              console.error('Error creating profile:', createError)
+            }
+          }
+        }
 
         const { data: rows } = await supabase
           .from('pantry_events')
@@ -610,6 +662,7 @@ const Dashboard = () => {
 
       } catch (error) {
         console.error('Error loading dashboard data:', error)
+        setError(error.message || 'Failed to load dashboard data')
         setEvents([])
         setWasteReductionData([
           { month: 'Jul', consumed: 0, wasted: 0 },
@@ -680,6 +733,30 @@ const Dashboard = () => {
       month: 'long',
       day: 'numeric'
     })
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-900 mb-2">Dashboard Loading Error</h2>
+          <p className="text-red-700 mb-4">
+            There was an error loading your dashboard data. This might be due to:
+          </p>
+          <ul className="text-red-700 text-sm text-left mb-4 space-y-1">
+            <li>• Database connection issues</li>
+            <li>• Missing user profile setup</li>
+            <li>• Network connectivity problems</li>
+          </ul>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Retry Loading Dashboard
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
