@@ -178,6 +178,16 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supab
 
   console.log(`Subscription ${subscription.id} updated for user ${userId}`)
 
+  // Update profile with Stripe customer ID and tier
+  await supabase
+    .from('profiles')
+    .update({
+      stripe_customer_id: customerId,
+      subscription_tier: planTier,
+      subscription_status: subscription.status,
+    })
+    .eq('id', userId)
+
   // Send subscription confirmation email
   try {
     const { error: emailError } = await supabase.functions.invoke('send-subscription-email', {
