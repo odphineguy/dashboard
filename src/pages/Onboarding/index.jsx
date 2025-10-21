@@ -93,12 +93,51 @@ const OnboardingPage = () => {
     }
   }, [user])
 
-  // Handle payment success/cancel callbacks
+  // Handle payment success/cancel callbacks and OAuth redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const success = urlParams.get('success')
     const canceled = urlParams.get('canceled')
     const sessionId = urlParams.get('session_id')
+
+    // Check if this is an OAuth redirect by looking for auth tokens in URL
+    const isOAuthRedirect = window.location.hash.includes('access_token') ||
+                           window.location.search.includes('code') ||
+                           urlParams.has('token') ||
+                           urlParams.has('refresh_token')
+
+    if (isOAuthRedirect) {
+      console.log('OAuth redirect detected, waiting for session to be established...')
+      // Wait for auth to be properly initialized after OAuth redirect
+      const checkOAuthSession = async () => {
+        let retries = 0
+        while (retries < 10) {
+          const { data: { session }, error } = await supabase.auth.getSession()
+          console.log('OAuth session check:', {
+            sessionExists: !!session,
+            userId: session?.user?.id,
+            error,
+            attempt: retries + 1
+          })
+
+          if (session?.user) {
+            console.log('OAuth session established, updating user context...')
+            // Force context update
+            setFormData(prev => ({
+              ...prev,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              email: session.user.email || ''
+            }))
+            break
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 500))
+          retries++
+        }
+      }
+
+      checkOAuthSession()
+    }
 
     if (success === 'true' && sessionId) {
       // Payment successful - wait for session to be loaded before completing onboarding
@@ -333,7 +372,29 @@ const OnboardingPage = () => {
         // If free tier, skip payment and complete onboarding
         if (formData.subscriptionTier === 'free') {
           console.log('Free tier selected, calling handleSubmit')
-          handleSubmit()
+          // Ensure session is available before calling handleSubmit
+          const checkSessionAndSubmit = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+              handleSubmit()
+            } else {
+              console.log('No session available for handleSubmit, trying to refresh...')
+              try {
+                const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+                if (refreshedSession?.user) {
+                  handleSubmit()
+                } else {
+                  alert('Session not available. Please try signing in again.')
+                  navigate('/login')
+                }
+              } catch (error) {
+                console.error('Session refresh failed:', error)
+                alert('Session not available. Please try signing in again.')
+                navigate('/login')
+              }
+            }
+          }
+          checkSessionAndSubmit()
           return
         }
         // If paid tier, go to payment step
