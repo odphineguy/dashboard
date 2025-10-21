@@ -289,6 +289,13 @@ const OnboardingPage = () => {
 
   const handleNext = () => {
     try {
+      console.log('handleNext called:', {
+        currentStep,
+        subscriptionTier: formData.subscriptionTier,
+        user: user?.id,
+        sessionLoaded
+      })
+
       // Validation for step 2 (plan selection)
       if (currentStep === 2 && !formData.subscriptionTier) {
         alert('Please select a subscription plan to continue')
@@ -325,10 +332,12 @@ const OnboardingPage = () => {
       if (currentStep === 5) {
         // If free tier, skip payment and complete onboarding
         if (formData.subscriptionTier === 'free') {
+          console.log('Free tier selected, calling handleSubmit')
           handleSubmit()
           return
         }
         // If paid tier, go to payment step
+        console.log('Paid tier selected, going to payment step')
         setCurrentStep(6)
         return
       }
@@ -450,6 +459,13 @@ const OnboardingPage = () => {
   }
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called with:', {
+      subscriptionTier: formData.subscriptionTier,
+      user: user?.id,
+      sessionLoaded,
+      currentStep
+    })
+
     if (!formData.subscriptionTier) {
       alert('Please select a subscription plan')
       return
@@ -462,13 +478,17 @@ const OnboardingPage = () => {
     let retries = 0
     const maxRetries = 5
 
+    console.log('Starting session check:', { currentUser: currentUser?.id, retries })
+
     while (!currentUser && retries < maxRetries) {
       console.log(`Waiting for auth session... attempt ${retries + 1}/${maxRetries}`)
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Check both the context user and direct session
       if (!currentUser) {
-        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Checking session directly...')
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('Direct session check result:', { session: session?.user?.id, error })
         currentUser = session?.user
       }
 
@@ -483,12 +503,25 @@ const OnboardingPage = () => {
         await new Promise(resolve => setTimeout(resolve, 500))
         retries++
       }
+
+      // After waiting for sessionLoaded, try to get session again
+      if (!currentUser) {
+        const { data: { session } } = await supabase.auth.getSession()
+        currentUser = session?.user
+        console.log('Session after waiting for sessionLoaded:', currentUser?.id)
+      }
     }
 
-    // Final check for current user
+    // Final fallback - refresh the session if still not found
     if (!currentUser) {
-      const { data: { session } } = await supabase.auth.getSession()
-      currentUser = session?.user
+      console.log('Final session check - trying to refresh...')
+      try {
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
+        console.log('Session refresh result:', { session: session?.user?.id, error: refreshError })
+        currentUser = session?.user
+      } catch (refreshError) {
+        console.error('Session refresh failed:', refreshError)
+      }
     }
 
     // Require authentication before completing onboarding

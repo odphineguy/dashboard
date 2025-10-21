@@ -40,11 +40,16 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id)
+      console.log('Auth state changed:', {
+        event,
+        userId: session?.user?.id,
+        sessionExists: !!session,
+        currentPath: window.location.pathname
+      })
 
       // Handle OAuth redirect scenarios
       if (event === 'SIGNED_IN' && session?.user) {
-        console.log('OAuth sign in detected, session loaded')
+        console.log('OAuth sign in detected, session loaded for user:', session.user.id)
       }
 
       setUser(session?.user ?? null)
@@ -98,24 +103,34 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signInWithGoogle = async () => {
+    console.log('Starting Google OAuth sign-in, redirecting to:', `${window.location.origin}/onboarding`)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/onboarding`
       }
     })
-    if (error) throw error
+    if (error) {
+      console.error('Google OAuth error:', error)
+      throw error
+    }
+    console.log('Google OAuth initiated successfully')
     return data
   }
 
   const signInWithApple = async () => {
+    console.log('Starting Apple OAuth sign-in, redirecting to:', `${window.location.origin}/onboarding`)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: {
         redirectTo: `${window.location.origin}/onboarding`
       }
     })
-    if (error) throw error
+    if (error) {
+      console.error('Apple OAuth error:', error)
+      throw error
+    }
+    console.log('Apple OAuth initiated successfully')
     return data
   }
 
