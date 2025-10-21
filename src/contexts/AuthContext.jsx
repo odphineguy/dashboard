@@ -17,6 +17,8 @@ export const AuthProvider = ({ children }) => {
   const [sessionLoaded, setSessionLoaded] = useState(false)
 
   useEffect(() => {
+    let mounted = true
+
     // Check active sessions and sets the user
     const initializeAuth = async () => {
       try {
@@ -35,20 +37,22 @@ export const AuthProvider = ({ children }) => {
           url: window.location.href
         })
 
-        setUser(session?.user ?? null)
-        setSessionLoaded(true)
-        setLoading(false)
+        if (mounted) {
+          setUser(session?.user ?? null)
+          setSessionLoaded(true)
+          setLoading(false)
+        }
       } catch (error) {
         console.error('Error initializing auth:', error)
-        setSessionLoaded(true)
-        setLoading(false)
+        if (mounted) {
+          setSessionLoaded(true)
+          setLoading(false)
+        }
       }
     }
 
-    // Add a delay for OAuth redirect scenarios to allow Supabase to process the callback
-    const initTimeout = setTimeout(() => {
-      initializeAuth()
-    }, 500)
+    // Initialize immediately
+    initializeAuth()
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -63,21 +67,17 @@ export const AuthProvider = ({ children }) => {
       // Handle OAuth redirect scenarios
       if (event === 'SIGNED_IN' && session?.user) {
         console.log('OAuth sign in detected, session loaded for user:', session.user.id)
-        // Force a session refresh to ensure it's properly stored
-        try {
-          await supabase.auth.getSession()
-        } catch (refreshError) {
-          console.error('Error refreshing session after OAuth:', refreshError)
-        }
       }
 
-      setUser(session?.user ?? null)
-      setSessionLoaded(true)
-      setLoading(false)
+      if (mounted) {
+        setUser(session?.user ?? null)
+        setSessionLoaded(true)
+        setLoading(false)
+      }
     })
 
     return () => {
-      clearTimeout(initTimeout)
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
