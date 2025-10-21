@@ -89,15 +89,15 @@ const OnboardingPage = () => {
     const canceled = urlParams.get('canceled')
     const sessionId = urlParams.get('session_id')
 
-    if (success === 'true' && sessionId) {
-      // Payment successful - complete onboarding
+    if (success === 'true' && sessionId && user) {
+      // Payment successful - complete onboarding (wait for user to be loaded)
       handleSubmit()
     } else if (canceled === 'true') {
       // Payment canceled - return to payment step
       setCurrentStep(6)
       alert('Payment was canceled. Please try again or choose a different plan.')
     }
-  }, [])
+  }, [user])
 
   // Load animations
   React.useEffect(() => {
