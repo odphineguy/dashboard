@@ -434,6 +434,8 @@ const OnboardingPage = () => {
         .upsert({
           id: userId,
           full_name: formData.name || null,
+          subscription_tier: formData.subscriptionTier || 'free',
+          subscription_status: 'active',
           onboarding_completed: true,
           onboarding_data: {
             subscription_tier: formData.subscriptionTier,
