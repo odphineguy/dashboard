@@ -22,33 +22,21 @@ const OnboardingGuard = ({ children }) => {
         return
       }
 
+      // Check if we should skip onboarding check (just completed)
+      const skipCheck = sessionStorage.getItem('skip_onboarding_check')
+      if (skipCheck === 'true') {
+        console.log('Skipping onboarding check - just completed onboarding')
+        sessionStorage.removeItem('skip_onboarding_check')
+        setChecking(false)
+        return
+      }
+
       try {
-        // Add a small retry mechanism for database sync after payment
-        let retries = 0
-        let profile = null
-        let error = null
-
-        while (retries < 3) {
-          const result = await supabase
-            .from('profiles')
-            .select('onboarding_completed')
-            .eq('id', user.id)
-            .maybeSingle()
-
-          profile = result.data
-          error = result.error
-
-          // If we got a profile with onboarding completed, break out
-          if (profile && profile.onboarding_completed === true) {
-            break
-          }
-
-          // If no profile or not completed, wait a bit before retrying
-          if (retries < 2) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-          }
-          retries++
-        }
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle()
 
         if (error) {
           console.error('Error checking onboarding status:', error)
