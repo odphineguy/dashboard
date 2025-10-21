@@ -29,7 +29,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext'
 import { supabase } from '../../lib/supabaseClient'
 
 const OnboardingPage = () => {
-  const { user, signUp, signInWithGoogle, signInWithApple } = useAuth()
+  const { user, loading: authLoading, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { isDark } = useTheme()
   const { createCheckoutSession } = useSubscription()
   const navigate = useNavigate()
@@ -681,7 +681,12 @@ const OnboardingPage = () => {
               </p>
             </div>
 
-            {user ? (
+            {authLoading ? (
+              // Loading auth state
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            ) : user ? (
               // User is already signed in
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
