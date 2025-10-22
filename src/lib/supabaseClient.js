@@ -32,10 +32,11 @@ const createSupabaseClient = () => {
 
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      flowType: 'pkce',
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      storage: window.localStorage,
+      storageKey: 'supabase.auth.token'
     }
   })
 }
