@@ -368,13 +368,22 @@ const OnboardingPage = () => {
       // Free tier skips login (step 3) and goes to personalization (step 4)
       // Paid tiers: go to login (step 3) if not authenticated, otherwise skip to step 4
       if (currentStep === 2) {
+        console.log('Step 2 navigation:', {
+          tier: formData.subscriptionTier,
+          userAuthenticated: !!user,
+          userId: user?.id
+        })
+
         if (formData.subscriptionTier === 'free') {
+          console.log('Free tier selected, going to step 4')
           setCurrentStep(4)
         } else if (user) {
           // Already authenticated, skip login step
+          console.log('User already authenticated, skipping to step 4')
           setCurrentStep(4)
         } else {
           // Need to authenticate first
+          console.log('User not authenticated, going to step 3 for login')
           setCurrentStep(3)
         }
         return
