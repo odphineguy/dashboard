@@ -622,6 +622,29 @@ const OnboardingPage = () => {
         throw profileError // Block if profile creation fails
       }
 
+      // Create default storage locations (Pantry, Refrigerator, Freezer)
+      const { data: existingLocations } = await supabase
+        .from('storage_locations')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!existingLocations || existingLocations.length === 0) {
+        const { error: storageError } = await supabase
+          .from('storage_locations')
+          .insert([
+            { user_id: userId, name: 'Pantry', location_type: 'pantry' },
+            { user_id: userId, name: 'Refrigerator', location_type: 'fridge' },
+            { user_id: userId, name: 'Freezer', location_type: 'freezer' }
+          ])
+
+        if (storageError) {
+          console.error('Storage location creation error:', storageError)
+        } else {
+          console.log('Created default storage locations for user')
+        }
+      }
+
       // If household account, create household entry
       if (formData.accountType === 'household' && formData.householdName) {
         const { data: household, error: householdError } = await supabase
