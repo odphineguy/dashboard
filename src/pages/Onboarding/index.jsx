@@ -68,6 +68,7 @@ const OnboardingPage = () => {
     }
   })
   const [loading, setLoading] = useState(false)
+  const [oauthSessionLoading, setOauthSessionLoading] = useState(false)
   const [showEmailVerification, setShowEmailVerification] = useState(false)
   const [recipeBookAnimation, setRecipeBookAnimation] = useState(null)
   const [phoneScanAnimation, setPhoneScanAnimation] = useState(null)
@@ -90,8 +91,19 @@ const OnboardingPage = () => {
         name: user.user_metadata?.full_name || user.user_metadata?.name || '',
         email: user.email || ''
       }))
+
+      // If user just authenticated via OAuth and is at step 2 with paid tier selected
+      // automatically advance to step 4
+      const isOAuthRedirect = window.location.hash.includes('access_token') ||
+                             window.location.search.includes('code')
+      if (isOAuthRedirect && currentStep === 2 && formData.subscriptionTier && formData.subscriptionTier !== 'free') {
+        console.log('OAuth completed, auto-advancing from step 2 to step 4')
+        setCurrentStep(4)
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
     }
-  }, [user])
+  }, [user, currentStep, formData.subscriptionTier])
 
   // Handle payment success/cancel callbacks and OAuth redirect
   useEffect(() => {
@@ -124,6 +136,7 @@ const OnboardingPage = () => {
       console.log('OAuth redirect detected, waiting for session to be established...')
       // Wait for auth to be properly initialized after OAuth redirect
       const checkOAuthSession = async () => {
+        setOauthSessionLoading(true)
         let retries = 0
         const maxRetries = 20 // Increased for mobile Safari
         const retryDelay = 1000 // Increased to 1 second for mobile
@@ -146,6 +159,7 @@ const OnboardingPage = () => {
               name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
               email: session.user.email || ''
             }))
+            setOauthSessionLoading(false)
             break
           }
 
@@ -155,6 +169,7 @@ const OnboardingPage = () => {
 
         if (retries >= maxRetries) {
           console.error('OAuth session establishment failed after maximum retries')
+          setOauthSessionLoading(false)
           alert('Failed to establish session after OAuth. Please try signing in again.')
         }
       }
@@ -371,12 +386,17 @@ const OnboardingPage = () => {
         console.log('Step 2 navigation:', {
           tier: formData.subscriptionTier,
           userAuthenticated: !!user,
-          userId: user?.id
+          userId: user?.id,
+          oauthSessionLoading
         })
 
         if (formData.subscriptionTier === 'free') {
           console.log('Free tier selected, going to step 4')
           setCurrentStep(4)
+        } else if (oauthSessionLoading) {
+          // OAuth session still loading, prevent navigation
+          alert('Please wait while we complete your sign-in...')
+          return
         } else if (user) {
           // Already authenticated, skip login step
           console.log('User already authenticated, skipping to step 4')
