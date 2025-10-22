@@ -8,6 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Working with the Project Owner
 
+**RULE #1 - MOST CRITICAL RULE ABOVE ALL:**
+- **NEVER ask the project owner to run SQL commands manually**
+- **NEVER ask the project owner to go to Supabase dashboard to execute migrations**
+- **NEVER ask the project owner to configure anything in external dashboards**
+- You have full access to implement solutions programmatically - USE IT
+- If a database migration is needed, implement it in code during onboarding/signup flows
+- The project owner is NOT a database administrator - they are a business owner
+
 **CRITICAL: Design Decision Authority**
 
 The project owner is the final decision-maker on ALL design-related aspects of this project. When working on this codebase:
