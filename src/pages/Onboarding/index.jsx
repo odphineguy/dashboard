@@ -125,13 +125,17 @@ const OnboardingPage = () => {
       // Wait for auth to be properly initialized after OAuth redirect
       const checkOAuthSession = async () => {
         let retries = 0
-        while (retries < 10) {
+        const maxRetries = 20 // Increased for mobile Safari
+        const retryDelay = 1000 // Increased to 1 second for mobile
+
+        while (retries < maxRetries) {
           const { data: { session }, error } = await supabase.auth.getSession()
           console.log('OAuth session check:', {
             sessionExists: !!session,
             userId: session?.user?.id,
             error,
-            attempt: retries + 1
+            attempt: retries + 1,
+            maxRetries
           })
 
           if (session?.user) {
@@ -145,11 +149,11 @@ const OnboardingPage = () => {
             break
           }
 
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
           retries++
         }
 
-        if (retries >= 10) {
+        if (retries >= maxRetries) {
           console.error('OAuth session establishment failed after maximum retries')
           alert('Failed to establish session after OAuth. Please try signing in again.')
         }
