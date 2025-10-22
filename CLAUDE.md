@@ -444,3 +444,4 @@ Map to frontend using camelCase:
 }
 ```
  https://app.mealsaver.app/
+- memorize that rule with ebvery move you make going forward

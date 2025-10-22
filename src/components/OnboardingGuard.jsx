@@ -53,7 +53,18 @@ const OnboardingGuard = ({ children }) => {
         // If profile doesn't exist OR onboarding not completed, redirect to onboarding
         if (!profile || profile.onboarding_completed === false || profile.onboarding_completed === null) {
           console.log('Redirecting to onboarding - onboarding_completed:', profile?.onboarding_completed)
-          navigate('/onboarding', { replace: true })
+
+          // If profile exists but onboarding_completed is null/false, update it to true (for existing users)
+          if (profile && (profile.onboarding_completed === false || profile.onboarding_completed === null)) {
+            console.log('Updating onboarding_completed to true for existing user')
+            await supabase
+              .from('profiles')
+              .update({ onboarding_completed: true })
+              .eq('id', user.id)
+            setChecking(false)
+          } else {
+            navigate('/onboarding', { replace: true })
+          }
         } else {
           setChecking(false)
         }
