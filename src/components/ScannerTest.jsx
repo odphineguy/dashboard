@@ -112,10 +112,9 @@ export default function ScannerTest() {
     setBarcodeError(null)
 
     try {
-      // Get current user ID
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const currentUser = typeof window !== 'undefined' ? window.Clerk?.user : null
 
-      if (!currentUser) {
+      if (!currentUser?.id) {
         throw new Error('You must be logged in to save items')
       }
 
@@ -232,10 +231,9 @@ export default function ScannerTest() {
     setReceiptError(null)
 
     try {
-      // Get current user ID
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const currentUser = typeof window !== 'undefined' ? window.Clerk?.user : null
 
-      if (!currentUser) {
+      if (!currentUser?.id) {
         throw new Error('You must be logged in to save items')
       }
 
@@ -321,10 +319,9 @@ export default function ScannerTest() {
     setSaving(true)
 
     try {
-      // Get current user ID
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const currentUser = typeof window !== 'undefined' ? window.Clerk?.user : null
 
-      if (!currentUser) {
+      if (!currentUser?.id) {
         throw new Error('You must be logged in to save items')
       }
 
@@ -537,13 +534,19 @@ If you cannot read a barcode, return {"barcode": "unknown", "productName": "visi
     setGmailOrders([])
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
+      let token = null
+      if (typeof window !== 'undefined') {
+        token = await window.Clerk?.session?.getToken({ template: 'supabase' })
+      }
+
+      if (!token) {
+        throw new Error('Not authenticated')
+      }
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-sync`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
