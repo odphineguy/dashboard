@@ -444,8 +444,7 @@ const OnboardingPage = () => {
         if (formData.subscriptionTier === 'basic') {
           console.log('Basic tier selected, calling handleSubmit')
           // Check if user is authenticated (Clerk or Supabase)
-          const updatedUser = resolveClerkUser()
-          if (updatedUser?.id || user?.id) {
+          if (clerkUser?.id || user?.id) {
             console.log('User authenticated, completing onboarding')
             handleSubmit()
           } else {
@@ -592,8 +591,7 @@ const OnboardingPage = () => {
     setLoading(true)
 
     try {
-      // First check for Clerk user
-      const clerkUser = resolveClerkUser()
+      // First check for Clerk user (from useUser hook)
       if (clerkUser?.id) {
         console.log('Found Clerk user, proceeding with user:', clerkUser.id)
         await completeOnboarding(clerkUser.id)
