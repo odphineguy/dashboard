@@ -409,10 +409,7 @@ const OnboardingPage = () => {
           oauthSessionLoading
         })
 
-        if (formData.subscriptionTier === 'basic') {
-          console.log('Basic tier selected, going to step 4')
-          setCurrentStep(4)
-        } else if (oauthSessionLoading) {
+        if (oauthSessionLoading) {
           // OAuth session still loading, prevent navigation
           alert('Please wait while we complete your sign-in...')
           return
@@ -421,7 +418,7 @@ const OnboardingPage = () => {
           console.log('User already authenticated, skipping to step 4')
           setCurrentStep(4)
         } else {
-          // Need to authenticate first
+          // ALL tiers (including Basic) must authenticate at Step 3
           console.log('User not authenticated, going to step 3 for login')
           setCurrentStep(3)
         }
@@ -443,6 +440,13 @@ const OnboardingPage = () => {
         // If basic tier, skip payment and complete onboarding
         if (formData.subscriptionTier === 'basic') {
           console.log('Basic tier selected, calling handleSubmit')
+
+          // Wait for Clerk to finish loading before checking auth state
+          if (!clerkLoaded) {
+            console.log('Clerk still loading, please wait...')
+            return
+          }
+
           // Check if user is authenticated (Clerk or Supabase)
           if (clerkUser?.id || user?.id) {
             console.log('User authenticated, completing onboarding')
