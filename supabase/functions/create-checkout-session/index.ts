@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { priceId, successUrl, cancelUrl, planTier, billingInterval } = await req.json()
+    const { priceId, successUrl, cancelUrl, planTier, billingInterval, clerkUserId, userEmail, userName } = await req.json()
 
     if (!priceId || !successUrl || !cancelUrl) {
       return new Response(
@@ -62,22 +62,59 @@ serve(async (req) => {
       )
     }
 
-    // Get or create Stripe customer
-    const { data: profile } = await supabaseClient
+    // Determine which user ID to use (Clerk or Supabase)
+    const effectiveUserId = clerkUserId || user.id
+    const effectiveEmail = userEmail || user.email
+    const effectiveName = userName || user.email?.split('@')[0]
+
+    // Get profile - retry if not found (wait for Clerk webhook to complete)
+    let { data: profile } = await supabaseClient
       .from('profiles')
       .select('stripe_customer_id, full_name')
-      .eq('id', user.id)
+      .eq('id', effectiveUserId)
       .single()
+
+    // If profile doesn't exist, retry up to 3 times with delay
+    if (!profile) {
+      console.log('Profile not found, waiting for Clerk webhook to complete...')
+
+      for (let i = 0; i < 3; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const { data: retryProfile } = await supabaseClient
+          .from('profiles')
+          .select('stripe_customer_id, full_name')
+          .eq('id', effectiveUserId)
+          .single()
+
+        if (retryProfile) {
+          profile = retryProfile
+          console.log(`Profile found after ${i + 1} retries`)
+          break
+        }
+      }
+
+      if (!profile) {
+        return new Response(
+          JSON.stringify({ error: 'Profile not ready. Please wait a moment and try again.' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          }
+        )
+      }
+    }
 
     let customerId = profile?.stripe_customer_id
 
     // Create Stripe customer if doesn't exist
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: user.email,
-        name: profile?.full_name || user.email?.split('@')[0],
+        email: effectiveEmail,
+        name: profile?.full_name || effectiveName,
         metadata: {
-          supabase_user_id: user.id,
+          user_id: effectiveUserId,
+          clerk_user_id: clerkUserId || '',
         },
       })
       customerId = customer.id
@@ -86,7 +123,7 @@ serve(async (req) => {
       await supabaseClient
         .from('profiles')
         .update({ stripe_customer_id: customerId })
-        .eq('id', user.id)
+        .eq('id', effectiveUserId)
     }
 
     // Create Checkout Session
@@ -103,13 +140,15 @@ serve(async (req) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        user_id: user.id,
+        user_id: effectiveUserId,
+        clerk_user_id: clerkUserId || '',
         plan_tier: planTier || 'premium',
         billing_interval: billingInterval || 'month',
       },
       subscription_data: {
         metadata: {
-          user_id: user.id,
+          user_id: effectiveUserId,
+          clerk_user_id: clerkUserId || '',
           plan_tier: planTier || 'premium',
         },
       },

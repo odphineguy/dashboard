@@ -19,6 +19,8 @@ serve(async (req) => {
     return new Response('Webhook signature or secret missing', { status: 400 })
   }
 
+  let eventId: string | undefined
+
   try {
     const body = await req.text()
 
@@ -31,6 +33,7 @@ serve(async (req) => {
       cryptoProvider
     )
 
+    eventId = event.id
     console.log('Webhook event received:', event.type)
 
     // Initialize Supabase client with service role
@@ -39,13 +42,31 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Log webhook event
-    await supabaseAdmin.from('stripe_webhooks_log').insert({
-      event_id: event.id,
-      event_type: event.type,
-      payload: event.data.object,
-      processed: false,
-    })
+    // Check if event already processed (idempotency)
+    const { data: existingEvent } = await supabaseAdmin
+      .from('stripe_webhooks_log')
+      .select('processed')
+      .eq('event_id', event.id)
+      .single()
+
+    if (existingEvent) {
+      if (existingEvent.processed) {
+        console.log(`Event ${event.id} already processed, skipping`)
+        return new Response(JSON.stringify({ received: true, status: 'already_processed' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+      // Event exists but not processed - continue
+    } else {
+      // Log new webhook event
+      await supabaseAdmin.from('stripe_webhooks_log').insert({
+        event_id: event.id,
+        event_type: event.type,
+        payload: event.data.object,
+        processed: false,
+      })
+    }
 
     // Handle different event types
     switch (event.type) {
@@ -98,17 +119,19 @@ serve(async (req) => {
     console.error('Webhook error:', error)
 
     // Log error to database if possible
-    try {
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-      await supabaseAdmin
-        .from('stripe_webhooks_log')
-        .update({ error: error.message })
-        .eq('event_id', (await req.json()).id)
-    } catch (logError) {
-      console.error('Failed to log error:', logError)
+    if (eventId) {
+      try {
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+        await supabaseAdmin
+          .from('stripe_webhooks_log')
+          .update({ error: error.message })
+          .eq('event_id', eventId)
+      } catch (logError) {
+        console.error('Failed to log error:', logError)
+      }
     }
 
     return new Response(JSON.stringify({ error: error.message }), {
@@ -120,15 +143,26 @@ serve(async (req) => {
 
 // Handler: Checkout Session Completed
 async function handleCheckoutComplete(session: Stripe.Checkout.Session, supabase: any) {
-  const userId = session.metadata?.user_id
+  let userId = session.metadata?.user_id
   const planTier = session.metadata?.plan_tier
 
+  // Fallback: Get user_id from customer metadata if missing
+  if (!userId && session.customer) {
+    console.log('user_id not in session metadata, fetching from customer...')
+    try {
+      const customer = await stripe.customers.retrieve(session.customer as string) as Stripe.Customer
+      userId = customer.metadata?.user_id || customer.metadata?.clerk_user_id
+    } catch (error) {
+      console.error('Error retrieving customer:', error)
+    }
+  }
+
   if (!userId) {
-    console.error('No user_id in checkout session metadata')
+    console.error('No user_id found in session or customer metadata')
     return
   }
 
-  console.log(`Checkout completed for user ${userId}, plan ${planTier}`)
+  console.log(`Checkout completed for user ${userId} (Clerk or Supabase ID), plan ${planTier}`)
 
   // Subscription will be created/updated via subscription.created webhook
   // Just log for now
@@ -136,13 +170,26 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session, supabase
 
 // Handler: Subscription Created/Updated
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supabase: any) {
-  const userId = subscription.metadata?.user_id
+  let userId = subscription.metadata?.user_id
   const customerId = subscription.customer as string
 
+  // Fallback: Get user_id from customer metadata if missing from subscription
   if (!userId) {
-    console.error('No user_id in subscription metadata')
+    console.log('user_id not in subscription metadata, fetching from customer...')
+    try {
+      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+      userId = customer.metadata?.user_id || customer.metadata?.clerk_user_id
+    } catch (error) {
+      console.error('Error retrieving customer:', error)
+    }
+  }
+
+  if (!userId) {
+    console.error('No user_id found in subscription or customer metadata')
     return
   }
+
+  console.log(`Processing subscription for user ${userId} (Clerk or Supabase ID)`)
 
   const planTier = subscription.metadata?.plan_tier || 'premium'
   const priceId = subscription.items.data[0]?.price.id
@@ -214,10 +261,22 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription, supab
 
 // Handler: Subscription Deleted
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabase: any) {
-  const userId = subscription.metadata?.user_id
+  let userId = subscription.metadata?.user_id
+  const customerId = subscription.customer as string
+
+  // Fallback: Get user_id from customer metadata if missing
+  if (!userId) {
+    console.log('user_id not in subscription metadata, fetching from customer...')
+    try {
+      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+      userId = customer.metadata?.user_id || customer.metadata?.clerk_user_id
+    } catch (error) {
+      console.error('Error retrieving customer:', error)
+    }
+  }
 
   if (!userId) {
-    console.error('No user_id in subscription metadata')
+    console.error('No user_id found in subscription or customer metadata')
     return
   }
 
@@ -235,16 +294,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
     throw error
   }
 
-  // Downgrade user to free tier
+  // Downgrade user to basic tier
   await supabase
     .from('profiles')
     .update({
-      subscription_tier: 'free',
+      subscription_tier: 'basic',
       subscription_status: 'active',
     })
     .eq('id', userId)
 
-  console.log(`Subscription ${subscription.id} deleted, user ${userId} downgraded to free`)
+  console.log(`Subscription ${subscription.id} deleted, user ${userId} downgraded to basic`)
 }
 
 // Handler: Payment Succeeded
