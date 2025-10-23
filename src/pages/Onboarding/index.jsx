@@ -33,29 +33,19 @@ const OnboardingPage = () => {
   const { user: supabaseUser, loading: authLoading, sessionLoaded, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
 
-  const resolveClerkUser = () => {
-    if (clerkUser) return clerkUser
-    if (typeof window !== 'undefined' && window.Clerk?.user) {
-      return window.Clerk.user
-    }
-    return null
-  }
-
   // Use Clerk user if available, otherwise fall back to Supabase
-  const user = resolveClerkUser() || supabaseUser
+  const user = clerkUser || supabaseUser
 
   // Helper to get email from either Clerk or Supabase user
   const getUserEmail = () => {
-    const resolved = resolveClerkUser()
-    if (resolved) return resolved.primaryEmailAddress?.emailAddress
+    if (clerkUser) return clerkUser.primaryEmailAddress?.emailAddress
     if (supabaseUser) return supabaseUser.email
     return ''
   }
 
   // Helper to get name from either Clerk or Supabase user
   const getUserName = () => {
-    const resolved = resolveClerkUser()
-    if (resolved) return resolved.fullName || resolved.firstName || ''
+    if (clerkUser) return clerkUser.fullName || clerkUser.firstName || ''
     if (supabaseUser) return supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || ''
     return ''
   }
@@ -171,13 +161,22 @@ const OnboardingPage = () => {
         const retryDelay = 1000 // Increased to 1 second for mobile
 
         while (retries < maxRetries) {
-          const updatedUser = resolveClerkUser()
-          if (updatedUser) {
-            console.log('OAuth session established via Clerk, updating user context...')
+          const { data: { session }, error } = await supabase.auth.getSession()
+          console.log('OAuth session check:', {
+            sessionExists: !!session,
+            userId: session?.user?.id,
+            error,
+            attempt: retries + 1,
+            maxRetries
+          })
+
+          if (session?.user) {
+            console.log('OAuth session established, updating user context...')
+            // Force context update
             setFormData(prev => ({
               ...prev,
-              name: updatedUser.fullName || updatedUser.firstName || '',
-              email: updatedUser.primaryEmailAddress?.emailAddress || ''
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              email: session.user.email || ''
             }))
             setOauthSessionLoading(false)
             break
@@ -215,13 +214,15 @@ const OnboardingPage = () => {
           handleSubmit()
         } else {
           console.error('Payment success but no user session found after waiting')
-          const updatedUser = resolveClerkUser()
-          if (updatedUser) {
-            console.log('Found Clerk user after retry, proceeding...')
+          // Try to get session directly
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            console.log('Found session via direct check, proceeding...')
+            // Update context state manually if needed
             setFormData(prev => ({
               ...prev,
-              name: updatedUser.fullName || updatedUser.firstName || '',
-              email: updatedUser.primaryEmailAddress?.emailAddress || ''
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              email: session.user.email || ''
             }))
             handleSubmit()
           } else {
@@ -443,13 +444,28 @@ const OnboardingPage = () => {
         if (formData.subscriptionTier === 'basic') {
           console.log('Basic tier selected, calling handleSubmit')
           // Ensure session is available before calling handleSubmit
-          const updatedUser = resolveClerkUser()
-          if (updatedUser) {
-            handleSubmit()
-          } else {
-            alert('Session not available. Please try signing in again.')
-            navigate('/login')
+          const checkSessionAndSubmit = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+              handleSubmit()
+            } else {
+              console.log('No session available for handleSubmit, trying to refresh...')
+              try {
+                const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+                if (refreshedSession?.user) {
+                  handleSubmit()
+                } else {
+                  alert('Session not available. Please try signing in again.')
+                  navigate('/login')
+                }
+              } catch (error) {
+                console.error('Session refresh failed:', error)
+                alert('Session not available. Please try signing in again.')
+                navigate('/login')
+              }
+            }
           }
+          checkSessionAndSubmit()
           return
         }
         // If paid tier, go to payment step
@@ -587,21 +603,49 @@ const OnboardingPage = () => {
       return
     }
 
-    if (!user?.id) {
-      alert('Please sign in before continuing')
+    setLoading(true)
+
+    // First, try to get the current session synchronously
+    console.log('Attempting to get current session...')
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+
+    console.log('Current session check:', {
+      sessionExists: !!currentSession,
+      userId: currentSession?.user?.id,
+      error: sessionError
+    })
+
+    if (currentSession?.user) {
+      console.log('Found existing session, proceeding with user:', currentSession.user.id)
+      const userId = currentSession.user.id
+      await completeOnboarding(userId, currentSession.user)
       return
     }
 
-    setLoading(true)
-
+    // If no session found, try to refresh it
+    console.log('No session found, attempting to refresh...')
     try {
-      await completeOnboarding(user.id)
-    } finally {
-      setLoading(false)
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+
+      console.log('Session refresh result:', {
+        sessionExists: !!refreshedSession,
+        userId: refreshedSession?.user?.id,
+        error: refreshError
+      })
+
+      if (refreshedSession?.user) {
+        console.log('Session refreshed successfully, proceeding with user:', refreshedSession.user.id)
+        const userId = refreshedSession.user.id
+        await completeOnboarding(userId, refreshedSession.user)
+        return
+      }
+    } catch (refreshError) {
+      console.error('Session refresh failed:', refreshError)
     }
+
   }
 
-  const completeOnboarding = async (userId) => {
+  const completeOnboarding = async (userId, currentUser) => {
     console.log('Completing onboarding for user:', userId)
 
     try {

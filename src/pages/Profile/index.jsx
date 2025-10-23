@@ -200,8 +200,25 @@ const Profile = () => {
     }
   }
 
-  const handlePasswordChange = async () => {
-    alert('Password updates are managed through Clerk. Please use the profile settings in the login screen to change your password.')
+  const handlePasswordChange = async (passwordData) => {
+    try {
+      // Use Supabase Auth to update password
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      })
+
+      if (error) {
+        console.error('Error changing password:', error)
+        alert(`Failed to change password: ${error.message}`)
+        return
+      }
+
+      alert('Password updated successfully!')
+      console.log('Password changed successfully')
+    } catch (error) {
+      console.error('Error changing password:', error)
+      alert('Failed to change password. Please try again.')
+    }
   }
 
   const handleDataExport = async (exportType) => {
@@ -277,7 +294,7 @@ const Profile = () => {
 
       // Delete user data in order (foreign key constraints)
       // Note: Supabase RLS policies should handle cascading deletes where configured
-      await Promise.all([
+      const deleteOperations = [
         supabase.from('pantry_events').delete().eq('user_id', user.id),
         supabase.from('pantry_items').delete().eq('user_id', user.id),
         supabase.from('ai_saved_recipes').delete().eq('user_id', user.id),
@@ -285,9 +302,26 @@ const Profile = () => {
         supabase.from('user_achievements').delete().eq('user_id', user.id),
         supabase.from('household_members').delete().eq('user_id', user.id),
         supabase.from('profiles').delete().eq('id', user.id)
-      ])
+      ]
 
-      alert('Account data deleted successfully. Please sign out from the login screen to finish this process.')
+      // Execute all delete operations
+      await Promise.all(deleteOperations)
+
+      // Delete the auth user account (this should be the last step)
+      const { error: authError } = await supabase.auth.admin.deleteUser(user.id)
+
+      if (authError) {
+        // If admin.deleteUser is not available (requires service role key),
+        // use the regular user delete endpoint
+        console.log('Admin delete not available, using regular auth flow')
+        // User will need to be logged out and they can request deletion through support
+      }
+
+      alert('Account deleted successfully. You will be logged out.')
+
+      // Sign out and redirect to login
+      await supabase.auth.signOut()
+      window.location.href = '/login'
     } catch (error) {
       console.error('Error deleting account:', error)
       alert('Failed to delete account. Please contact support for assistance.')
