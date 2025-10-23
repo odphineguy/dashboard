@@ -46,7 +46,9 @@ export default function Login() {
       }
     } catch (err) {
       console.error('Auth error:', err)
-      setError(err.message || 'Authentication failed')
+      // Handle Clerk-specific error format
+      const errorMessage = err.errors?.[0]?.message || err.message || 'Authentication failed'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -60,7 +62,8 @@ export default function Login() {
       // OAuth will handle the redirect
     } catch (err) {
       console.error('Google sign-in error:', err)
-      setError(err.message || 'Google sign-in failed')
+      const errorMessage = err.errors?.[0]?.message || err.message || 'Google sign-in failed'
+      setError(errorMessage)
       setLoading(false)
     }
   }
@@ -73,7 +76,8 @@ export default function Login() {
       // OAuth will handle the redirect
     } catch (err) {
       console.error('Apple sign-in error:', err)
-      setError(err.message || 'Apple sign-in failed')
+      const errorMessage = err.errors?.[0]?.message || err.message || 'Apple sign-in failed'
+      setError(errorMessage)
       setLoading(false)
     }
   }

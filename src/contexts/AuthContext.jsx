@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { createContext, useContext } from 'react'
+import { useUser, useSignIn, useSignUp, useClerk } from '@clerk/clerk-react'
 
 const AuthContext = createContext({})
 
@@ -12,162 +12,106 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [sessionLoaded, setSessionLoaded] = useState(false)
+  const { isLoaded, isSignedIn, user: clerkUser } = useUser()
+  const { signIn: clerkSignIn } = useSignIn()
+  const { signUp: clerkSignUp } = useSignUp()
+  const { signOut: clerkSignOut } = useClerk()
 
-  useEffect(() => {
-    let mounted = true
+  // Transform Clerk user to match existing app structure
+  const user = clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress,
+    user_metadata: {
+      full_name: clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+      avatar_url: clerkUser.imageUrl,
+    },
+    // Add raw Clerk user for any Clerk-specific needs
+    _clerk: clerkUser
+  } : null
 
-    // Check active sessions and sets the user
-    const initializeAuth = async () => {
-      try {
-        console.log('Initializing auth, checking for existing session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
+  const loading = !isLoaded
+  const sessionLoaded = isLoaded
 
-        if (error) {
-          console.error('Error getting session during initialization:', error)
-        }
-
-        console.log('Initial session check result:', {
-          sessionExists: !!session,
-          userId: session?.user?.id,
-          error,
-          currentPath: window.location.pathname,
-          url: window.location.href
-        })
-
-        if (mounted) {
-          setUser(session?.user ?? null)
-          setSessionLoaded(true)
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-        if (mounted) {
-          setSessionLoaded(true)
-          setLoading(false)
-        }
-      }
-    }
-
-    // Initialize immediately
-    initializeAuth()
-
-    // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', {
-        event,
-        userId: session?.user?.id,
-        sessionExists: !!session,
-        currentPath: window.location.pathname,
-        url: window.location.href
+  // Email/Password Sign Up
+  const signUp = async (email, password) => {
+    try {
+      const result = await clerkSignUp.create({
+        emailAddress: email,
+        password: password,
       })
 
-      // Handle OAuth redirect scenarios
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log('OAuth sign in detected, session loaded for user:', session.user.id)
+      // Check if email verification is required
+      if (result.status === 'missing_requirements') {
+        // Send verification email
+        await result.prepareEmailAddressVerification({ strategy: 'email_code' })
+        return { needsEmailVerification: true, signUp: result }
       }
 
-      if (mounted) {
-        setUser(session?.user ?? null)
-        setSessionLoaded(true)
-        setLoading(false)
-      }
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
+      return { user: result, needsEmailVerification: false }
+    } catch (error) {
+      console.error('Sign up error:', error)
+      throw error
     }
-  }, [])
-
-  const signUp = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`
-      }
-    })
-    if (error) throw error
-
-    // Check if email confirmation is required
-    if (data?.user && !data?.session) {
-      // User created but needs to verify email - no session created
-      return { ...data, needsEmailVerification: true }
-    }
-
-    return data
   }
 
+  // Email/Password Sign In
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (error) throw error
-    return data
+    try {
+      const result = await clerkSignIn.create({
+        identifier: email,
+        password: password,
+      })
+      return result
+    } catch (error) {
+      console.error('Sign in error:', error)
+      throw error
+    }
   }
 
+  // Sign Out
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'local' })
-      if (error) throw error
+      await clerkSignOut()
+      window.location.href = '/login'
     } catch (error) {
-      // If session is missing, clear local storage manually
       console.error('Sign out error:', error)
-      localStorage.clear()
-      sessionStorage.clear()
-      setUser(null)
       window.location.href = '/login'
     }
   }
 
+  // Google OAuth - Clerk handles this automatically via their UI components
   const signInWithGoogle = async () => {
-    const redirectUrl = `${window.location.origin}/onboarding`
-    console.log('Starting Google OAuth sign-in, redirecting to:', redirectUrl)
-    console.log('Current origin:', window.location.origin)
-    console.log('Full redirect URL:', redirectUrl)
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl
-      }
-    })
-    if (error) {
+    try {
+      await clerkSignIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/onboarding'
+      })
+    } catch (error) {
       console.error('Google OAuth error:', error)
       throw error
     }
-    console.log('Google OAuth initiated successfully')
-    return data
   }
 
+  // Apple OAuth - Clerk handles this automatically via their UI components
   const signInWithApple = async () => {
-    const redirectUrl = `${window.location.origin}/onboarding`
-    console.log('Starting Apple OAuth sign-in, redirecting to:', redirectUrl)
-    console.log('Current origin:', window.location.origin)
-    console.log('Full redirect URL:', redirectUrl)
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: redirectUrl
-      }
-    })
-    if (error) {
+    try {
+      await clerkSignIn.authenticateWithRedirect({
+        strategy: 'oauth_apple',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/onboarding'
+      })
+    } catch (error) {
       console.error('Apple OAuth error:', error)
       throw error
     }
-    console.log('Apple OAuth initiated successfully')
-    return data
   }
 
   const value = {
     user,
     loading,
     sessionLoaded,
+    isSignedIn,
     signUp,
     signIn,
     signOut,

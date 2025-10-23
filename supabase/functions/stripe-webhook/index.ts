@@ -303,6 +303,18 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
     })
     .eq('id', userId)
 
+  // Check if user exceeds basic tier limits (50 items)
+  const { data: itemCount } = await supabase
+    .from('pantry_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  if (itemCount && itemCount.count > 50) {
+    console.log(`User ${userId} has ${itemCount.count} items, exceeding basic tier limit of 50`)
+    // Note: Items are kept but filtered by RLS or frontend logic
+    // We don't delete items - they can upgrade later to restore access
+  }
+
   console.log(`Subscription ${subscription.id} deleted, user ${userId} downgraded to basic`)
 }
 

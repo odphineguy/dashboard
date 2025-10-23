@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   stripe_customer_id TEXT NOT NULL,
   stripe_subscription_id TEXT UNIQUE,
   stripe_price_id TEXT NOT NULL,
-  plan_tier TEXT NOT NULL CHECK (plan_tier IN ('free', 'premium', 'household_premium')),
+  plan_tier TEXT NOT NULL CHECK (plan_tier IN ('basic', 'premium', 'household_premium')),
   billing_interval TEXT CHECK (billing_interval IN ('month', 'year')),
   status TEXT NOT NULL CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete', 'incomplete_expired', 'unpaid')),
   current_period_start TIMESTAMPTZ,
@@ -103,7 +103,7 @@ ALTER TABLE stripe_webhooks_log ENABLE ROW LEVEL SECURITY;
 -- 4. ADD SUBSCRIPTION COLUMNS TO PROFILES TABLE
 -- =====================================================
 ALTER TABLE profiles
-ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free' CHECK (subscription_tier IN ('free', 'premium', 'household_premium')),
+ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'basic' CHECK (subscription_tier IN ('basic', 'premium', 'household_premium')),
 ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active' CHECK (subscription_status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete')),
 ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;
 
@@ -112,9 +112,9 @@ CREATE INDEX IF NOT EXISTS idx_profiles_subscription_tier ON profiles(subscripti
 CREATE INDEX IF NOT EXISTS idx_profiles_subscription_status ON profiles(subscription_status);
 CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer_id ON profiles(stripe_customer_id);
 
--- Set existing users to free tier
+-- Set existing users to basic tier
 UPDATE profiles
-SET subscription_tier = 'free', subscription_status = 'active'
+SET subscription_tier = 'basic', subscription_status = 'active'
 WHERE subscription_tier IS NULL OR subscription_status IS NULL;
 
 

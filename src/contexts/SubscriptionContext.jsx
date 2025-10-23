@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
+import { useUser } from '@clerk/clerk-react'
 import { supabase } from '../lib/supabaseClient'
 
 const SubscriptionContext = createContext({})
@@ -13,7 +14,12 @@ export const useSubscription = () => {
 }
 
 export const SubscriptionProvider = ({ children }) => {
-  const { user } = useAuth()
+  const { user: supabaseUser } = useAuth()
+  const { user: clerkUser } = useUser()
+
+  // Use Clerk user if available, otherwise Supabase
+  const user = clerkUser || supabaseUser
+
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [limits, setLimits] = useState(null)
@@ -38,9 +44,9 @@ export const SubscriptionProvider = ({ children }) => {
 
         if (profileError) throw profileError
 
-        // Get active subscription details if not free tier
+        // Get active subscription details if not basic tier
         let subscriptionDetails = null
-        if (profile.subscription_tier !== 'free') {
+        if (profile.subscription_tier !== 'basic') {
           const { data: subData } = await supabase
             .from('subscriptions')
             .select('*')
@@ -59,7 +65,7 @@ export const SubscriptionProvider = ({ children }) => {
         })
 
         setSubscription({
-          tier: profile.subscription_tier || 'free',
+          tier: profile.subscription_tier || 'basic',
           status: profile.subscription_status || 'active',
           stripeCustomerId: profile.stripe_customer_id,
           ...subscriptionDetails,
@@ -70,7 +76,7 @@ export const SubscriptionProvider = ({ children }) => {
         console.error('Error loading subscription:', error)
         // Set defaults on error
         setSubscription({
-          tier: 'free',
+          tier: 'basic',
           status: 'active',
           stripeCustomerId: null,
         })
@@ -183,13 +189,17 @@ export const SubscriptionProvider = ({ children }) => {
       userId: user.id
     })
 
-    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+    const { data, error} = await supabase.functions.invoke('create-checkout-session', {
       body: {
         priceId,
         successUrl,
         cancelUrl,
         planTier,
         billingInterval,
+        // Pass Clerk user data if available
+        clerkUserId: clerkUser?.id,
+        userEmail: clerkUser?.primaryEmailAddress?.emailAddress || supabaseUser?.email,
+        userName: clerkUser?.fullName || clerkUser?.firstName || supabaseUser?.user_metadata?.full_name,
       },
     })
 
