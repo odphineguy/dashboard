@@ -28,10 +28,12 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 
 const OnboardingPage = () => {
   const { user: supabaseUser, loading: authLoading, sessionLoaded, signUp, signInWithGoogle, signInWithApple } = useAuth()
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
+  const supabaseClient = useSupabase() // Authenticated Supabase client with Clerk JWT
 
   // Use Clerk user if available, otherwise fall back to Supabase
   const user = clerkUser || supabaseUser
@@ -629,7 +631,7 @@ const OnboardingPage = () => {
 
     try {
       // Save onboarding data to profiles table (for both OAuth and email users)
-      const { error: profileError } = await supabase
+      const { error: profileError} = await supabaseClient
         .from('profiles')
         .upsert({
           id: userId,
@@ -654,14 +656,14 @@ const OnboardingPage = () => {
       }
 
       // Create default storage locations (Pantry, Refrigerator, Freezer)
-      const { data: existingLocations } = await supabase
+      const { data: existingLocations } = await supabaseClient
         .from('storage_locations')
         .select('id')
         .eq('user_id', userId)
         .limit(1)
 
       if (!existingLocations || existingLocations.length === 0) {
-        const { error: storageError } = await supabase
+        const { error: storageError } = await supabaseClient
           .from('storage_locations')
           .insert([
             { user_id: userId, name: 'Pantry', location_type: 'pantry' },
