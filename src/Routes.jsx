@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router-dom'
+import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react'
 
 // Fallback component for when Supabase isn't configured
 const SupabaseErrorFallback = () => (
@@ -58,7 +59,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const ProtectedRoute = ({ element, skipOnboarding = false }) => {
-  const { user, loading } = useAuth()
+  const { user, loading, isSignedIn } = useAuth()
 
   if (loading) {
     return (
@@ -71,7 +72,7 @@ const ProtectedRoute = ({ element, skipOnboarding = false }) => {
     )
   }
 
-  if (!user) return <Login />
+  if (!isSignedIn || !user) return <Navigate to="/login" replace />
 
   // Skip onboarding check for onboarding page itself
   if (skipOnboarding) return element
@@ -178,6 +179,7 @@ const Routes = () => {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
         {/* Protected Routes */}
         <Route

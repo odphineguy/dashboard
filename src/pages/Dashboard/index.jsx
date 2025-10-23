@@ -599,18 +599,26 @@ const Dashboard = () => {
             profiles:user_id (
               full_name,
               avatar
+            ),
+            pantry_items:item_id (
+              name,
+              unit,
+              category
             )
           `)
           .eq('user_id', user.id)
           .order('at', { ascending: false })
           .limit(10)
 
-        // Transform the data to include profile info
+        // Transform the data to include profile info and item details
         const transformedEvents = rows?.map(event => ({
           ...event,
           user_name: event.profiles?.full_name || user?.email?.split('@')[0] || 'You',
           user_avatar: event.profiles?.avatar || null,
-          user_email: user?.email || ''
+          user_email: user?.email || '',
+          name: event.pantry_items?.name || 'Unknown Item',
+          unit: event.pantry_items?.unit || '',
+          category: event.pantry_items?.category || ''
         })) || []
 
         setEvents(transformedEvents)

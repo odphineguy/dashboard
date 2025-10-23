@@ -139,7 +139,7 @@ BEGIN
 
   -- Return limits based on tier
   CASE v_tier
-    WHEN 'free' THEN
+    WHEN 'basic' THEN
       RETURN QUERY SELECT
         50 AS max_pantry_items,
         10 AS max_scanner_per_month,
@@ -170,7 +170,7 @@ BEGIN
         TRUE AS has_priority_support;
 
     ELSE
-      -- Default to free tier if tier not found
+      -- Default to basic tier if tier not found
       RETURN QUERY SELECT
         50 AS max_pantry_items,
         10 AS max_scanner_per_month,
@@ -204,12 +204,12 @@ BEGIN
 
   -- Check limits based on tier
   CASE v_tier
-    WHEN 'free' THEN
+    WHEN 'basic' THEN
       v_max_items := 50;
     WHEN 'premium', 'household_premium' THEN
       RETURN TRUE; -- unlimited
     ELSE
-      v_max_items := 50; -- default to free
+      v_max_items := 50; -- default to basic
   END CASE;
 
   RETURN v_current_count < v_max_items;

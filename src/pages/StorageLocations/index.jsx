@@ -8,36 +8,33 @@ import { Label } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 import { supabase } from '../../lib/supabaseClient'
 import ViewSwitcher from '../../components/ViewSwitcher'
 
 const StorageLocations = () => {
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const { subscription } = useSubscription()
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState(null)
 
-  // TODO: Replace with real subscription tier from user profile/Stripe
-  // For now, hardcoded as 'basic'. Options: 'basic', 'premium', 'household_premium'
-  const subscriptionTier = 'basic' // Mock data
+  // Get subscription tier from context (defaults to 'basic')
+  const subscriptionTier = subscription?.tier || 'basic'
 
   // Define storage limits by tier
   const storageConfigByTier = {
     basic: {
       pantry: 1,
       refrigerator: 1,
-      freezer: 1,
-      counter: 0,
-      cabinet: 0
+      freezer: 1
     },
     premium: {
       pantry: 2,
       refrigerator: 2,
-      freezer: 2,
-      counter: 1,
-      cabinet: 1
+      freezer: 2
     },
     household_premium: {
       unlimited: true
@@ -51,9 +48,7 @@ const StorageLocations = () => {
     { name: 'Freezer', icon: '❄️', type: 'freezer', tier: 'basic' },
     { name: 'Pantry 2', icon: '🥫', type: 'pantry', tier: 'premium' },
     { name: 'Refrigerator 2', icon: '🧊', type: 'refrigerator', tier: 'premium' },
-    { name: 'Freezer 2', icon: '❄️', type: 'freezer', tier: 'premium' },
-    { name: 'Counter', icon: '🍎', type: 'counter', tier: 'premium' },
-    { name: 'Cabinet', icon: '🗄️', type: 'cabinet', tier: 'premium' }
+    { name: 'Freezer 2', icon: '❄️', type: 'freezer', tier: 'premium' }
   ]
 
   // Check if user can add more of a specific location type
@@ -75,6 +70,14 @@ const StorageLocations = () => {
     if (location.tier === 'basic') return !canAddLocation(location.type)
     if (location.tier === 'premium' && subscriptionTier !== 'premium') return true
     return !canAddLocation(location.type)
+  }
+
+  // Check if user can add custom storage locations (Basic users reach limit at 3 total)
+  const canAddCustomLocation = () => {
+    if (subscriptionTier === 'household_premium') return true
+    if (subscriptionTier === 'premium') return true
+    // Basic tier: max 3 locations total (1 Pantry, 1 Refrigerator, 1 Freezer)
+    return locations.length < 3
   }
 
   // Load storage locations
@@ -173,7 +176,11 @@ const StorageLocations = () => {
               Add Default Locations
             </Button>
           )}
-          <Button onClick={() => setIsAddModalOpen(true)}>
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            disabled={!canAddCustomLocation()}
+            className={!canAddCustomLocation() ? 'opacity-50 cursor-not-allowed' : ''}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Location
           </Button>
@@ -190,8 +197,8 @@ const StorageLocations = () => {
               {subscriptionTier === 'household_premium' && 'Household Premium Plan'}
             </h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              {subscriptionTier === 'basic' && '1 Pantry, 1 Refrigerator, 1 Freezer'}
-              {subscriptionTier === 'premium' && '2 of each basic location + Counter & Cabinet'}
+              {subscriptionTier === 'basic' && `3 storage locations included (${locations.length}/3 used) - 1 Pantry, 1 Refrigerator, 1 Freezer`}
+              {subscriptionTier === 'premium' && '6 storage locations included - 2 of each type'}
               {subscriptionTier === 'household_premium' && 'Unlimited storage locations'}
             </p>
           </div>
