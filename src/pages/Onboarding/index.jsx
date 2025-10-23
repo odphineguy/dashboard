@@ -630,11 +630,10 @@ const OnboardingPage = () => {
     console.log('Completing onboarding for user:', userId)
 
     try {
-      // Save onboarding data to profiles table (for both OAuth and email users)
+      // Update existing profile (created by Clerk webhook)
       const { error: profileError} = await supabaseClient
         .from('profiles')
-        .upsert({
-          id: userId,
+        .update({
           full_name: formData.name || null,
           subscription_tier: formData.subscriptionTier || 'basic',
           subscription_status: 'active',
@@ -649,6 +648,7 @@ const OnboardingPage = () => {
             onboarded_at: new Date().toISOString()
           }
         })
+        .eq('id', userId)
 
       if (profileError) {
         console.error('Profile update error:', profileError)
