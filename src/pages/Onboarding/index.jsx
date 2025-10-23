@@ -443,29 +443,15 @@ const OnboardingPage = () => {
         // If basic tier, skip payment and complete onboarding
         if (formData.subscriptionTier === 'basic') {
           console.log('Basic tier selected, calling handleSubmit')
-          // Ensure session is available before calling handleSubmit
-          const checkSessionAndSubmit = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.user) {
-              handleSubmit()
-            } else {
-              console.log('No session available for handleSubmit, trying to refresh...')
-              try {
-                const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
-                if (refreshedSession?.user) {
-                  handleSubmit()
-                } else {
-                  alert('Session not available. Please try signing in again.')
-                  navigate('/login')
-                }
-              } catch (error) {
-                console.error('Session refresh failed:', error)
-                alert('Session not available. Please try signing in again.')
-                navigate('/login')
-              }
-            }
+          // Check if user is authenticated (Clerk or Supabase)
+          const updatedUser = resolveClerkUser()
+          if (updatedUser?.id || user?.id) {
+            console.log('User authenticated, completing onboarding')
+            handleSubmit()
+          } else {
+            alert('Session not available. Please try signing in again.')
+            navigate('/login')
           }
-          checkSessionAndSubmit()
           return
         }
         // If paid tier, go to payment step
@@ -605,44 +591,35 @@ const OnboardingPage = () => {
 
     setLoading(true)
 
-    // First, try to get the current session synchronously
-    console.log('Attempting to get current session...')
-    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-
-    console.log('Current session check:', {
-      sessionExists: !!currentSession,
-      userId: currentSession?.user?.id,
-      error: sessionError
-    })
-
-    if (currentSession?.user) {
-      console.log('Found existing session, proceeding with user:', currentSession.user.id)
-      const userId = currentSession.user.id
-      await completeOnboarding(userId, currentSession.user)
-      return
-    }
-
-    // If no session found, try to refresh it
-    console.log('No session found, attempting to refresh...')
     try {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
-
-      console.log('Session refresh result:', {
-        sessionExists: !!refreshedSession,
-        userId: refreshedSession?.user?.id,
-        error: refreshError
-      })
-
-      if (refreshedSession?.user) {
-        console.log('Session refreshed successfully, proceeding with user:', refreshedSession.user.id)
-        const userId = refreshedSession.user.id
-        await completeOnboarding(userId, refreshedSession.user)
+      // First check for Clerk user
+      const clerkUser = resolveClerkUser()
+      if (clerkUser?.id) {
+        console.log('Found Clerk user, proceeding with user:', clerkUser.id)
+        await completeOnboarding(clerkUser.id)
         return
       }
-    } catch (refreshError) {
-      console.error('Session refresh failed:', refreshError)
-    }
 
+      // Fall back to Supabase session (for legacy users)
+      console.log('No Clerk user, checking Supabase session...')
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+
+      if (currentSession?.user) {
+        console.log('Found Supabase session, proceeding with user:', currentSession.user.id)
+        await completeOnboarding(currentSession.user.id)
+        return
+      }
+
+      // No user found
+      console.error('No authenticated user found')
+      alert('Session not available. Please try signing in again.')
+      navigate('/login')
+    } catch (error) {
+      console.error('Error in handleSubmit:', error)
+      alert('An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const completeOnboarding = async (userId, currentUser) => {
