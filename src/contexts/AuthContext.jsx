@@ -117,6 +117,7 @@ export const AuthProvider = ({ children }) => {
     signOut,
     signInWithGoogle,
     signInWithApple,
+    clerkUser,
   }
 
   return (
