@@ -1,4 +1,4 @@
-.// NOTE: supabase client now passed as parameter
+// NOTE: supabase client now passed as parameter
 // import { supabase } from '../lib/supabaseClient'
 
 /**
