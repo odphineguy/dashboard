@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react'
 import { checkBadgesAfterAction } from '../services/badgeChecker'
+import { useSupabase } from './useSupabase'
 
 /**
  * Custom hook for managing badge awarding and celebrations
  * Usage:
  * const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
- * 
+ *
  * // After user action:
  * await checkBadges('pantry_consumed')
  */
 export function useBadgeAwarder(userId) {
+  const supabase = useSupabase() // Get authenticated Supabase client
   const [celebrationBadge, setCelebrationBadge] = useState(null)
   const [isChecking, setIsChecking] = useState(false)
 
@@ -23,7 +25,7 @@ export function useBadgeAwarder(userId) {
 
     setIsChecking(true)
     try {
-      const newBadges = await checkBadgesAfterAction(userId, actionType)
+      const newBadges = await checkBadgesAfterAction(userId, actionType, supabase)
       
       // Show celebration for the first new badge
       if (newBadges.length > 0) {
@@ -46,7 +48,7 @@ export function useBadgeAwarder(userId) {
     } finally {
       setIsChecking(false)
     }
-  }, [userId, isChecking])
+  }, [userId, isChecking, supabase])
 
   /**
    * Close the celebration modal

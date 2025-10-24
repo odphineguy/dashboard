@@ -1,9 +1,10 @@
-import { supabase } from '../lib/supabaseClient'
+.// NOTE: supabase client now passed as parameter
+// import { supabase } from '../lib/supabaseClient'
 
 /**
  * Fetch all achievements from the catalog
  */
-export async function fetchAchievementsCatalog() {
+export async function fetchAchievementsCatalog(supabase) {
   const { data, error } = await supabase
     .from('achievements_catalog')
     .select('*')
@@ -20,7 +21,7 @@ export async function fetchAchievementsCatalog() {
 /**
  * Fetch user's earned achievements
  */
-export async function fetchUserAchievements(userId) {
+export async function fetchUserAchievements(userId, supabase) {
   if (!userId) return []
   
   const { data, error } = await supabase
@@ -189,7 +190,7 @@ export async function getUserAchievementsByCategory(userId) {
 /**
  * Award an achievement to a user
  */
-export async function awardAchievement(userId, achievementKey) {
+export async function awardAchievement(userId, achievementKey, supabase) {
   if (!userId || !achievementKey) return null
 
   try {
@@ -214,7 +215,7 @@ export async function awardAchievement(userId, achievementKey) {
 /**
  * Update achievement progress
  */
-export async function updateAchievementProgress(userId, achievementKey, progress) {
+export async function updateAchievementProgress(userId, supabase, achievementKey, progress) {
   if (!userId || !achievementKey) return null
 
   try {
