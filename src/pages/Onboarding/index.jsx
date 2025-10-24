@@ -631,7 +631,7 @@ const OnboardingPage = () => {
 
     try {
       // Update existing profile (created by Clerk webhook)
-      const { error: profileError} = await supabaseClient
+      const { data: profileData, error: profileError} = await supabaseClient
         .from('profiles')
         .update({
           full_name: formData.name || null,
@@ -649,11 +649,19 @@ const OnboardingPage = () => {
           }
         })
         .eq('id', userId)
+        .select()
 
       if (profileError) {
         console.error('Profile update error:', profileError)
-        throw profileError // Block if profile creation fails
+        throw profileError
       }
+
+      if (!profileData || profileData.length === 0) {
+        console.error('Profile update failed - no rows affected (authentication error)')
+        throw new Error('Profile update failed - authentication error. Please try signing in again.')
+      }
+
+      console.log('Profile updated successfully:', profileData)
 
       // Create default storage locations (Pantry, Refrigerator, Freezer)
       const { data: existingLocations } = await supabaseClient

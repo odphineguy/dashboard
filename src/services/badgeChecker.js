@@ -186,7 +186,7 @@ async function getDaysSinceSignup(userId) {
     .from('profiles')
     .select('created_at')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     console.error('Error fetching profile:', error)
@@ -259,9 +259,9 @@ async function isBadgeAwarded(userId, badgeKey) {
     .select('unlocked_at')
     .eq('user_id', userId)
     .eq('achievement_key', badgeKey)
-    .single()
+    .maybeSingle()
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     console.error('Error checking badge:', error)
     return false
   }
