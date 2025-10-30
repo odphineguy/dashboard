@@ -4,3 +4,17 @@ dist/
 .DS_Store
 .vercel
 .env
+.env.local
+.env.*.local
+
+# Apple Sign In credentials (NEVER commit these)
+generate-apple-jwt.js
+generate-apple-jwt.cjs
+*.p8
+AuthKey_*.p8
+
+# Any file with "secret" or "private" in the name
+*secret*.js
+*secret*.cjs
+*private*.js
+*private*.cjs
