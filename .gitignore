@@ -13,6 +13,12 @@ generate-apple-jwt.cjs
 *.p8
 AuthKey_*.p8
 
+# Supabase admin scripts (NEVER commit these)
+execute_trigger_sql.mjs
+run_sql.js
+*_sql.js
+*_sql.mjs
+
 # Any file with "secret" or "private" in the name
 *secret*.js
 *secret*.cjs
