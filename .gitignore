@@ -18,6 +18,15 @@ execute_trigger_sql.mjs
 run_sql.js
 *_sql.js
 *_sql.mjs
+*_sql.sql
+fix-*.sql
+verify-*.sql
+
+# Debugging/analysis files with user data
+*FAILURE*.md
+*ANALYSIS*.md
+*FIX_CHECKLIST*.md
+*DEBUG*.md
 
 # Any file with "secret" or "private" in the name
 *secret*.js
