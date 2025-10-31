@@ -29,10 +29,11 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 
 const AppSidebar = ({ onClose }) => {
   const { user, signOut } = useAuth()
+  const supabase = useSupabase() // Use authenticated Supabase client
   const [profile, setProfile] = useState(null)
 
   useEffect(() => {
@@ -54,7 +55,7 @@ const AppSidebar = ({ onClose }) => {
     }
 
     loadProfile()
-  }, [user?.id])
+  }, [user?.id, supabase])
 
   const getInitials = () => {
     if (profile?.full_name) {
@@ -268,9 +269,9 @@ const AppSidebar = ({ onClose }) => {
             className="flex items-center gap-3 flex-1 min-w-0"
           >
             <div className="h-8 w-8 rounded-full bg-sidebar-primary flex items-center justify-center overflow-hidden">
-              {profile?.avatar ? (
+              {profile?.avatar_url ? (
                 <img
-                  src={profile.avatar}
+                  src={profile.avatar_url}
                   alt="Avatar"
                   className="w-full h-full object-cover"
                 />

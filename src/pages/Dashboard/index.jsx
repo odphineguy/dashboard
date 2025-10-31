@@ -6,7 +6,7 @@ import QuickActionCard from './components/QuickActionCard'
 import RecentActivityGrid from './components/RecentActivityGrid'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import { Badge } from '../../components/ui/badge'
 import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
 import BadgeCelebration from '../../components/BadgeCelebration'
@@ -24,6 +24,7 @@ const Dashboard = () => {
     email: ''
   })
   const { user } = useAuth()
+  const supabase = useSupabase() // Use authenticated Supabase client
   const { currentHousehold, isPersonal } = useHousehold()
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
   const [metricsData, setMetricsData] = useState([
@@ -159,7 +160,7 @@ const Dashboard = () => {
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('full_name, avatar')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .single()
 
@@ -169,7 +170,7 @@ const Dashboard = () => {
 
       setUserProfile({
         full_name: profile?.full_name || user?.user_metadata?.full_name || '',
-        avatar: profile?.avatar || null,
+        avatar: profile?.avatar_url || null,
         email: user?.email || ''
       })
     } catch (error) {
@@ -598,7 +599,7 @@ const Dashboard = () => {
             *,
             profiles:user_id (
               full_name,
-              avatar
+              avatar_url
             ),
             pantry_items:item_id (
               name,
@@ -614,7 +615,7 @@ const Dashboard = () => {
         const transformedEvents = rows?.map(event => ({
           ...event,
           user_name: event.profiles?.full_name || user?.email?.split('@')[0] || 'You',
-          user_avatar: event.profiles?.avatar || null,
+          user_avatar: event.profiles?.avatar_url || null,
           user_email: user?.email || '',
           name: event.pantry_items?.name || 'Unknown Item',
           unit: event.pantry_items?.unit || '',
@@ -686,7 +687,7 @@ const Dashboard = () => {
     }
 
     loadDashboardData()
-  }, [user?.id, isPersonal, currentHousehold?.id])
+  }, [user?.id, isPersonal, currentHousehold?.id, supabase])
 
   // Check for login badges when user loads dashboard
   useEffect(() => {

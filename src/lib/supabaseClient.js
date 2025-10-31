@@ -30,13 +30,13 @@ const createSupabaseClient = () => {
     }
   }
 
+  // Clerk handles all authentication, so disable Supabase auth features
+  // This prevents multiple GoTrueClient instances and conflicts with Clerk
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-      storage: window.localStorage,
-      storageKey: 'supabase.auth.token'
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
     }
   })
 }

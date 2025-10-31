@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 
 const OnboardingGuard = ({ children }) => {
   const { user, loading: authLoading, sessionLoaded } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [checking, setChecking] = useState(true)
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -39,7 +40,7 @@ const OnboardingGuard = ({ children }) => {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed')
+          .select('onboarding_completed, onboarding_data')
           .eq('id', user.id)
           .maybeSingle()
 
@@ -50,24 +51,22 @@ const OnboardingGuard = ({ children }) => {
           return
         }
 
-        // If profile doesn't exist OR onboarding not completed, redirect to onboarding
-        if (!profile || profile.onboarding_completed === false || profile.onboarding_completed === null) {
-          console.log('Redirecting to onboarding - onboarding_completed:', profile?.onboarding_completed)
+        // Redirect to onboarding if:
+        // 1. Profile doesn't exist
+        // 2. onboarding_completed is not explicitly true
+        // 3. onboarding_completed is true but onboarding_data is NULL (incomplete onboarding)
+        const needsOnboarding = !profile || 
+          profile.onboarding_completed !== true ||
+          (profile.onboarding_completed === true && !profile.onboarding_data)
 
-          // If profile exists but onboarding_completed is null/false, update it to true (for existing users)
-          if (profile && (profile.onboarding_completed === false || profile.onboarding_completed === null)) {
-            console.log('Updating onboarding_completed to true for existing user')
-            await supabase
-              .from('profiles')
-              .update({ onboarding_completed: true })
-              .eq('id', user.id)
-            setChecking(false)
-          } else {
-            navigate('/onboarding', { replace: true })
-          }
-        } else {
-          setChecking(false)
+        if (needsOnboarding) {
+          console.log('Redirecting to onboarding - onboarding_completed:', profile?.onboarding_completed, 'onboarding_data:', profile?.onboarding_data ? 'present' : 'NULL')
+          navigate('/onboarding', { replace: true })
+          return
         }
+
+        // Only allow access if onboarding is explicitly completed AND has data
+        setChecking(false)
       } catch (error) {
         console.error('Error in onboarding check:', error)
         setChecking(false)
@@ -75,7 +74,7 @@ const OnboardingGuard = ({ children }) => {
     }
 
     checkOnboardingStatus()
-  }, [user, authLoading, sessionLoaded, navigate, location.pathname])
+  }, [user, authLoading, sessionLoaded, navigate, location.pathname, supabase])
 
   if (authLoading || checking || !sessionLoaded) {
     return (

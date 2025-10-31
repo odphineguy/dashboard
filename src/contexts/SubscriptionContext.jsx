@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
 import { useUser } from '@clerk/clerk-react'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 
 const SubscriptionContext = createContext({})
 
@@ -16,6 +16,7 @@ export const useSubscription = () => {
 export const SubscriptionProvider = ({ children }) => {
   const { user: supabaseUser } = useAuth()
   const { user: clerkUser } = useUser()
+  const supabase = useSupabase() // Use authenticated Supabase client
 
   // Use Clerk user if available, otherwise Supabase
   const user = clerkUser || supabaseUser
@@ -86,7 +87,7 @@ export const SubscriptionProvider = ({ children }) => {
     }
 
     loadSubscription()
-  }, [user?.id])
+  }, [user?.id, supabase])
 
   // Check if user has access to a feature
   const checkFeatureAccess = (feature) => {

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 import { useAuth } from './AuthContext'
 
 const HouseholdContext = createContext({})
@@ -14,6 +14,7 @@ export const useHousehold = () => {
 
 export const HouseholdProvider = ({ children }) => {
   const { user } = useAuth()
+  const supabase = useSupabase() // Use authenticated Supabase client
   const [households, setHouseholds] = useState([])
   const [currentHousehold, setCurrentHousehold] = useState(null)
   const [isPersonal, setIsPersonal] = useState(true)
@@ -68,7 +69,7 @@ export const HouseholdProvider = ({ children }) => {
     }
 
     loadHouseholds()
-  }, [user?.id])
+  }, [user?.id, supabase])
 
   // Create a new household
   const createHousehold = async (name) => {

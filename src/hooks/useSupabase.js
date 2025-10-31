@@ -19,10 +19,12 @@ export const useSupabase = () => {
   const { getToken } = useAuth()
 
   const supabase = useMemo(() => {
+    // Create a single client instance per component
+    // The fetch interceptor will always get the latest token when called
     return createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         fetch: async (url, options = {}) => {
-          // Get Clerk JWT token (default template - works with native integration)
+          // Get Clerk JWT token dynamically on each request (default template - works with native integration)
           const clerkToken = await getToken().catch(() => null)
 
           const headers = new Headers(options?.headers)
@@ -37,13 +39,18 @@ export const useSupabase = () => {
         }
       },
       auth: {
-        // Clerk handles all auth, so disable Supabase auth features
+        // Clerk handles all auth, so disable Supabase auth features completely
+        // This prevents GoTrueClient instances from being created
         autoRefreshToken: false,
         persistSession: false,
-        detectSessionInUrl: false
+        detectSessionInUrl: false,
+        storage: undefined, // Disable storage to prevent auth persistence
       }
     })
-  }, [getToken])
+    // Don't depend on getToken - it's a function reference that might change
+    // Instead, call it dynamically inside the fetch interceptor
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - create client once per component mount
 
   return supabase
 }

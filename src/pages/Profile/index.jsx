@@ -112,7 +112,7 @@ const Profile = () => {
         setUserData({
           name: profile?.full_name || user.email?.split('@')[0] || 'User',
           email: user.email || '',
-          avatar: profile?.avatar || null,
+          avatar: profile?.avatar_url || null,
           joinDate: profile?.created_at || new Date().toISOString(),
           subscriptionTier: profile?.subscription_tier || 'free',
           subscriptionStatus: profile?.subscription_status || 'active',
