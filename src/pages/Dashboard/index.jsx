@@ -597,11 +597,11 @@ const Dashboard = () => {
           .from('pantry_events')
           .select(`
             *,
-            profiles:user_id (
+            profiles!pantry_events_user_id_fkey (
               full_name,
               avatar_url
             ),
-            pantry_items:item_id (
+            pantry_items!pantry_events_item_id_fkey (
               name,
               unit,
               category
