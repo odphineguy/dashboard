@@ -24,7 +24,7 @@ export const useSupabase = () => {
     return createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         fetch: async (url, options = {}) => {
-          // Get Clerk JWT token dynamically on each request (default template - works with native integration)
+          // Get Clerk session token for Supabase RLS compatibility
           const clerkToken = await getToken().catch(() => null)
 
           const headers = new Headers(options?.headers)

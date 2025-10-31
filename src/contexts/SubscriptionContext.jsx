@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react'
 import { useSupabase } from '../hooks/useSupabase'
 
 const SubscriptionContext = createContext({})
@@ -16,6 +16,7 @@ export const useSubscription = () => {
 export const SubscriptionProvider = ({ children }) => {
   const { user: supabaseUser } = useAuth()
   const { user: clerkUser } = useUser()
+  const { getToken } = useClerkAuth() // Get Clerk token getter
   const supabase = useSupabase() // Use authenticated Supabase client
 
   // Use Clerk user if available, otherwise Supabase
@@ -190,24 +191,53 @@ export const SubscriptionProvider = ({ children }) => {
       userId: user.id
     })
 
-    const { data, error} = await supabase.functions.invoke('create-checkout-session', {
-      body: {
+    // Get Clerk session token for Supabase edge function authentication
+    const clerkToken = clerkUser ? await getToken().catch(() => null) : null
+    
+    if (!clerkToken && clerkUser) {
+      throw new Error('Failed to get authentication token. Please try signing in again.')
+    }
+
+    // Manually call the edge function with Authorization header
+    // Supabase's functions.invoke() may not use global fetch interceptor properly
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Always use anon key for Supabase gateway auth; pass Clerk token separately
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'apikey': supabaseAnonKey,
+        ...(clerkToken ? { 'x-clerk-token': clerkToken } : {}),
+      },
+      body: JSON.stringify({
         priceId,
         successUrl,
         cancelUrl,
         planTier,
         billingInterval,
         // Pass Clerk user data if available
-        clerkUserId: clerkUser?.id,
+        clerkUserId: clerkUser?.id || user.id,
         userEmail: clerkUser?.primaryEmailAddress?.emailAddress || supabaseUser?.email,
         userName: clerkUser?.fullName || clerkUser?.firstName || supabaseUser?.user_metadata?.full_name,
-      },
+      }),
     })
 
-    if (error) {
-      console.error('Edge function error:', error)
-      throw new Error(error.message || 'Failed to create checkout session')
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorMessage = 'Failed to create checkout session'
+      try {
+        const errorData = JSON.parse(errorText)
+        errorMessage = errorData.error || errorMessage
+      } catch {
+        errorMessage = errorText || `Edge Function returned a non-2xx status code`
+      }
+      throw new Error(errorMessage)
     }
+
+    const data = await response.json()
 
     if (!data) {
       throw new Error('No data returned from checkout session')

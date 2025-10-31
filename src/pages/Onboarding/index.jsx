@@ -154,31 +154,23 @@ const OnboardingPage = () => {
         return
       }
 
-      console.log('OAuth redirect detected, waiting for session to be established...')
-      // Wait for auth to be properly initialized after OAuth redirect
-      const checkOAuthSession = async () => {
+      console.log('OAuth redirect detected, waiting for Clerk session to be established...')
+      // Clerk handles OAuth directly - wait for Clerk to load user
+      const checkClerkSession = async () => {
         setOauthSessionLoading(true)
         let retries = 0
-        const maxRetries = 20 // Increased for mobile Safari
-        const retryDelay = 1000 // Increased to 1 second for mobile
+        const maxRetries = 20
+        const retryDelay = 500
 
         while (retries < maxRetries) {
-          const { data: { session }, error } = await supabase.auth.getSession()
-          console.log('OAuth session check:', {
-            sessionExists: !!session,
-            userId: session?.user?.id,
-            error,
-            attempt: retries + 1,
-            maxRetries
-          })
-
-          if (session?.user) {
-            console.log('OAuth session established, updating user context...')
-            // Force context update
+          // Check if Clerk user is loaded
+          if (clerkUser && clerkLoaded) {
+            console.log('Clerk session established, updating user context...')
+            // Update form data with Clerk user info
             setFormData(prev => ({
               ...prev,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-              email: session.user.email || ''
+              name: clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || '',
+              email: clerkUser.primaryEmailAddress?.emailAddress || ''
             }))
             setOauthSessionLoading(false)
             break
@@ -189,13 +181,13 @@ const OnboardingPage = () => {
         }
 
         if (retries >= maxRetries) {
-          console.error('OAuth session establishment failed after maximum retries')
+          console.error('Clerk session establishment failed after maximum retries')
           setOauthSessionLoading(false)
           alert('Failed to establish session after OAuth. Please try signing in again.')
         }
       }
 
-      checkOAuthSession()
+      checkClerkSession()
     }
 
     if (success === 'true' && sessionId) {
@@ -216,21 +208,8 @@ const OnboardingPage = () => {
           handleSubmit()
         } else {
           console.error('Payment success but no user session found after waiting')
-          // Try to get session directly
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user) {
-            console.log('Found session via direct check, proceeding...')
-            // Update context state manually if needed
-            setFormData(prev => ({
-              ...prev,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-              email: session.user.email || ''
-            }))
-            handleSubmit()
-          } else {
-            alert('Payment successful but authentication session not found. Please try logging in again.')
-            navigate('/login')
-          }
+          alert('Payment successful but authentication session not found. Please try logging in again.')
+          navigate('/login')
         }
       }
 
@@ -242,7 +221,7 @@ const OnboardingPage = () => {
       setCurrentStep(6)
       alert('Payment was canceled. Please try again or choose a different plan.')
     }
-  }, [user, sessionLoaded, navigate])
+  }, [user, sessionLoaded, navigate, clerkUser, clerkLoaded])
 
   // Load animations
   React.useEffect(() => {
