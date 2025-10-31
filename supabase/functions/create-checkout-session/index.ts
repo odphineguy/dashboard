@@ -23,9 +23,22 @@ serve(async (req) => {
     })
 
     // Parse request body first to get Clerk user info
-    const { priceId, successUrl, cancelUrl, planTier, billingInterval, clerkUserId, userEmail, userName } = await req.json()
+    const body = await req.json()
+    const { priceId, successUrl, cancelUrl, planTier, billingInterval, clerkUserId, userEmail, userName } = body
+
+    console.log('Edge function received request:', {
+      hasClerkUserId: !!clerkUserId,
+      clerkUserId,
+      userEmail,
+      userName,
+      priceId,
+      planTier,
+      billingInterval,
+      bodyKeys: Object.keys(body)
+    })
 
     if (!priceId || !successUrl || !cancelUrl) {
+      console.error('Missing required fields:', { priceId, successUrl, cancelUrl })
       return new Response(
         JSON.stringify({ error: 'Missing required fields: priceId, successUrl, cancelUrl' }),
         {
@@ -37,6 +50,7 @@ serve(async (req) => {
 
     // Clerk is now the auth provider - require clerkUserId
     if (!clerkUserId) {
+      console.error('Missing clerkUserId in request body')
       return new Response(
         JSON.stringify({ error: 'Missing clerkUserId. User must be authenticated with Clerk.' }),
         {

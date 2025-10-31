@@ -182,27 +182,39 @@ export const SubscriptionProvider = ({ children }) => {
     const successUrl = `${window.location.origin}/onboarding?success=true&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = `${window.location.origin}/onboarding?canceled=true`
 
-    console.log('Invoking create-checkout-session with:', {
+    // Get Clerk session token for Supabase edge function authentication
+    const clerkToken = clerkUser ? await getToken().catch(() => null) : null
+
+    if (!clerkToken && clerkUser) {
+      throw new Error('Failed to get authentication token. Please try signing in again.')
+    }
+
+    const requestBody = {
       priceId,
       successUrl,
       cancelUrl,
       planTier,
       billingInterval,
-      userId: user.id
-    })
-
-    // Get Clerk session token for Supabase edge function authentication
-    const clerkToken = clerkUser ? await getToken().catch(() => null) : null
-    
-    if (!clerkToken && clerkUser) {
-      throw new Error('Failed to get authentication token. Please try signing in again.')
+      // Pass Clerk user data if available
+      clerkUserId: clerkUser?.id || user?.id || null,
+      userEmail: clerkUser?.primaryEmailAddress?.emailAddress || supabaseUser?.email || null,
+      userName: clerkUser?.fullName || clerkUser?.firstName || supabaseUser?.user_metadata?.full_name || null,
     }
+
+    console.log('Invoking create-checkout-session with:', {
+      url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+      hasClerkUser: !!clerkUser,
+      hasClerkToken: !!clerkToken,
+      clerkUserId: requestBody.clerkUserId,
+      userEmail: requestBody.userEmail,
+      body: requestBody
+    })
 
     // Manually call the edge function with Authorization header
     // Supabase's functions.invoke() may not use global fetch interceptor properly
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    
+
     const response = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
       method: 'POST',
       headers: {
@@ -212,17 +224,7 @@ export const SubscriptionProvider = ({ children }) => {
         'apikey': supabaseAnonKey,
         ...(clerkToken ? { 'x-clerk-token': clerkToken } : {}),
       },
-      body: JSON.stringify({
-        priceId,
-        successUrl,
-        cancelUrl,
-        planTier,
-        billingInterval,
-        // Pass Clerk user data if available
-        clerkUserId: clerkUser?.id || user.id,
-        userEmail: clerkUser?.primaryEmailAddress?.emailAddress || supabaseUser?.email,
-        userName: clerkUser?.fullName || clerkUser?.firstName || supabaseUser?.user_metadata?.full_name,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
