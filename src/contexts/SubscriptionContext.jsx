@@ -201,15 +201,6 @@ export const SubscriptionProvider = ({ children }) => {
       userName: clerkUser?.fullName || clerkUser?.firstName || supabaseUser?.user_metadata?.full_name || null,
     }
 
-    console.log('Invoking create-checkout-session with:', {
-      url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-      hasClerkUser: !!clerkUser,
-      hasClerkToken: !!clerkToken,
-      clerkUserId: requestBody.clerkUserId,
-      userEmail: requestBody.userEmail,
-      body: requestBody
-    })
-
     // Manually call the edge function with Authorization header
     // Supabase's functions.invoke() may not use global fetch interceptor properly
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
