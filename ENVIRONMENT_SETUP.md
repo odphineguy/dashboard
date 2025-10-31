@@ -1,5 +1,20 @@
 # Environment Variables Setup
 
+## ⚠️ Security Warning
+
+**IMPORTANT:** Never commit real API keys or secrets to git. This file contains **placeholder examples only**.
+
+- The `.env` file is gitignored for your protection
+- If secrets were exposed in git history, **rotate them immediately**:
+  - Supabase: Generate new anon/service keys in Supabase Dashboard
+  - Clerk: Regenerate publishable keys in Clerk Dashboard
+  - Stripe: Rotate API keys in Stripe Dashboard
+  - Google AI: Regenerate API key in Google AI Studio
+
+**Note:** Secrets in git history cannot be fully removed without rewriting history. Always rotate exposed credentials.
+
+---
+
 ## Required Environment Variables
 
 Create a `.env` file in your project root with these variables:
@@ -10,7 +25,7 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 
 # Supabase Database (Using Clerk Auth)
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
 # Google AI (Optional - for scanner/recipes)
 VITE_GOOGLE_GENAI_API_KEY=your-google-ai-key

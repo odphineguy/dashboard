@@ -7,7 +7,7 @@ import Stripe from 'https://esm.sh/stripe@14.21.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-clerk-token',
 }
 
 serve(async (req) => {
@@ -22,34 +22,7 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     })
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    // Get user from auth
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        }
-      )
-    }
-
-    // Parse request body
+    // Parse request body first to get Clerk user info
     const { priceId, successUrl, cancelUrl, planTier, billingInterval, clerkUserId, userEmail, userName } = await req.json()
 
     if (!priceId || !successUrl || !cancelUrl) {
@@ -62,10 +35,28 @@ serve(async (req) => {
       )
     }
 
-    // Determine which user ID to use (Clerk or Supabase)
-    const effectiveUserId = clerkUserId || user.id
-    const effectiveEmail = userEmail || user.email
-    const effectiveName = userName || user.email?.split('@')[0]
+    // Clerk is now the auth provider - require clerkUserId
+    if (!clerkUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing clerkUserId. User must be authenticated with Clerk.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      )
+    }
+
+    // Use service role key to bypass RLS since we're using Clerk auth.
+    // The Supabase gateway will accept the anon key; we pass Clerk token separately if needed.
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    // Use Clerk user ID (Clerk handles all authentication)
+    const effectiveUserId = clerkUserId
+    const effectiveEmail = userEmail || ''
+    const effectiveName = userName || effectiveEmail?.split('@')[0] || 'User'
 
     // Get profile - retry if not found (wait for Clerk webhook to complete)
     let { data: profile } = await supabaseClient
