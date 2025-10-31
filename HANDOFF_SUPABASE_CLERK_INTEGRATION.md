@@ -377,3 +377,124 @@ Recommended next step for the developer
 Add x-clerk-token to corsHeaders['Access-Control-Allow-Headers'] in create-checkout-session and redeploy the function.
 Re-test paid upgrade from onboarding. If it proceeds to Stripe Checkout, proceed to webhook verification tests.
 If you want, I can make that tiny CORS edit and you can retry immediately.
+
+---
+
+## X. Session Summary - Security Fixes & CSP Issues (Latest Session)
+
+### What We Accomplished ✅
+
+1. **Security Fixes:**
+   - Added Content Security Policy (CSP) headers via `vercel.json` for production
+   - Added X-Frame-Options: DENY header to prevent clickjacking attacks
+   - Added CSP meta tag to `index.html` for development fallback
+   - Removed exposed Supabase anon key from `ENVIRONMENT_SETUP.md` (security vulnerability)
+   - Added security warning section to documentation
+
+2. **CORS Fixes:**
+   - Added `x-clerk-token` to CORS allowed headers in `create-checkout-session` edge function
+   - Deployed edge function successfully with updated CORS configuration
+
+3. **CSP Domain Allowances:**
+   - Added Clerk domains: `https://*.clerk.com`, `https://*.accounts.dev`, `https://*.clerk.services`
+   - Added Clerk telemetry: `https://clerk-telemetry.com`
+   - Added Google Analytics: `https://analytics.google.com` (was missing, causing CSP errors)
+   - Added Cloudflare CAPTCHA: `https://challenges.cloudflare.com` (for Clerk CAPTCHA)
+   - Added `worker-src 'self' blob:` (required for Clerk web workers)
+
+4. **Clerk Configuration:**
+   - Verified Clerk Dashboard settings for Development environment
+   - Component paths configured to use "development host" instead of Account Portal
+   - Fallback development host set correctly to `http://localhost:5173/`
+
+### Current State - Regression 🚨
+
+**The application is currently broken on both development and production:**
+
+1. **Development Server:**
+   - After successful Google OAuth sign-in, screen goes blank
+   - Console shows multiple CSP violations blocking Clerk functionality:
+     - Worker creation from blob URLs blocked
+     - Clerk CAPTCHA script from Cloudflare blocked
+     - Multiple script loading errors
+
+2. **Production Site (`https://app.mealsaver.app/`):**
+   - Same CSP errors as development
+   - Sign-up flow fails with blank screen
+   - Console shows 18+ CSP-related errors
+   - POST requests to Clerk returning 400 Bad Request
+
+3. **Root Cause:**
+   - CSP headers in `vercel.json` and `index.html` are too restrictive
+   - Missing `worker-src` directive (added but may not be deployed)
+   - Missing Cloudflare and Clerk services domains (added but not deployed)
+   - Production site hasn't received latest CSP updates (not deployed to Vercel)
+
+### Files Changed This Session
+
+**Security & CSP:**
+- `vercel.json` - Multiple CSP updates (Clerk domains, worker-src, Cloudflare, telemetry)
+- `index.html` - Matching CSP meta tag updates for dev environment
+- `ENVIRONMENT_SETUP.md` - Removed exposed secrets, added security warnings
+- `supabase/functions/create-checkout-session/index.ts` - Added `x-clerk-token` to CORS headers
+
+**Status:**
+- ✅ All changes committed to GitHub
+- ❌ **NOT DEPLOYED TO PRODUCTION** - Vercel deployment needed
+- ⚠️ Development server may need hard refresh to pick up `index.html` changes
+
+### Immediate Actions Required 🔧
+
+1. **Deploy to Production:**
+   - Verify all CSP changes are committed to GitHub
+   - Trigger Vercel deployment (or wait for auto-deploy)
+   - Hard refresh production site after deployment
+
+2. **Test Development:**
+   - Hard refresh dev server (Cmd+Shift+R / Ctrl+Shift+R)
+   - Check if CSP errors are resolved
+   - Test sign-up flow end-to-end
+
+3. **If CSP Errors Persist:**
+   - Check Clerk CSP documentation: https://clerk.com/docs/security/clerk-csp
+   - Verify all required domains are in CSP directives
+   - Consider temporarily relaxing CSP for testing, then tightening incrementally
+
+### Key Issues to Address
+
+1. **CSP Violations:**
+   - Clerk requires `worker-src 'self' blob:` for web workers
+   - Clerk CAPTCHA requires `challenges.cloudflare.com` in script-src and frame-src
+   - Clerk services may require additional domains (check Clerk docs)
+
+2. **Browser Console Errors:**
+   - "Refused to create worker from blob:" - Need `worker-src` directive
+   - "Failed to load CAPTCHA script" - Need Cloudflare domain
+   - "POST 400 Bad Request" - May be related to CSP blocking requests
+
+3. **Deployment Gap:**
+   - Local changes exist but production hasn't been updated
+   - CSP is enforced on both client (meta tag) and server (headers)
+   - Need to ensure both are updated and deployed
+
+### Recommended Next Steps
+
+1. **Immediate:**
+   - Deploy latest changes to Vercel
+   - Test production site after deployment
+   - Hard refresh both dev and prod to clear CSP cache
+
+2. **If Still Broken:**
+   - Review Clerk CSP requirements at https://clerk.com/docs/security/clerk-csp
+   - Add any missing domains found in console errors
+   - Consider using Clerk's recommended CSP configuration as baseline
+
+3. **Testing:**
+   - Test complete sign-up flow from start to finish
+   - Verify no CSP errors in console
+   - Ensure OAuth redirect works correctly
+   - Test payment flow if sign-up completes
+
+**Last Updated:** Current session (Security fixes applied, CSP issues introduced)  
+**Status:** 🔴 **BLOCKED** - Application non-functional due to CSP violations  
+**Priority:** **CRITICAL** - App must be fixed before users can sign up
