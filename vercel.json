@@ -11,15 +11,11 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.stripe.com https://checkout.stripe.com https://generativelanguage.googleapis.com https://world.openfoodfacts.org https://www.googletagmanager.com https://www.google-analytics.com wss://*.supabase.co; frame-src 'self' https://checkout.stripe.com https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests;"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com https://*.clerk.com https://*.accounts.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://img.clerk.dev https://*.clerk.com https://www.googletagmanager.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.stripe.com https://checkout.stripe.com https://generativelanguage.googleapis.com https://world.openfoodfacts.org https://www.googletagmanager.com https://www.google-analytics.com https://*.clerk.com https://*.accounts.dev wss://*.supabase.co; frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://*.clerk.com https://*.accounts.dev; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; upgrade-insecure-requests;"
         },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
         },
         {
           "key": "X-XSS-Protection",
