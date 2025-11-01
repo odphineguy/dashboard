@@ -59,6 +59,9 @@ serve(async (req) => {
     const effectiveName = userName || effectiveEmail?.split('@')[0] || 'User'
 
     // Get profile - retry if not found (wait for Clerk webhook to complete)
+    const MAX_PROFILE_RETRIES = 10
+    const RETRY_DELAY_MS = 1000
+
     let { data: profile } = await supabaseClient
       .from('profiles')
       .select('stripe_customer_id, full_name')
@@ -69,8 +72,8 @@ serve(async (req) => {
     if (!profile) {
       console.log('Profile not found, waiting for Clerk webhook to complete...')
 
-      for (let i = 0; i < 3; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+      for (let i = 0; i < MAX_PROFILE_RETRIES; i++) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
 
         const { data: retryProfile } = await supabaseClient
           .from('profiles')

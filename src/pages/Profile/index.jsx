@@ -6,15 +6,17 @@ import NotificationPreferences from './components/NotificationPreferences'
 import AccountSettings from './components/AccountSettings'
 import SubscriptionManagement from './components/SubscriptionManagement'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import { getUserAchievementsByCategory } from '../../services/achievements'
 
 const Profile = () => {
   const { user } = useAuth()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const [loading, setLoading] = useState(true)
 
   // User data state
   const [userData, setUserData] = useState({
+    id: '',
     name: '',
     email: '',
     avatar: null,
@@ -110,6 +112,7 @@ const Profile = () => {
           : 0
 
         setUserData({
+          id: user.id,
           name: profile?.full_name || user.email?.split('@')[0] || 'User',
           email: user.email || '',
           avatar: profile?.avatar_url || null,

@@ -5,9 +5,10 @@ import { Card } from '../../../components/ui/card'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
 import AvatarSelector from '../../../components/AvatarSelector'
-import { supabase } from '../../../lib/supabaseClient'
+import { useSupabase } from '../../../hooks/useSupabase'
 
 const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const [isEditing, setIsEditing] = useState(false)
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [editData, setEditData] = useState({

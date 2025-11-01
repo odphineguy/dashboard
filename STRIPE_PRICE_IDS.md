@@ -17,26 +17,26 @@
 ## Prices
 
 ### Premium Monthly
-- **Price ID**: `price_1SIuGJIqliEA9UotDyzveUhI`
+- **Price ID**: `price_1SOSNiIWZQ4LZaTjtxDaAhDe`
 - **Amount**: $14.99/month ($1499 cents)
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Premium
 
 ### Premium Yearly
-- **Price ID**: `price_1SIuGNIqliEA9UotGD93WZdc`
+- **Price ID**: `price_1SOSLDIWZQ4LZaTju4d1x4Kl`
 - **Amount**: $99/year ($9900 cents)
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Premium
 - **Savings**: ~$80/year (2 months free)
 
 ### Household Premium Monthly
-- **Price ID**: `price_1SIuGPIqliEA9UotfLjoddkj`
+- **Price ID**: `price_1SOSMNIWZQ4LZaTjUFica6uR`
 - **Amount**: $14.99/month ($1499 cents)
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Household Premium
 
 ### Household Premium Yearly
-- **Price ID**: `price_1SIuGSIqliEA9UotuHlR3qoH`
+- **Price ID**: `price_1SOSMzIWZQ4LZaTjv77IRyqJ`
 - **Amount**: $149/year ($14900 cents)
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Household Premium
@@ -50,10 +50,10 @@ Add these as environment variables or use directly in edge functions:
 
 ```bash
 # .env.local (for reference only - use in edge functions)
-STRIPE_PRICE_PREMIUM_MONTHLY=price_1SIuGJIqliEA9UotDyzveUhI
-STRIPE_PRICE_PREMIUM_YEARLY=price_1SIuGNIqliEA9UotGD93WZdc
-STRIPE_PRICE_HOUSEHOLD_MONTHLY=price_1SIuGPIqliEA9UotfLjoddkj
-STRIPE_PRICE_HOUSEHOLD_YEARLY=price_1SIuGSIqliEA9UotuHlR3qoH
+STRIPE_PRICE_PREMIUM_MONTHLY=price_1SOSNiIWZQ4LZaTjtxDaAhDe
+STRIPE_PRICE_PREMIUM_YEARLY=price_1SOSLDIWZQ4LZaTju4d1x4Kl
+STRIPE_PRICE_HOUSEHOLD_MONTHLY=price_1SOSMNIWZQ4LZaTjUFica6uR
+STRIPE_PRICE_HOUSEHOLD_YEARLY=price_1SOSMzIWZQ4LZaTjv77IRyqJ
 ```
 
 ## Price Mapping
@@ -61,12 +61,12 @@ STRIPE_PRICE_HOUSEHOLD_YEARLY=price_1SIuGSIqliEA9UotuHlR3qoH
 ```javascript
 const PRICE_IDS = {
   premium: {
-    monthly: 'price_1SIuGJIqliEA9UotDyzveUhI',
-    yearly: 'price_1SIuGNIqliEA9UotGD93WZdc'
+    monthly: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe',
+    yearly: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'
   },
   household_premium: {
-    monthly: 'price_1SIuGPIqliEA9UotfLjoddkj',
-    yearly: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+    monthly: 'price_1SOSMNIWZQ4LZaTjUFica6uR',
+    yearly: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'
   }
 }
 ```

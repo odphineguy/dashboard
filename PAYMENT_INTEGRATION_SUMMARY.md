@@ -88,12 +88,12 @@ handlePayment() →
 ### Price IDs (Test Mode)
 
 **Premium:**
-- Monthly: `price_1SIuGJIqliEA9UotDyzveUhI`
-- Yearly: `price_1SIuGNIqliEA9UotGD93WZdc`
+- Monthly: `price_1SOSNiIWZQ4LZaTjtxDaAhDe`
+- Yearly: `price_1SOSLDIWZQ4LZaTju4d1x4Kl`
 
 **Household Premium:**
-- Monthly: `price_1SIuGPIqliEA9UotfLjoddkj`
-- Yearly: `price_1SIuGSIqliEA9UotuHlR3qoH`
+- Monthly: `price_1SOSMNIWZQ4LZaTjUFica6uR`
+- Yearly: `price_1SOSMzIWZQ4LZaTjv77IRyqJ`
 
 ### Edge Functions
 - `create-checkout-session` - Creates Stripe checkout session

@@ -487,12 +487,12 @@ const OnboardingPage = () => {
       // TODO: UPDATE THESE PRICE IDs WHEN SWITCHING TO PRODUCTION
       const PRICE_IDS = {
         premium: {
-          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M', // $9.99/month (TEST MODE)
-          year: 'price_1SIuGNIqliEA9UotGD93WZdc'   // $99.00/year (TEST MODE - should be $99.99 in prod)
+          month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe', // TEST MODE
+          year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'   // TEST MODE
         },
         household_premium: {
-          month: 'price_1SIuGPIqliEA9UotfLjoddkj', // $14.99/month (TEST MODE)
-          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'   // $149.00/year (TEST MODE - should be $149.99 in prod)
+          month: 'price_1SOSMNIWZQ4LZaTjUFica6uR', // TEST MODE
+          year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'   // TEST MODE
         }
       }
 

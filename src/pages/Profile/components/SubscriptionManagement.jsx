@@ -3,9 +3,12 @@ import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X } from 'luc
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
-import { supabase } from '../../../lib/supabaseClient'
+import { useSupabase } from '../../../hooks/useSupabase'
+import { useAuth } from '@clerk/clerk-react'
 
 const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
+  const { getToken } = useAuth() // Get Clerk token getter
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -99,27 +102,76 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     try {
       setActionLoading(true)
 
-      const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
-        body: { return_url: window.location.href }
-      })
+      // Get Clerk session token for Supabase edge function authentication
+      const clerkToken = await getToken().catch(() => null)
 
-      if (error) {
-        console.error('Error creating customer portal session:', error)
-
-        // Better error message for missing customer ID
-        if (error.message?.includes('No Stripe customer found')) {
-          alert('Your subscription is still being set up. Please wait a few moments and try again.')
-        } else {
-          alert('Failed to open subscription management. Please try again.')
-        }
+      if (!clerkToken) {
+        console.error('Failed to get Clerk token')
+        alert('Failed to authenticate. Please try signing in again.')
         return
       }
 
-      // Redirect to Stripe Customer Portal
+      // Prepare request body
+      const requestBody = {
+        returnUrl: window.location.href,
+        clerkUserId: userData.id,
+      }
+
+      console.log('Invoking create-customer-portal-session with:', {
+        hasClerkUser: !!userData.id,
+        hasClerkToken: !!clerkToken,
+        clerkUserId: requestBody.clerkUserId,
+        returnUrl: requestBody.returnUrl,
+      })
+
+      // Manually call the edge function with Authorization header
+      // Supabase's functions.invoke() may not use global fetch interceptor properly
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      // Manually call the edge function with Authorization header
+      // Supabase's functions.invoke() may not use global fetch interceptor properly
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-customer-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Always use anon key for Supabase gateway auth; pass Clerk token separately
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+          ...(clerkToken ? { 'x-clerk-token': clerkToken } : {}),
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = 'Failed to open subscription management'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || `Edge Function returned status ${response.status}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+
+      if (!data) {
+        throw new Error('No data returned from customer portal session')
+      }
+
+      // Redirect to portal
       window.location.href = data.url
     } catch (error) {
       console.error('Error opening customer portal:', error)
-      alert('Failed to open subscription management. Please try again.')
+      
+      // Better error message for missing customer ID
+      if (error.message?.includes('No Stripe customer found') || error.message?.includes('Please subscribe first')) {
+        alert('Your subscription is still being set up. Please wait a few moments and try again.')
+      } else {
+        alert(`Failed to open subscription management: ${error.message || 'Please try again.'}`)
+      }
     } finally {
       setActionLoading(false)
     }
@@ -142,12 +194,12 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
       const PRICE_IDS = {
         premium: {
-          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
-          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+          month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe',
+          year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'
         },
         household_premium: {
-          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
-          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+          month: 'price_1SOSMNIWZQ4LZaTjUFica6uR',
+          year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'
         }
       }
 
@@ -159,7 +211,10 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
           successUrl: `${window.location.origin}/profile?upgrade=success`,
           cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
           planTier,
-          billingInterval
+          billingInterval,
+          clerkUserId: userData.id,
+          userEmail: userData.email,
+          userName: userData.name
         }
       })
 
@@ -389,22 +444,13 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
             </ul>
           </div>
 
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleManageSubscription} 
-              disabled={actionLoading}
-              className="flex-1"
-            >
-              {actionLoading ? 'Opening...' : 'Manage Subscription'}
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleUpgrade}
-              className="flex-1"
-            >
-              Change Plan
-            </Button>
-          </div>
+          <Button 
+            onClick={handleManageSubscription} 
+            disabled={actionLoading}
+            className="w-full"
+          >
+            {actionLoading ? 'Opening...' : 'Manage Subscription'}
+          </Button>
         </div>
       )}
     </Card>
