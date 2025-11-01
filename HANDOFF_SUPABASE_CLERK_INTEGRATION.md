@@ -1357,7 +1357,7 @@ After 100+ hours of debugging across multiple sessions, the complete payment and
 
 **Step 2: Updated Supabase Secret**
 ```bash
-supabase secrets set STRIPE_SECRET_KEY="sk_test_51RmrOKIWZQ4LZaTj..."
+supabase secrets set STRIPE_SECRET_KEY="sk_test_YOUR_SECRET_KEY_HERE"
 ```
 - Set to correct **test mode** Stripe secret key
 - Matches the same account where test prices were created
@@ -1423,7 +1423,7 @@ supabase functions deploy create-checkout-session --no-verify-jwt
 **Stripe Test Mode Setup:**
 - Products created: Premium, Household Premium
 - Price IDs configured (monthly & annual for each)
-- Secret key: `sk_test_51RmrOKIWZQ4LZaTj...` (stored in Supabase secrets)
+- Secret key: `sk_test_...` (stored in Supabase secrets)
 - Customer Portal: Activated in test mode
 
 **Supabase Edge Functions:**
