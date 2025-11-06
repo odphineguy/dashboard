@@ -8,15 +8,17 @@ const PieChart2 = ({ data }) => {
   const chartData = useMemo(() => {
     if (!data?.pantryEvents) return []
 
-    // Get wasted items and count by category (from item name pattern or use Other)
+    // Get wasted items and sum quantities by category
     const wastedEvents = data.pantryEvents.filter(e => e.type === 'wasted')
     const categoryCounts = {}
 
     wastedEvents.forEach(event => {
       // Try to find matching item to get category
-      const item = data.pantryItems?.find(i => i.id === event.item_id)
-      const category = item?.category || 'Unknown'
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1
+      // If item_id is null or item doesn't exist, use event.category or 'Unknown'
+      const item = event.item_id ? data.pantryItems?.find(i => i.id === event.item_id) : null
+      const category = item?.category || event.category || 'Unknown'
+      const quantity = parseFloat(event.quantity) || 1
+      categoryCounts[category] = (categoryCounts[category] || 0) + quantity
     })
 
     const total = Object.values(categoryCounts).reduce((sum, count) => sum + count, 0)

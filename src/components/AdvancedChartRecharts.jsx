@@ -23,18 +23,27 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        const dayStart = new Date(date.setHours(0, 0, 0, 0))
-        const dayEnd = new Date(date.setHours(23, 59, 59, 999))
+        date.setHours(0, 0, 0, 0)
+        const dayStart = new Date(date)
+        const dayEnd = new Date(date)
+        dayEnd.setHours(23, 59, 59, 999)
 
         const dayEvents = data.pantryEvents.filter(e => {
           const eventDate = new Date(e.at)
           return eventDate >= dayStart && eventDate <= dayEnd
         })
 
+        const consumed = dayEvents
+          .filter(e => e.type === 'consumed')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+        const wasted = dayEvents
+          .filter(e => e.type === 'wasted')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+
         result.push({
           date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          consumed: dayEvents.filter(e => e.type === 'consumed').length,
-          wasted: dayEvents.filter(e => e.type === 'wasted').length
+          consumed: Math.round(consumed),
+          wasted: Math.round(wasted)
         })
       }
     } else if (timeRange === '30d') {
@@ -42,7 +51,8 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 28; i >= 0; i -= 2) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        const dayStart = new Date(date.setHours(0, 0, 0, 0))
+        date.setHours(0, 0, 0, 0)
+        const dayStart = new Date(date)
         const dayEnd = new Date(dayStart)
         dayEnd.setDate(dayEnd.getDate() + 2)
 
@@ -51,10 +61,17 @@ const AdvancedChartRecharts = ({ data }) => {
           return eventDate >= dayStart && eventDate < dayEnd
         })
 
+        const consumed = periodEvents
+          .filter(e => e.type === 'consumed')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+        const wasted = periodEvents
+          .filter(e => e.type === 'wasted')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+
         result.push({
           date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          consumed: periodEvents.filter(e => e.type === 'consumed').length,
-          wasted: periodEvents.filter(e => e.type === 'wasted').length
+          consumed: Math.round(consumed),
+          wasted: Math.round(wasted)
         })
       }
     } else {
@@ -62,7 +79,8 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 12; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - (i * 7))
-        const weekStart = new Date(date.setHours(0, 0, 0, 0))
+        date.setHours(0, 0, 0, 0)
+        const weekStart = new Date(date)
         const weekEnd = new Date(weekStart)
         weekEnd.setDate(weekEnd.getDate() + 7)
 
@@ -71,10 +89,17 @@ const AdvancedChartRecharts = ({ data }) => {
           return eventDate >= weekStart && eventDate < weekEnd
         })
 
+        const consumed = weekEvents
+          .filter(e => e.type === 'consumed')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+        const wasted = weekEvents
+          .filter(e => e.type === 'wasted')
+          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+
         result.push({
           date: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          consumed: weekEvents.filter(e => e.type === 'consumed').length,
-          wasted: weekEvents.filter(e => e.type === 'wasted').length
+          consumed: Math.round(consumed),
+          wasted: Math.round(wasted)
         })
       }
     }

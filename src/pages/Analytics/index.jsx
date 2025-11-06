@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import { Badge } from '../../components/ui/badge'
 import ViewSwitcher from '../../components/ViewSwitcher'
 import KPICards from '../../components/KPICards'
@@ -14,6 +14,7 @@ import BarChart2 from '../../components/BarChart2'
 const Analytics = () => {
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const [loading, setLoading] = useState(true)
   const [analyticsData, setAnalyticsData] = useState({
     pantryEvents: [],
@@ -76,7 +77,7 @@ const Analytics = () => {
     }
 
     loadAnalyticsData()
-  }, [user?.id, isPersonal, currentHousehold?.id])
+  }, [user?.id, isPersonal, currentHousehold?.id, supabase])
 
   if (loading) {
     return (

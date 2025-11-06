@@ -20,11 +20,19 @@ const KPICards = ({ data }) => {
     })
     const thisMonth = data.pantryEvents.filter(e => new Date(e.at) >= oneMonthAgo)
 
-    // Calculate consumed/wasted
-    const consumedThisWeek = thisWeek.filter(e => e.type === 'consumed').length
-    const wastedThisWeek = thisWeek.filter(e => e.type === 'wasted').length
-    const consumedLastWeek = lastWeek.filter(e => e.type === 'consumed').length
-    const wastedLastWeek = lastWeek.filter(e => e.type === 'wasted').length
+    // Calculate consumed/wasted by summing quantities
+    const consumedThisWeek = thisWeek
+      .filter(e => e.type === 'consumed')
+      .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+    const wastedThisWeek = thisWeek
+      .filter(e => e.type === 'wasted')
+      .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+    const consumedLastWeek = lastWeek
+      .filter(e => e.type === 'consumed')
+      .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+    const wastedLastWeek = lastWeek
+      .filter(e => e.type === 'wasted')
+      .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
 
     // Calculate waste reduction rate (consumed / total)
     const totalThisWeek = consumedThisWeek + wastedThisWeek
@@ -74,7 +82,7 @@ const KPICards = ({ data }) => {
   const cards = [
     {
       title: "Total Consumed",
-      value: `${stats.consumedThisWeek} items`,
+      value: `${Math.round(stats.consumedThisWeek)} items`,
       change: `${stats.consumedChange >= 0 ? '+' : ''}${stats.consumedChange}%`,
       trend: stats.consumedChange >= 0 ? "up" : "down",
       description: "this week",
@@ -83,7 +91,7 @@ const KPICards = ({ data }) => {
     },
     {
       title: "Total Wasted",
-      value: `${stats.wastedThisWeek} items`,
+      value: `${Math.round(stats.wastedThisWeek)} items`,
       change: `${stats.wastedChange >= 0 ? '+' : ''}${stats.wastedChange}%`,
       trend: stats.wastedChange >= 0 ? "up" : "down",
       description: "this week",

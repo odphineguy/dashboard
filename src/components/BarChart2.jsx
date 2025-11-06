@@ -22,13 +22,17 @@ const BarChart2 = ({ data }) => {
         return eventDate >= monthStart && eventDate <= monthEnd
       })
 
-      const consumed = monthEvents.filter(e => e.type === 'consumed').length
-      const wasted = monthEvents.filter(e => e.type === 'wasted').length
+      const consumed = monthEvents
+        .filter(e => e.type === 'consumed')
+        .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
+      const wasted = monthEvents
+        .filter(e => e.type === 'wasted')
+        .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
 
       result.push({
         name: monthDate.toLocaleDateString('en-US', { month: 'short' }),
-        consumed,
-        wasted
+        consumed: Math.round(consumed),
+        wasted: Math.round(wasted)
       })
     }
 
