@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
 import { useBadgeAwarder } from '../hooks/useBadgeAwarder'
@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useLocation } from 'react-router-dom'
 
 export default function ScannerTest() {
+  const supabase = useSupabase()
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
@@ -61,6 +62,8 @@ export default function ScannerTest() {
   }, [user?.id])
 
   // Handle file from QuickScan modal
+  // Note: handleBarcodeUpload and handleReceiptUpload are intentionally not in dependency array
+  // as they are stable functions defined in component scope and don't need to trigger re-runs
   useEffect(() => {
     const file = location.state?.file
     const mode = location.state?.mode
@@ -598,7 +601,7 @@ For each item, provide:
 - unit: "units", "lbs", "oz", "each", or "pieces"
 - price: The price as a number, or null if not visible
 - category: Best guess category ("Produce", "Dairy", "Meat", "Bakery", "Beverages", "Canned Goods", "Frozen", "Snacks", "Pantry")
-- storageLocation: Best guess storage location ("Refrigerator", "Freezer", "Pantry", "Counter", "Cabinet")
+- storageLocation: Best guess storage location ("Refrigerator", "Freezer", "Pantry")
 - suggestedExpirationDays: Number of days from today until typical expiration based on food safety guidelines
 
 Also extract:
@@ -610,9 +613,7 @@ Focus ONLY on food items. Skip non-food items like bags, cleaning supplies, etc.
 Storage Location Guidelines:
 - Refrigerator: Dairy, fresh produce (except bananas/tomatoes), meat, eggs, condiments
 - Freezer: Frozen foods, ice cream, frozen meat/vegetables
-- Pantry: Canned goods, dry pasta, rice, cereal, baking supplies, chips
-- Counter: Fresh fruits (bananas, apples, tomatoes), bread, onions
-- Cabinet: Spices, oils, vinegar, coffee, tea
+- Pantry: Canned goods, dry pasta, rice, cereal, baking supplies, chips, fresh fruits (bananas, apples, tomatoes), bread, onions, spices, oils, vinegar, coffee, tea
 
 Expiration guidelines:
 - Fresh produce: 3-7 days
@@ -632,7 +633,7 @@ Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
       "unit": "lbs",
       "price": 1.29,
       "category": "Produce",
-      "storageLocation": "Counter",
+      "storageLocation": "Pantry",
       "suggestedExpirationDays": 5
     }
   ],

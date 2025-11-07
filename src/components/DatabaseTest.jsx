@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Card } from './ui/card'
 import { Button } from './ui/button'
 import { CheckCircle, XCircle, Loader2, Database } from 'lucide-react'
 
 export default function DatabaseTest() {
+  const supabase = useSupabase()
   const { user } = useAuth()
   const [testing, setTesting] = useState(false)
   const [result, setResult] = useState(null)

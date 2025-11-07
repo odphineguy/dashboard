@@ -1,10 +1,11 @@
 import React from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 import AddItemModal from '../pages/Inventory/components/AddItemModal'
 
 const QuickAddItemModal = ({ isOpen, onClose }) => {
+  const supabase = useSupabase()
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
 

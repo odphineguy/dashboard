@@ -27,7 +27,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
-import { supabase } from '../../lib/supabaseClient'
 import { useSupabase } from '../../hooks/useSupabase'
 
 const OnboardingPage = () => {
@@ -279,7 +278,7 @@ const OnboardingPage = () => {
       id: 'basic',
       name: 'Basic',
       accountType: 'personal',
-      price: 'Free',
+      price: 'No cost',
       icon: <User className="h-6 w-6" />,
       description: 'Perfect for individuals getting started',
       features: [
@@ -306,7 +305,7 @@ const OnboardingPage = () => {
       features: [
         'Unlimited pantry items',
         'Unlimited AI scanner',
-        '5 storage locations (Pantry, Fridge, Freezer, Counter, Cabinet)',
+        '3 storage locations (Pantry, Fridge, Freezer)',
         'Advanced AI recipe generation',
         'Up to 3 household members',
         'Advanced analytics & insights',
@@ -380,7 +379,7 @@ const OnboardingPage = () => {
       }
 
       // From step 2 (plan selection):
-      // Free tier skips login (step 3) and goes to personalization (step 4)
+      // Basic tier skips login (step 3) and goes to personalization (step 4)
       // Paid tiers: go to login (step 3) if not authenticated, otherwise skip to step 4
       if (currentStep === 2) {
         console.log('Step 2 navigation:', {
@@ -484,15 +483,19 @@ const OnboardingPage = () => {
     setLoading(true)
     try {
       // Map tier to price IDs (from Stripe)
-      // TODO: UPDATE THESE PRICE IDs WHEN SWITCHING TO PRODUCTION
+      // NOTE: Pricing page is single source of truth - prices shown:
+      // Premium: $9.99/month, $99.99/year
+      // Household Premium: $14.99/month, $149.99/year
+      // ⚠️ ACTION REQUIRED: Update these price IDs in Stripe dashboard to match Pricing page prices
+      // See STRIPE_PRICE_IDS.md for details
       const PRICE_IDS = {
         premium: {
-          month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe', // TEST MODE
-          year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'   // TEST MODE
+          month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe', // Should charge $9.99/month
+          year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'   // Should charge $99.99/year
         },
         household_premium: {
-          month: 'price_1SOSMNIWZQ4LZaTjUFica6uR', // TEST MODE
-          year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'   // TEST MODE
+          month: 'price_1SOSMNIWZQ4LZaTjUFica6uR', // ✅ Correct: $14.99/month
+          year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'   // Should charge $149.99/year
         }
       }
 
@@ -583,18 +586,9 @@ const OnboardingPage = () => {
         return
       }
 
-      // Fall back to Supabase session (for legacy users)
-      console.log('No Clerk user, checking Supabase session...')
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-
-      if (currentSession?.user) {
-        console.log('Found Supabase session, proceeding with user:', currentSession.user.id)
-        await completeOnboarding(currentSession.user.id)
-        return
-      }
-
-      // No user found
-      console.error('No authenticated user found')
+      // No Clerk user found - redirect to login
+      // Note: With Clerk as primary auth, Supabase auth is not used
+      console.error('No Clerk user found')
       alert('Session not available. Please try signing in again.')
       navigate('/login')
     } catch (error) {
@@ -609,25 +603,42 @@ const OnboardingPage = () => {
     console.log('Completing onboarding for user:', userId)
 
     try {
-      // Update existing profile (created by Clerk webhook)
+      // Use UPSERT to create profile if it doesn't exist (handles Clerk webhook delays)
+      const onboardingData = {
+        id: userId,
+        email: getUserEmail() || null,
+        full_name: formData.name || null,
+        subscription_tier: formData.subscriptionTier || 'basic',
+        subscription_status: 'active',
+        onboarding_completed: true,
+        onboarding_data: {
+          subscription_tier: formData.subscriptionTier,
+          account_type: formData.accountType,
+          household_name: formData.householdName || null,
+          household_size: formData.householdSize || null,
+          goals: formData.goals,
+          notifications_enabled: formData.notifications,
+          onboarded_at: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      }
+
+      // If profile doesn't exist, set created_at
+      const { data: existingProfile } = await supabaseClient
+        .from('profiles')
+        .select('id, created_at')
+        .eq('id', userId)
+        .single()
+
+      if (!existingProfile) {
+        onboardingData.created_at = new Date().toISOString()
+      }
+
       const { data: profileData, error: profileError} = await supabaseClient
         .from('profiles')
-        .update({
-          full_name: formData.name || null,
-          subscription_tier: formData.subscriptionTier || 'basic',
-          subscription_status: 'active',
-          onboarding_completed: true,
-          onboarding_data: {
-            subscription_tier: formData.subscriptionTier,
-            account_type: formData.accountType,
-            household_name: formData.householdName || null,
-            household_size: formData.householdSize || null,
-            goals: formData.goals,
-            notifications_enabled: formData.notifications,
-            onboarded_at: new Date().toISOString()
-          }
+        .upsert(onboardingData, {
+          onConflict: 'id'
         })
-        .eq('id', userId)
         .select()
 
       if (profileError) {
@@ -667,7 +678,7 @@ const OnboardingPage = () => {
 
       // If household account, create household entry
       if (formData.accountType === 'household' && formData.householdName) {
-        const { data: household, error: householdError } = await supabase
+        const { data: household, error: householdError } = await supabaseClient
           .from('households')
           .insert({
             name: formData.householdName,
@@ -682,7 +693,7 @@ const OnboardingPage = () => {
           // Don't block signup if household creation fails
         } else if (household) {
           // Add user as admin member to the household
-          const { error: memberError } = await supabase
+          const { error: memberError } = await supabaseClient
             .from('household_members')
             .insert({
               household_id: household.id,

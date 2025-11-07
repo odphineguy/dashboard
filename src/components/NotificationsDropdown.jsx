@@ -3,10 +3,11 @@ import { Bell, X, AlertTriangle, Clock, CheckCircle, Trash2, Package } from 'luc
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 import { formatDistanceToNow } from 'date-fns'
 
 const NotificationsDropdown = ({ isOpen, onClose }) => {
+  const supabase = useSupabase()
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
   const [notifications, setNotifications] = useState([])

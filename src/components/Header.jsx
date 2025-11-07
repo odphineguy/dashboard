@@ -7,9 +7,10 @@ import NotificationsDropdown from './NotificationsDropdown'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { supabase } from '../lib/supabaseClient'
+import { useSupabase } from '../hooks/useSupabase'
 
 const Header = ({ onMenuClick }) => {
+  const supabase = useSupabase()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const { user } = useAuth()
