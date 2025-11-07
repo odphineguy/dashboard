@@ -3,7 +3,7 @@ import { Clock, Users, ChefHat, ChevronDown, ChevronUp, Bookmark } from 'lucide-
 import { Button } from '../../../components/ui/button'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useHousehold } from '../../../contexts/HouseholdContext'
-import { supabase } from '../../../lib/supabaseClient'
+import { useSupabase } from '../../../hooks/useSupabase'
 
 const RecipeCard = ({ recipe, savedRecipeId = null, onSaveToggle }) => {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -11,6 +11,7 @@ const RecipeCard = ({ recipe, savedRecipeId = null, onSaveToggle }) => {
   const [isSaved, setIsSaved] = useState(!!savedRecipeId)
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty?.toLowerCase()) {

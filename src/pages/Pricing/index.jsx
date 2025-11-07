@@ -29,7 +29,7 @@ const PricingPage = () => {
         'Basic reporting only'
       ],
       popular: false,
-      cta: 'Get Started Free',
+      cta: 'Get Started',
       icon: <Zap className="h-6 w-6" />
     },
     {
@@ -239,7 +239,7 @@ const PricingPage = () => {
                       )}
                     </div>
                     {getPrice(plan) === 0 && (
-                      <div className="text-sm text-muted-foreground">Forever free</div>
+                      <div className="text-sm text-muted-foreground">No cost</div>
                     )}
                     {getSavings(plan) > 0 && (
                       <div className="text-sm text-primary font-medium">

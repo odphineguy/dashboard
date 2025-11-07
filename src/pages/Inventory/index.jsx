@@ -7,7 +7,7 @@ import InventoryTable from './components/InventoryTable'
 import AddItemModal from './components/AddItemModal'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
 import BadgeCelebration from '../../components/BadgeCelebration'
 import ViewSwitcher from '../../components/ViewSwitcher'
@@ -22,6 +22,7 @@ const Inventory = () => {
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
 
   // Load inventory items
@@ -85,7 +86,7 @@ const Inventory = () => {
     }
 
     loadInventory()
-  }, [user?.id, isPersonal, currentHousehold?.id])
+  }, [user?.id, isPersonal, currentHousehold?.id, supabase])
 
   // Filter items based on search
   useEffect(() => {
@@ -143,6 +144,7 @@ const Inventory = () => {
 
       if (error) {
         console.error('Error updating item:', error)
+        alert(error.message || 'Failed to update item')
         return
       }
 
@@ -174,6 +176,7 @@ const Inventory = () => {
 
       if (error) {
         console.error('Error adding item:', error)
+        alert(error.message || 'Failed to add item')
         return
       }
 
@@ -250,10 +253,10 @@ const Inventory = () => {
       }
 
       // Check for badges
-      await checkBadges('item_consumed')
+      await checkBadges('pantry_consumed')
     } catch (error) {
       console.error('Error marking item as consumed:', error)
-      alert('Failed to mark item as consumed')
+      alert(error.message || 'Failed to mark item as consumed')
     }
   }
 
@@ -304,7 +307,7 @@ const Inventory = () => {
       }
     } catch (error) {
       console.error('Error marking item as wasted:', error)
-      alert('Failed to mark item as wasted')
+      alert(error.message || 'Failed to mark item as wasted')
     }
   }
 

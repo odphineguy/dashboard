@@ -17,7 +17,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   // Load subscription data
   useEffect(() => {
     const loadSubscription = async () => {
-      if (!userData?.subscriptionTier || userData.subscriptionTier === 'free') {
+      if (!userData?.subscriptionTier || userData.subscriptionTier === 'basic') {
         setLoading(false)
         return
       }
@@ -48,20 +48,20 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
   const getTierDisplayName = (tier) => {
     switch (tier) {
-      case 'free':
-        return 'Basic (Free)'
+      case 'basic':
+        return 'Basic'
       case 'premium':
         return 'Premium'
       case 'household_premium':
         return 'Household Premium'
       default:
-        return 'Basic (Free)'
+        return 'Basic'
     }
   }
 
   const getTierIcon = (tier) => {
     switch (tier) {
-      case 'free':
+      case 'basic':
         return <CheckCircle className="h-5 w-5 text-green-600" />
       case 'premium':
         return <Crown className="h-5 w-5 text-yellow-600" />
@@ -74,7 +74,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
   const getTierColor = (tier) => {
     switch (tier) {
-      case 'free':
+      case 'basic':
         return 'bg-green-100 text-green-800'
       case 'premium':
         return 'bg-yellow-100 text-yellow-800'
@@ -178,8 +178,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const handleUpgrade = () => {
-    // Free users: show plan selector modal
-    if (userData?.subscriptionTier === 'free') {
+    // Basic users: show plan selector modal
+    if (userData?.subscriptionTier === 'basic') {
       setShowPlanSelector(true)
     } else {
       // Paid users: use customer portal
@@ -297,8 +297,12 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                   <li>✓ Unlimited pantry items</li>
                   <li>✓ Unlimited AI scanner</li>
                   <li>✓ Advanced recipe generation</li>
+                  <li>✓ Detailed analytics & insights</li>
+                  <li>✓ Expiry notifications</li>
+                  <li>✓ Priority support</li>
+                  <li>✓ Export data</li>
+                  <li>✓ Advanced meal planning</li>
                   <li>✓ Up to 3 household members</li>
-                  <li>✓ 5 storage locations</li>
                 </ul>
               </Card>
 
@@ -330,10 +334,15 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
                 <ul className="mt-4 text-sm space-y-2">
                   <li>✓ Everything in Premium</li>
-                  <li>✓ Unlimited household members</li>
-                  <li>✓ Unlimited storage locations</li>
-                  <li>✓ Shared inventory management</li>
+                  <li>✓ Up to 6 household members</li>
+                  <li>✓ Shared pantry management</li>
                   <li>✓ Family meal planning</li>
+                  <li>✓ Household analytics</li>
+                  <li>✓ Role-based permissions</li>
+                  <li>✓ Bulk operations</li>
+                  <li>✓ Advanced storage locations</li>
+                  <li>✓ Family notifications</li>
+                  <li>✓ Priority support</li>
                 </ul>
               </Card>
             </div>
@@ -352,14 +361,14 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
         </Badge>
       </div>
 
-      {userData.subscriptionTier === 'free' ? (
+      {userData.subscriptionTier === 'basic' ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             {getTierIcon(userData.subscriptionTier)}
             <div>
-              <p className="font-medium">Basic Plan (Free)</p>
+              <p className="font-medium">Basic Plan</p>
               <p className="text-sm text-muted-foreground">
-                Perfect for getting started with meal planning
+                Perfect for individuals getting started
               </p>
             </div>
           </div>
@@ -368,10 +377,11 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
             <h4 className="font-medium mb-2">What's included:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Up to 50 pantry items</li>
-              <li>• AI scanner (10 scans/month)</li>
-              <li>• Basic recipe suggestions (3/week)</li>
-              <li>• 3 storage locations</li>
+              <li>• Basic AI scanner (10 scans/month)</li>
+              <li>• Recipe suggestions</li>
               <li>• Basic analytics</li>
+              <li>• Email support</li>
+              <li>• Mobile app access</li>
             </ul>
           </div>
 
@@ -406,7 +416,10 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Billing</span>
                   <span className="text-sm font-medium">
-                    ${subscription.plan_tier === 'premium' ? '9.99' : '14.99'}/{subscription.billing_interval}
+                    {subscription.billing_interval === 'year' || subscription.billing_interval === 'yearly' 
+                      ? `$${subscription.plan_tier === 'premium' ? '99.99' : '149.99'}/year`
+                      : `$${subscription.plan_tier === 'premium' ? '9.99' : '14.99'}/month`
+                    }
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -427,18 +440,25 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                   <li>• Unlimited pantry items</li>
                   <li>• Unlimited AI scanner</li>
                   <li>• Advanced recipe generation</li>
-                  <li>• Up to 3 household members</li>
-                  <li>• Advanced analytics</li>
+                  <li>• Detailed analytics & insights</li>
+                  <li>• Expiry notifications</li>
                   <li>• Priority support</li>
+                  <li>• Export data</li>
+                  <li>• Advanced meal planning</li>
+                  <li>• Up to 3 household members</li>
                 </>
               ) : (
                 <>
                   <li>• Everything in Premium</li>
-                  <li>• Unlimited household members</li>
-                  <li>• Unlimited storage locations</li>
-                  <li>• Shared household inventory</li>
+                  <li>• Up to 6 household members</li>
+                  <li>• Shared pantry management</li>
                   <li>• Family meal planning</li>
                   <li>• Household analytics</li>
+                  <li>• Role-based permissions</li>
+                  <li>• Bulk operations</li>
+                  <li>• Advanced storage locations</li>
+                  <li>• Family notifications</li>
+                  <li>• Priority support</li>
                 </>
               )}
             </ul>

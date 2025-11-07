@@ -10,6 +10,7 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [invitedEmail, setInvitedEmail] = useState('')
   const { inviteToHousehold } = useHousehold()
 
   const handleSubmit = async (e) => {
@@ -36,14 +37,15 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
 
     try {
       setLoading(true)
-      await inviteToHousehold(householdId, email.trim())
+      const emailToInvite = email.trim()
+      await inviteToHousehold(householdId, emailToInvite)
+      setInvitedEmail(emailToInvite)
       setSuccess(true)
       setEmail('')
 
       // Auto-close after 2 seconds
       setTimeout(() => {
-        onClose()
-        setSuccess(false)
+        handleClose()
       }, 2000)
     } catch (error) {
       console.error('Error inviting member:', error)
@@ -51,6 +53,14 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleClose = () => {
+    setEmail('')
+    setError(null)
+    setSuccess(false)
+    setInvitedEmail('')
+    onClose()
   }
 
   if (!isOpen) return null
@@ -65,7 +75,7 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
             <h2 className="text-xl font-semibold">Invite Member</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-5 w-5" />
@@ -78,7 +88,7 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Invitation Sent!</h3>
             <p className="text-muted-foreground">
-              An invitation has been sent to {email}
+              An invitation has been sent to {invitedEmail}
             </p>
           </div>
         ) : (
@@ -111,7 +121,7 @@ const InviteMemberModal = ({ isOpen, onClose, householdId }) => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={handleClose}
                   disabled={loading}
                 >
                   Cancel

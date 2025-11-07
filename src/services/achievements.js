@@ -1,21 +1,58 @@
 // NOTE: supabase client now passed as parameter
 // import { supabase } from '../lib/supabaseClient'
+import { getAllBadgeRequirements, getBadgeProgress } from './badgeChecker'
+
+// Default badge catalog if database table is empty
+const DEFAULT_BADGE_CATALOG = [
+  // Waste Reduction Badges
+  { key: 'waste-warrior', title: 'Waste Warrior', description: 'Consume 50 items before they expire', tier: 'bronze', rule_value: 50, unit: 'items' },
+  { key: 'eco-champion', title: 'Eco Champion', description: 'Maintain 50% waste reduction for 3 consecutive weeks', tier: 'silver', rule_value: 50, unit: '%' },
+  { key: 'zero-waste', title: 'Zero Waste Hero', description: 'Achieve a week with zero food waste', tier: 'gold', rule_value: 1, unit: 'week' },
+  { key: 'sustainability-champion', title: 'Sustainability Champion', description: 'Save 100kg CO2 through waste reduction', tier: 'silver', rule_value: 100, unit: 'kg' },
+  { key: 'food-saver-pro', title: 'Food Saver Pro', description: 'Prevent 500 items from going to waste', tier: 'gold', rule_value: 500, unit: 'items' },
+  
+  // Recipe Badges
+  { key: 'recipe-novice', title: 'Recipe Novice', description: 'Try 5 different recipes', tier: 'bronze', rule_value: 5, unit: 'recipes' },
+  { key: 'culinary-explorer', title: 'Culinary Explorer', description: 'Try 25 different recipes', tier: 'silver', rule_value: 25, unit: 'recipes' },
+  { key: 'master-chef', title: 'Master Chef', description: 'Try 100 different recipes', tier: 'gold', rule_value: 100, unit: 'recipes' },
+  
+  // Consistency Badges
+  { key: 'week-streak', title: 'Week Streak', description: 'Log in for 7 consecutive days', tier: 'bronze', rule_value: 7, unit: 'days' },
+  { key: 'month-streak', title: 'Month Streak', description: 'Log in for 30 consecutive days', tier: 'silver', rule_value: 30, unit: 'days' },
+  { key: 'year-streak', title: 'Year Streak', description: 'Log in for 365 consecutive days', tier: 'gold', rule_value: 365, unit: 'days' },
+  { key: 'early-adopter', title: 'Early Adopter', description: 'Use the app for 30 days', tier: 'bronze', rule_value: 30, unit: 'days' },
+  { key: 'inventory-master', title: 'Inventory Master', description: 'Maintain 95% inventory accuracy for 30 days', tier: 'silver', rule_value: 95, unit: '%' },
+  { key: 'money-saver', title: 'Money Saver', description: 'Save $200 through waste reduction', tier: 'silver', rule_value: 200, unit: '$' },
+  { key: 'perfect-week', title: 'Perfect Week', description: 'Complete a week with perfect inventory management', tier: 'gold', rule_value: 1, unit: 'week' }
+]
 
 /**
  * Fetch all achievements from the catalog
  */
 export async function fetchAchievementsCatalog(supabase) {
-  const { data, error } = await supabase
-    .from('achievements_catalog')
-    .select('*')
-    .order('key', { ascending: true })
-  
-  if (error) {
+  try {
+    const { data, error } = await supabase
+      .from('achievements_catalog')
+      .select('*')
+      .order('key', { ascending: true })
+    
+    if (error) {
+      console.error('Error fetching achievements catalog:', error)
+      // Return default catalog if table doesn't exist or has error
+      return DEFAULT_BADGE_CATALOG
+    }
+    
+    // If catalog is empty, return default badges
+    if (!data || data.length === 0) {
+      return DEFAULT_BADGE_CATALOG
+    }
+    
+    return data
+  } catch (error) {
     console.error('Error fetching achievements catalog:', error)
-    return []
+    // Return default catalog on any error
+    return DEFAULT_BADGE_CATALOG
   }
-  
-  return data || []
 }
 
 /**
@@ -40,8 +77,8 @@ export async function fetchUserAchievements(userId, supabase) {
 /**
  * Get user's achievement progress for all badges
  */
-export async function getUserAchievementProgress(userId) {
-  if (!userId) {
+export async function getUserAchievementProgress(userId, supabase) {
+  if (!userId || !supabase) {
     return {
       achievements: [],
       totalEarned: 0,
@@ -52,8 +89,8 @@ export async function getUserAchievementProgress(userId) {
   try {
     // Fetch catalog and user achievements
     const [catalog, userAchievements] = await Promise.all([
-      fetchAchievementsCatalog(),
-      fetchUserAchievements(userId)
+      fetchAchievementsCatalog(supabase),
+      fetchUserAchievements(userId, supabase)
     ])
 
     // Create map for quick lookup
@@ -63,23 +100,36 @@ export async function getUserAchievementProgress(userId) {
     })
 
     // Merge catalog with user progress
-    const achievements = catalog.map(achievement => {
+    const achievements = []
+    for (const achievement of catalog) {
       const userProgress = userAchievementMap.get(achievement.key)
+      const badgeRequirements = getAllBadgeRequirements()
+      const requirement = badgeRequirements[achievement.key]
       
-      return {
+      // Calculate current progress if not earned (for real-time display)
+      let progress = userProgress?.progress || 0
+      if (!userProgress?.unlocked_at && requirement) {
+        try {
+          progress = await getBadgeProgress(userId, achievement.key, supabase)
+        } catch (error) {
+          console.error(`Error calculating progress for ${achievement.key}:`, error)
+        }
+      }
+      
+      achievements.push({
         key: achievement.key,
-        title: achievement.title,
-        description: achievement.description,
+        title: achievement.title || achievement.key,
+        description: achievement.description || requirement?.description || '',
         tier: achievement.tier || 'bronze',
         earned: userProgress ? Boolean(userProgress.unlocked_at) : false,
         earnedDate: userProgress?.unlocked_at 
           ? new Date(userProgress.unlocked_at).toLocaleDateString()
           : null,
-        progress: userProgress?.progress || 0,
-        requirement: achievement.rule_value || 0,
+        progress,
+        requirement: requirement?.requirement || achievement.rule_value || 0,
         unit: achievement.unit || ''
-      }
-    })
+      })
+    }
 
     const totalEarned = achievements.filter(a => a.earned).length
     const totalAvailable = achievements.length
@@ -102,8 +152,8 @@ export async function getUserAchievementProgress(userId) {
 /**
  * Get user's achievements organized by category for UI display
  */
-export async function getUserAchievementsByCategory(userId) {
-  if (!userId) {
+export async function getUserAchievementsByCategory(userId, supabase) {
+  if (!userId || !supabase) {
     return {
       totalEarned: 0,
       totalAvailable: 0,
@@ -115,7 +165,7 @@ export async function getUserAchievementsByCategory(userId) {
   }
 
   try {
-    const { achievements, totalEarned, totalAvailable } = await getUserAchievementProgress(userId)
+    const { achievements, totalEarned, totalAvailable } = await getUserAchievementProgress(userId, supabase)
     
     // Categorize badges
     const wasteReduction = achievements.filter(a => 

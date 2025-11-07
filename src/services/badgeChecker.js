@@ -204,7 +204,7 @@ async function getDaysSinceSignup(userId, supabase) {
 /**
  * Get user's current progress for a specific badge
  */
-async function getBadgeProgress(userId, badgeKey, supabase) {
+export async function getBadgeProgress(userId, badgeKey, supabase) {
   const requirement = BADGE_REQUIREMENTS[badgeKey]
   if (!requirement) return 0
 
@@ -333,6 +333,11 @@ export async function checkBadgesAfterAction(userId, actionType, supabase) {
     const alreadyAwarded = await isBadgeAwarded(userId, badgeKey, supabase)
     if (alreadyAwarded) continue
 
+    // Calculate and update progress even if not earned yet
+    const progress = await getBadgeProgress(userId, badgeKey, supabase)
+    await updateAchievementProgress(userId, supabase, badgeKey, progress)
+
+    // Check if badge should be awarded
     const earned = await checkBadgeEarned(userId, badgeKey, supabase)
     if (earned) {
       const awarded = await awardAchievement(userId, badgeKey, supabase)

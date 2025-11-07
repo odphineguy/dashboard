@@ -7,7 +7,7 @@ import { Label } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import CreateHouseholdModal from './components/CreateHouseholdModal'
 import InviteMemberModal from './components/InviteMemberModal'
 import MembersList from './components/MembersList'
@@ -16,6 +16,7 @@ import HouseholdInformation from '../Profile/components/HouseholdInformation'
 
 const Household = () => {
   const { user } = useAuth()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const {
     households,
     currentHousehold,
@@ -94,7 +95,7 @@ const Household = () => {
     }
 
     loadMembers()
-  }, [currentHousehold?.id, isPersonal])
+  }, [currentHousehold?.id, isPersonal, supabase])
 
   // Load pending invitations
   useEffect(() => {
@@ -119,7 +120,7 @@ const Household = () => {
     }
 
     loadPendingInvites()
-  }, [currentHousehold?.id, isPersonal, userRole])
+  }, [currentHousehold?.id, isPersonal, userRole, supabase])
 
   const handleLeaveHousehold = async () => {
     if (!currentHousehold?.id) return

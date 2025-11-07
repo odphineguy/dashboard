@@ -55,7 +55,7 @@ function checkTierAccess(userTier, requiredTier, status) {
   }
 
   const tierHierarchy = {
-    free: 0,
+    basic: 0,
     premium: 1,
     household_premium: 2,
   }

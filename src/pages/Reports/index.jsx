@@ -5,12 +5,13 @@ import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import ViewSwitcher from '../../components/ViewSwitcher'
 
 const Reports = () => {
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const [exportCounts, setExportCounts] = useState({
     generated: 0,
     scheduled: 0,
@@ -134,7 +135,9 @@ const Reports = () => {
         .select('*')
         .eq('user_id', user.id)
 
-      if (!isPersonal && currentHousehold?.id) {
+      if (isPersonal) {
+        query = query.is('household_id', null)
+      } else if (currentHousehold?.id) {
         query = query.eq('household_id', currentHousehold.id)
       }
 
@@ -171,17 +174,38 @@ const Reports = () => {
   // Export recipes data
   const exportRecipes = async () => {
     try {
-      const { data: recipes, error } = await supabase
+      let query = supabase
         .from('ai_saved_recipes')
         .select('*')
         .eq('user_id', user.id)
 
+      if (isPersonal) {
+        query = query.is('household_id', null)
+      } else if (currentHousehold?.id) {
+        query = query.eq('household_id', currentHousehold.id)
+      }
+
+      const { data: recipes, error } = await query
+
       if (error) throw error
 
+      // Flatten recipe data for CSV export
+      const flattenedRecipes = (recipes || []).map(recipe => ({
+        id: recipe.id,
+        title: recipe.recipe_data?.title || '',
+        description: recipe.recipe_data?.description || '',
+        cook_time: recipe.recipe_data?.cookTime || '',
+        servings: recipe.recipe_data?.servings || '',
+        difficulty: recipe.recipe_data?.difficulty || '',
+        ingredients: recipe.recipe_data?.ingredients?.join('; ') || '',
+        instructions: recipe.recipe_data?.instructions?.join('; ') || '',
+        created_at: recipe.created_at
+      }))
+
       // Convert to CSV
-      const csvData = convertToCSV(recipes || [], [
+      const csvData = convertToCSV(flattenedRecipes, [
         'id', 'title', 'description', 'cook_time', 'servings',
-        'difficulty', 'created_at'
+        'difficulty', 'ingredients', 'instructions', 'created_at'
       ])
 
       downloadFile(csvData, `recipes_export_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv')

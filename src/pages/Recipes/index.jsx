@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ChefHat, Loader2, RefreshCw, Clock, Users, Bookmark } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
@@ -6,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHousehold } from '../../contexts/HouseholdContext'
-import { supabase } from '../../lib/supabaseClient'
+import { useSupabase } from '../../hooks/useSupabase'
 import RecipeCard from './components/RecipeCard'
 import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
 import BadgeCelebration from '../../components/BadgeCelebration'
@@ -19,8 +20,10 @@ const Recipes = () => {
   const [loading, setLoading] = useState(false)
   const [loadingSaved, setLoadingSaved] = useState(false)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { currentHousehold, isPersonal} = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
 
   // Load expiring ingredients
@@ -29,9 +32,9 @@ const Recipes = () => {
       if (!user?.id) return
 
       try {
-        const threeDaysFromNow = new Date()
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 7) // Look ahead 7 days
-        const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0]
+        const sevenDaysFromNow = new Date()
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7) // Look ahead 7 days
+        const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0]
 
         let query = supabase
           .from('pantry_items')
@@ -46,7 +49,7 @@ const Recipes = () => {
 
         query = query
           .not('expiry_date', 'is', null)
-          .lte('expiry_date', threeDaysStr)
+          .lte('expiry_date', sevenDaysStr)
           .order('expiry_date', { ascending: true })
 
         const { data, error } = await query
@@ -266,7 +269,7 @@ Make the recipes creative, practical, and use as many of the expiring ingredient
           <p className="text-muted-foreground mb-4">
             Add items to your inventory to get personalized recipe suggestions
           </p>
-          <Button variant="outline" onClick={() => window.location.href = '/inventory'}>
+          <Button variant="outline" onClick={() => navigate('/inventory')}>
             Go to Inventory
           </Button>
         </div>

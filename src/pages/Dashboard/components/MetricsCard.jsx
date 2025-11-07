@@ -5,6 +5,7 @@ const iconMap = {
   Package,
   AlertTriangle,
   Clock,
+  TrendingUp,
   TrendingDown: TrendDown
 }
 

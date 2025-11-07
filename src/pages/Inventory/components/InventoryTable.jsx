@@ -28,9 +28,11 @@ const InventoryTable = ({
     if (!expirationDate) return { status: 'none', label: 'No Date', color: 'bg-gray-500' }
 
     const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset to start of day
     const expDate = new Date(expirationDate)
+    expDate.setHours(0, 0, 0, 0) // Reset to start of day
     const diffTime = expDate - today
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
     if (diffDays < 0) {
       return { status: 'expired', label: 'Expired', color: 'bg-red-600' }

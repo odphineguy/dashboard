@@ -56,10 +56,10 @@ const Dashboard = () => {
       color: "orange"
     },
     {
-      title: "Waste Reduced",
+      title: "Success Rate",
       value: "0%",
-      subtitle: "consumption rate",
-      icon: "TrendingDown",
+      subtitle: "food consumed (not wasted)",
+      icon: "TrendingUp",
       trend: "up",
       trendValue: "0%",
       color: "success"
@@ -388,7 +388,7 @@ const Dashboard = () => {
       }
 
       // Check for badges
-      await checkBadges('item_consumed')
+      await checkBadges('pantry_consumed')
 
       // Refresh metrics
       const metrics = await calculateDashboardMetrics(user.id)
@@ -582,7 +582,7 @@ const Dashboard = () => {
                   id: user.id,
                   full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
                   avatar_url: user.user_metadata?.avatar_url || '',
-                  subscription_tier: 'free',
+                  subscription_tier: 'basic',
                   subscription_status: 'active',
                   onboarding_completed: false
                 })

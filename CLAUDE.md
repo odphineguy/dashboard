@@ -323,7 +323,7 @@ const generateRecipes = async () => {
 - Unlimited pantry items
 - Unlimited AI scanner
 - Advanced recipe generation (unlimited)
-- 5 storage locations (+ Counter, Cabinet)
+- 3 storage locations (Pantry, Refrigerator, Freezer)
 - Up to 3 household members
 - Advanced analytics
 - Priority support

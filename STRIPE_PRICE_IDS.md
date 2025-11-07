@@ -16,31 +16,37 @@
 
 ## Prices
 
+**Note**: These prices match the Pricing page (`src/pages/Pricing/index.jsx`) which is the single source of truth.
+
 ### Premium Monthly
 - **Price ID**: `price_1SOSNiIWZQ4LZaTjtxDaAhDe`
-- **Amount**: $14.99/month ($1499 cents)
+- **Amount**: $9.99/month ($999 cents)
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Premium
+- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $9.99/month
 
 ### Premium Yearly
 - **Price ID**: `price_1SOSLDIWZQ4LZaTju4d1x4Kl`
-- **Amount**: $99/year ($9900 cents)
+- **Amount**: $99.99/year ($9999 cents)
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Premium
-- **Savings**: ~$80/year (2 months free)
+- **Savings**: $19.89/year (2 months free)
+- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $99.99/year
 
 ### Household Premium Monthly
 - **Price ID**: `price_1SOSMNIWZQ4LZaTjUFica6uR`
 - **Amount**: $14.99/month ($1499 cents)
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Household Premium
+- **✅ CORRECT**: This matches Pricing page
 
 ### Household Premium Yearly
 - **Price ID**: `price_1SOSMzIWZQ4LZaTjv77IRyqJ`
-- **Amount**: $149/year ($14900 cents)
+- **Amount**: $149.99/year ($14999 cents)
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Household Premium
-- **Savings**: ~$30/year (2 months free)
+- **Savings**: $29.89/year (2 months free)
+- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $149.99/year
 
 ---
 

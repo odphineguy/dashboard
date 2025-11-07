@@ -4,7 +4,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 
-const UpgradeModal = ({ isOpen, onClose, currentTier = 'free' }) => {
+const UpgradeModal = ({ isOpen, onClose, currentTier = 'basic' }) => {
   const { upgradeSubscription } = useSubscription()
   const [loading, setLoading] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(null)

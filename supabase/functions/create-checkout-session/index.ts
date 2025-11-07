@@ -59,8 +59,8 @@ serve(async (req) => {
     const effectiveName = userName || effectiveEmail?.split('@')[0] || 'User'
 
     // Get profile - retry if not found (wait for Clerk webhook to complete)
-    const MAX_PROFILE_RETRIES = 10
-    const RETRY_DELAY_MS = 1000
+    const MAX_PROFILE_RETRIES = 5
+    const RETRY_DELAY_MS = 500
 
     let { data: profile } = await supabaseClient
       .from('profiles')
@@ -68,7 +68,7 @@ serve(async (req) => {
       .eq('id', effectiveUserId)
       .single()
 
-    // If profile doesn't exist, retry up to 3 times with delay
+    // If profile doesn't exist, retry a few times, then create it if still missing
     if (!profile) {
       console.log('Profile not found, waiting for Clerk webhook to complete...')
 
@@ -88,14 +88,50 @@ serve(async (req) => {
         }
       }
 
+      // If profile still doesn't exist after retries, create it on-demand
       if (!profile) {
-        return new Response(
-          JSON.stringify({ error: 'Profile not ready. Please wait a moment and try again.' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
+        console.log('Profile still not found after retries, creating on-demand...')
+        
+        const { data: newProfile, error: createError } = await supabaseClient
+          .from('profiles')
+          .insert({
+            id: effectiveUserId,
+            email: effectiveEmail,
+            full_name: effectiveName,
+            subscription_tier: 'basic',
+            subscription_status: 'active',
+            onboarding_completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select('stripe_customer_id, full_name')
+          .single()
+
+        if (createError) {
+          console.error('Error creating profile on-demand:', createError)
+          // If insert fails (e.g., duplicate), try to fetch again
+          const { data: fetchedProfile } = await supabaseClient
+            .from('profiles')
+            .select('stripe_customer_id, full_name')
+            .eq('id', effectiveUserId)
+            .single()
+          
+          if (fetchedProfile) {
+            profile = fetchedProfile
+            console.log('Profile found after insert attempt (race condition)')
+          } else {
+            return new Response(
+              JSON.stringify({ error: 'Failed to create profile. Please try again.' }),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 500,
+              }
+            )
           }
-        )
+        } else {
+          profile = newProfile
+          console.log('Profile created on-demand successfully')
+        }
       }
     }
 

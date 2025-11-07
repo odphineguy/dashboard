@@ -5,12 +5,13 @@ import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useHousehold } from '../../../contexts/HouseholdContext'
-import { supabase } from '../../../lib/supabaseClient'
+import { useSupabase } from '../../../hooks/useSupabase'
 import { NavLink } from 'react-router-dom'
 
 const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
+  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
   const [formData, setFormData] = useState({
     name: '',
     quantity: '',
@@ -53,7 +54,7 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
     if (isOpen) {
       loadStorageLocations()
     }
-  }, [isOpen, user?.id, isPersonal, currentHousehold?.id])
+  }, [isOpen, user?.id, isPersonal, currentHousehold?.id, supabase])
 
   useEffect(() => {
     if (isOpen) {
@@ -129,6 +130,7 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
       onClose()
     } catch (error) {
       console.error('Error saving item:', error)
+      alert(error.message || 'Failed to save item')
     } finally {
       setIsSubmitting(false)
     }
