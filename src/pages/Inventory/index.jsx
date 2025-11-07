@@ -218,9 +218,6 @@ const Inventory = () => {
           item_id: item.id,
           type: 'consumed',
           quantity: 1,
-          name: item.name,
-          unit: item.unit,
-          category: item.category,
           at: new Date().toISOString()
         }])
 
@@ -275,9 +272,6 @@ const Inventory = () => {
           item_id: item.id,
           type: 'wasted',
           quantity: 1,
-          name: item.name,
-          unit: item.unit,
-          category: item.category,
           at: new Date().toISOString()
         }])
 
