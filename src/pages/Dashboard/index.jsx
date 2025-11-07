@@ -600,26 +600,39 @@ const Dashboard = () => {
             profiles!pantry_events_user_id_fkey (
               full_name,
               avatar_url
-            ),
-            pantry_items!pantry_events_item_id_fkey (
-              name,
-              unit,
-              category
             )
           `)
           .eq('user_id', user.id)
           .order('at', { ascending: false })
           .limit(10)
 
+        // Fetch related pantry item details separately for items that still exist
+        const itemIds = rows?.map(e => e.item_id).filter(Boolean) || []
+        let itemsMap = {}
+
+        if (itemIds.length > 0) {
+          const { data: items } = await supabase
+            .from('pantry_items')
+            .select('id, name, unit, category')
+            .in('id', itemIds)
+
+          itemsMap = items?.reduce((acc, item) => {
+            acc[item.id] = item
+            return acc
+          }, {}) || {}
+        }
+
         // Transform the data to include profile info and item details
+        // Use stored event data for deleted items, or fetch from pantry_items for existing items
         const transformedEvents = rows?.map(event => ({
           ...event,
           user_name: event.profiles?.full_name || user?.email?.split('@')[0] || 'You',
           user_avatar: event.profiles?.avatar_url || null,
           user_email: user?.email || '',
-          name: event.pantry_items?.name || 'Unknown Item',
-          unit: event.pantry_items?.unit || '',
-          category: event.pantry_items?.category || ''
+          // Use item data from pantry_items if available, otherwise use stored event data
+          name: itemsMap[event.item_id]?.name || event.name || 'Unknown Item',
+          unit: itemsMap[event.item_id]?.unit || event.unit || '',
+          category: itemsMap[event.item_id]?.category || event.category || ''
         })) || []
 
         setEvents(transformedEvents)
