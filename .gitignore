@@ -1,0 +1,35 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.vercel
+.env
+.env.local
+.env.*.local
+
+# Apple Sign In credentials (NEVER commit these)
+generate-apple-jwt.js
+generate-apple-jwt.cjs
+*.p8
+AuthKey_*.p8
+
+# Supabase admin scripts (NEVER commit these)
+execute_trigger_sql.mjs
+run_sql.js
+*_sql.js
+*_sql.mjs
+*_sql.sql
+fix-*.sql
+verify-*.sql
+
+# Debugging/analysis files with user data
+*FAILURE*.md
+*ANALYSIS*.md
+*FIX_CHECKLIST*.md
+*DEBUG*.md
+
+# Any file with "secret" or "private" in the name
+*secret*.js
+*secret*.cjs
+*private*.js
+*private*.cjs
