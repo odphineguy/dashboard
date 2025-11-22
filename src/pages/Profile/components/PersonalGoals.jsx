@@ -117,8 +117,8 @@ const PersonalGoals = ({ goals, onUpdateGoals }) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{item.description}</span>
-                    <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground">
-                      Goal Set
+                    <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                      ● On Track
                     </Badge>
                   </div>
                 </div>

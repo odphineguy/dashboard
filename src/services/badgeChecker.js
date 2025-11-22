@@ -84,9 +84,9 @@ const BADGE_REQUIREMENTS = {
     description: 'Save $200 through waste reduction'
   },
   'perfect-week': {
-    type: 'zero_waste_week',
-    requirement: 1,
-    description: 'Complete a week with perfect inventory management'
+    type: 'perfect_days_streak',
+    requirement: 7,
+    description: 'Complete 7 consecutive days with perfect inventory management'
   }
 }
 
@@ -149,6 +149,81 @@ async function hasZeroWasteWeek(userId, supabase) {
   }
 
   return (data?.length || 0) === 0
+}
+
+/**
+ * Calculate consecutive days of perfect inventory management
+ * Perfect day = no wasted items that day
+ */
+async function getPerfectDaysStreak(userId, supabase) {
+  try {
+    // Get all wasted items grouped by date
+    const { data, error } = await supabase
+      .from('pantry_events')
+      .select('created_at')
+      .eq('user_id', userId)
+      .eq('type', 'wasted')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching wasted items:', error)
+      return 0
+    }
+
+    if (!data || data.length === 0) {
+      // No wasted items at all - check how many days since signup (up to 7)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (!profile) return 0
+
+      const signupDate = new Date(profile.created_at)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      signupDate.setHours(0, 0, 0, 0)
+      
+      const diffTime = today - signupDate
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      return Math.min(diffDays + 1, 7) // Cap at 7 for display
+    }
+
+    // Group wasted items by date
+    const wastedByDate = new Set()
+    data.forEach(event => {
+      const date = new Date(event.created_at)
+      date.setHours(0, 0, 0, 0)
+      wastedByDate.add(date.toISOString().split('T')[0])
+    })
+
+    // Count consecutive days from today backwards with no waste
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    let streak = 0
+    let currentDate = new Date(today)
+    
+    // Check up to 7 days back
+    for (let i = 0; i < 7; i++) {
+      const dateKey = currentDate.toISOString().split('T')[0]
+      
+      if (wastedByDate.has(dateKey)) {
+        // Found a day with waste - streak broken
+        break
+      }
+      
+      streak++
+      currentDate.setDate(currentDate.getDate() - 1)
+    }
+
+    return streak
+  } catch (error) {
+    console.error('Error calculating perfect days streak:', error)
+    return 0
+  }
 }
 
 /**
@@ -219,6 +294,9 @@ export async function getBadgeProgress(userId, badgeKey, supabase) {
       break
     case 'zero_waste_week':
       progress = await hasZeroWasteWeek(userId, supabase) ? 1 : 0
+      break
+    case 'perfect_days_streak':
+      progress = await getPerfectDaysStreak(userId, supabase)
       break
     case 'recipes_tried':
       progress = await getRecipesTried(userId, supabase)

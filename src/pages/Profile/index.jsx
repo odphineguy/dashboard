@@ -11,17 +11,16 @@ import { getUserAchievementsByCategory } from '../../services/achievements'
 
 const Profile = () => {
   const { user } = useAuth()
-  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
+  const supabase = useSupabase()
   const [loading, setLoading] = useState(true)
 
   // User data state
   const [userData, setUserData] = useState({
-    id: '',
     name: '',
     email: '',
     avatar: null,
     joinDate: '',
-    subscriptionTier: 'basic',
+    subscriptionTier: 'free',
     subscriptionStatus: 'active',
     stats: {
       daysActive: 0,
@@ -88,13 +87,13 @@ const Profile = () => {
           console.error('Error loading profile:', profileError)
         }
 
-        // Load achievements
+        // Load achievements - pass supabase as parameter
         const achievementsData = await getUserAchievementsByCategory(user.id, supabase)
 
         // Calculate user stats
         const { data: pantryEvents } = await supabase
           .from('pantry_events')
-          .select('type, quantity, at')
+          .select('type, quantity')
           .eq('user_id', user.id)
 
         const { data: recipes } = await supabase
@@ -102,11 +101,8 @@ const Profile = () => {
           .select('id')
           .eq('user_id', user.id)
 
-        // Sum quantities instead of counting events
-        const consumed = pantryEvents?.filter(e => e.type === 'consumed')
-          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0) || 0
-        const wasted = pantryEvents?.filter(e => e.type === 'wasted')
-          .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0) || 0
+        const consumed = pantryEvents?.filter(e => e.type === 'consumed').length || 0
+        const wasted = pantryEvents?.filter(e => e.type === 'wasted').length || 0
         const total = consumed + wasted
         const wasteReduced = total > 0 ? Math.round((consumed / total) * 100) : 0
 
@@ -114,102 +110,14 @@ const Profile = () => {
           ? Math.floor((new Date() - new Date(profile.created_at)) / (1000 * 60 * 60 * 24))
           : 0
 
-        // Calculate activity-based streaks (consecutive days with pantry activity)
-        const calculateActivityStreaks = (events) => {
-          if (!events || events.length === 0) {
-            return { daily: 0, weekly: 0, monthly: 0 }
-          }
-
-          // Get unique dates with activity
-          const activityDates = new Set()
-          events.forEach(event => {
-            if (event.at) {
-              const date = new Date(event.at).toISOString().split('T')[0]
-              activityDates.add(date)
-            }
-          })
-
-          const sortedDates = Array.from(activityDates).sort().reverse()
-          
-          // Calculate consecutive day streak
-          let dailyStreak = 0
-          const today = new Date().toISOString().split('T')[0]
-          let checkDate = today
-          
-          for (let i = 0; i < 365; i++) { // Max 1 year streak
-            if (sortedDates.includes(checkDate)) {
-              dailyStreak++
-              // Move to previous day
-              const date = new Date(checkDate)
-              date.setDate(date.getDate() - 1)
-              checkDate = date.toISOString().split('T')[0]
-            } else {
-              break
-            }
-          }
-
-          // Weekly streak: consecutive weeks with at least 1 day of activity
-          let weeklyStreak = 0
-          const todayDate = new Date()
-          let weekStart = new Date(todayDate)
-          weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // Start of week (Sunday)
-          weekStart.setHours(0, 0, 0, 0)
-
-          for (let i = 0; i < 52; i++) { // Max 1 year
-            const weekEnd = new Date(weekStart)
-            weekEnd.setDate(weekEnd.getDate() + 6)
-            
-            const hasActivity = sortedDates.some(date => {
-              const eventDate = new Date(date)
-              return eventDate >= weekStart && eventDate <= weekEnd
-            })
-
-            if (hasActivity) {
-              weeklyStreak++
-              weekStart.setDate(weekStart.getDate() - 7)
-            } else {
-              break
-            }
-          }
-
-          // Monthly streak: consecutive months with at least 1 day of activity
-          let monthlyStreak = 0
-          let monthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
-
-          for (let i = 0; i < 12; i++) { // Max 1 year
-            const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-            
-            const hasActivity = sortedDates.some(date => {
-              const eventDate = new Date(date)
-              return eventDate >= monthStart && eventDate <= monthEnd
-            })
-
-            if (hasActivity) {
-              monthlyStreak++
-              monthStart.setMonth(monthStart.getMonth() - 1)
-            } else {
-              break
-            }
-          }
-
-          return { daily: dailyStreak, weekly: weeklyStreak, monthly: monthlyStreak }
-        }
-
-        const activityStreaks = calculateActivityStreaks(pantryEvents)
-        
-        // Override streaks in achievements data with actual activity streaks
-        if (achievementsData) {
-          achievementsData.streaks = activityStreaks
-        }
-
         setUserData({
-          id: user.id,
           name: profile?.full_name || user.email?.split('@')[0] || 'User',
           email: user.email || '',
-          avatar: profile?.avatar_url || null,
+          avatar: profile?.avatar || null,
           joinDate: profile?.created_at || new Date().toISOString(),
-          subscriptionTier: profile?.subscription_tier || 'basic',
+          subscriptionTier: profile?.subscription_tier || 'free',
           subscriptionStatus: profile?.subscription_status || 'active',
+          id: user.id,
           stats: {
             daysActive,
             wasteReduced,

@@ -2,6 +2,147 @@
 // import { supabase } from '../lib/supabaseClient'
 import { getAllBadgeRequirements, getBadgeProgress } from './badgeChecker'
 
+/**
+ * Calculate activity streaks from pantry events
+ * Returns daily, weekly, and monthly streaks based on consecutive days/weeks/months with activity
+ */
+async function calculateActivityStreaks(userId, supabase) {
+  try {
+    // Get all pantry events - use 'at' field, fallback to 'created_at' if 'at' doesn't exist
+    const { data: events, error } = await supabase
+      .from('pantry_events')
+      .select('at, created_at')
+      .eq('user_id', userId)
+
+    console.log('calculateActivityStreaks - query result:', {
+      count: events?.length || 0,
+      events: events?.slice(0, 5), // Log first 5 events
+      error: error,
+      userId: userId
+    })
+
+    // Get profile to check signup date for fallback calculation
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('created_at')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const signupDate = profile?.created_at ? new Date(profile.created_at) : null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // If no events, initialize streaks based on days since signup (similar to Perfect Week logic)
+    if (error || !events || events.length === 0) {
+      console.log('calculateActivityStreaks - no events found, using signup date fallback')
+      
+      if (!signupDate) {
+        return { daily: 0, weekly: 0, monthly: 0 }
+      }
+
+      signupDate.setHours(0, 0, 0, 0)
+      const diffTime = today - signupDate
+      const daysSinceSignup = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 to include today
+      
+      // Initialize streaks based on signup date
+      // Daily streak = days since signup (capped at reasonable max)
+      // Weekly streak = weeks since signup
+      // Monthly streak = months since signup
+      const dailyStreak = Math.min(daysSinceSignup, 365)
+      const weeklyStreak = Math.floor(daysSinceSignup / 7)
+      const monthlyStreak = Math.floor(daysSinceSignup / 30)
+      
+      return { 
+        daily: dailyStreak, 
+        weekly: weeklyStreak, 
+        monthly: monthlyStreak 
+      }
+    }
+
+    // Get unique dates with activity - use 'at' field, fallback to 'created_at'
+    const activityDates = new Set()
+    events.forEach(event => {
+      const eventDate = event.at || event.created_at
+      if (eventDate) {
+        const date = new Date(eventDate).toISOString().split('T')[0]
+        activityDates.add(date)
+      }
+    })
+
+    if (activityDates.size === 0) {
+      return { daily: 0, weekly: 0, monthly: 0 }
+    }
+
+    const sortedDates = Array.from(activityDates).sort().reverse()
+    
+    // Calculate consecutive day streak
+    let dailyStreak = 0
+    const todayStr = new Date().toISOString().split('T')[0]
+    let checkDate = todayStr
+    
+    for (let i = 0; i < 365; i++) { // Max 1 year streak
+      if (sortedDates.includes(checkDate)) {
+        dailyStreak++
+        // Move to previous day
+        const date = new Date(checkDate)
+        date.setDate(date.getDate() - 1)
+        checkDate = date.toISOString().split('T')[0]
+      } else {
+        break
+      }
+    }
+
+    // Weekly streak: consecutive weeks with at least 1 day of activity
+    let weeklyStreak = 0
+    const todayDate = new Date()
+    let weekStart = new Date(todayDate)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // Start of week (Sunday)
+    weekStart.setHours(0, 0, 0, 0)
+
+    for (let i = 0; i < 52; i++) { // Max 1 year
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+      
+      const hasActivity = sortedDates.some(date => {
+        const eventDate = new Date(date)
+        return eventDate >= weekStart && eventDate <= weekEnd
+      })
+
+      if (hasActivity) {
+        weeklyStreak++
+        weekStart.setDate(weekStart.getDate() - 7)
+      } else {
+        break
+      }
+    }
+
+    // Monthly streak: consecutive months with at least 1 day of activity
+    let monthlyStreak = 0
+    let monthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+
+    for (let i = 0; i < 12; i++) { // Max 1 year
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+      
+      const hasActivity = sortedDates.some(date => {
+        const eventDate = new Date(date)
+        return eventDate >= monthStart && eventDate <= monthEnd
+      })
+
+      if (hasActivity) {
+        monthlyStreak++
+        monthStart.setMonth(monthStart.getMonth() - 1)
+      } else {
+        break
+      }
+    }
+
+    return { daily: dailyStreak, weekly: weeklyStreak, monthly: monthlyStreak }
+  } catch (error) {
+    console.error('Error calculating activity streaks:', error)
+    return { daily: 0, weekly: 0, monthly: 0 }
+  }
+}
+
 // Default badge catalog if database table is empty
 const DEFAULT_BADGE_CATALOG = [
   // Waste Reduction Badges
@@ -23,7 +164,7 @@ const DEFAULT_BADGE_CATALOG = [
   { key: 'early-adopter', title: 'Early Adopter', description: 'Use the app for 30 days', tier: 'bronze', rule_value: 30, unit: 'days' },
   { key: 'inventory-master', title: 'Inventory Master', description: 'Maintain 95% inventory accuracy for 30 days', tier: 'silver', rule_value: 95, unit: '%' },
   { key: 'money-saver', title: 'Money Saver', description: 'Save $200 through waste reduction', tier: 'silver', rule_value: 200, unit: '$' },
-  { key: 'perfect-week', title: 'Perfect Week', description: 'Complete a week with perfect inventory management', tier: 'gold', rule_value: 1, unit: 'week' }
+  { key: 'perfect-week', title: 'Perfect Week', description: 'Complete 7 consecutive days with perfect inventory management', tier: 'gold', rule_value: 7, unit: 'days' }
 ]
 
 /**
@@ -182,12 +323,11 @@ export async function getUserAchievementsByCategory(userId, supabase) {
       a.key.includes('money') || a.key.includes('perfect')
     )
 
-    // Calculate streaks (simplified)
-    const streaks = {
-      daily: achievements.find(a => a.key === 'week-streak')?.progress || 0,
-      weekly: achievements.find(a => a.key === 'month-streak')?.progress || 0,
-      monthly: achievements.find(a => a.key === 'year-streak')?.progress || 0
-    }
+    // Calculate streaks from pantry events activity (not from badge progress)
+    const streaks = await calculateActivityStreaks(userId, supabase)
+    
+    // Debug logging
+    console.log('Calculated streaks from achievements service:', streaks)
 
     return {
       totalEarned,

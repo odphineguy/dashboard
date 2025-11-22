@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSupabase } from '../../hooks/useSupabase'
+import { useHousehold } from '../../contexts/HouseholdContext'
+import { useSubscription } from '../../contexts/SubscriptionContext'
+import { useSearchParams } from 'react-router-dom'
 import MetricsCard from './components/MetricsCard'
 import ExpiringItemCard from './components/ExpiringItemCard'
 import WasteReductionChart from './components/WasteReductionChart'
 import QuickActionCard from './components/QuickActionCard'
 import RecentActivityGrid from './components/RecentActivityGrid'
-import { useAuth } from '../../contexts/AuthContext'
-import { useHousehold } from '../../contexts/HouseholdContext'
-import { useSupabase } from '../../hooks/useSupabase'
-import { Badge } from '../../components/ui/badge'
-import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
-import BadgeCelebration from '../../components/BadgeCelebration'
 import ViewSwitcher from '../../components/ViewSwitcher'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 const Dashboard = () => {
+  const { user } = useAuth()
+  const supabase = useSupabase()
+  const { currentHousehold, isPersonal } = useHousehold()
+  const { refreshSubscription } = useSubscription()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [events, setEvents] = useState([])
   const [wasteReductionData, setWasteReductionData] = useState([])
@@ -20,21 +25,17 @@ const Dashboard = () => {
   const [error, setError] = useState(null)
   const [userProfile, setUserProfile] = useState({
     full_name: '',
-    avatar: null,
+    avatar_url: null,
     email: ''
   })
-  const { user } = useAuth()
-  const supabase = useSupabase() // Use authenticated Supabase client
-  const { currentHousehold, isPersonal } = useHousehold()
-  const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
   const [metricsData, setMetricsData] = useState([
     {
       title: "Total Inventory",
       value: "0",
       subtitle: "items in pantry",
       icon: "Package",
-      trend: "up",
-      trendValue: "+0%",
+      trend: "neutral",
+      trendValue: "Current total",
       color: "primary"
     },
     {
@@ -43,7 +44,7 @@ const Dashboard = () => {
       subtitle: "items need attention",
       icon: "AlertTriangle",
       trend: "down",
-      trendValue: "0%",
+      trendValue: "All good!",
       color: "warning"
     },
     {
@@ -51,31 +52,89 @@ const Dashboard = () => {
       value: "0",
       subtitle: "within 3 days",
       icon: "Clock",
-      trend: "up",
-      trendValue: "0%",
+      trend: "down",
+      trendValue: "No urgent items",
       color: "orange"
     },
     {
       title: "Success Rate",
       value: "0%",
       subtitle: "food consumed (not wasted)",
-      icon: "TrendingUp",
-      trend: "up",
-      trendValue: "0%",
+      icon: "TrendingDown",
+      trend: "neutral",
+      trendValue: "0% vs last month",
       color: "success"
     }
   ])
   const [expiringItems, setExpiringItems] = useState([])
+  const [showPaymentMessage, setShowPaymentMessage] = useState(null)
 
+  // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 60000)
-
     return () => clearInterval(timer)
   }, [])
 
-  // Generate waste reduction chart data from pantry events
+  // Handle payment success/cancel messages
+  useEffect(() => {
+    const paymentSuccess = searchParams.get('payment_success')
+    const paymentCanceled = searchParams.get('payment_canceled')
+    const tier = searchParams.get('tier')
+
+    if (paymentSuccess === 'true') {
+      setShowPaymentMessage({
+        type: 'success',
+        message: `Payment successful! Your ${tier || 'premium'} subscription is now active.`,
+      })
+      refreshSubscription()
+      setSearchParams({})
+    } else if (paymentCanceled === 'true') {
+      setShowPaymentMessage({
+        type: 'canceled',
+        message: 'Payment was canceled. You can upgrade anytime from your profile.',
+      })
+      setSearchParams({})
+    }
+
+    if (showPaymentMessage) {
+      const timer = setTimeout(() => setShowPaymentMessage(null), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams, refreshSubscription, setSearchParams])
+
+  // Load user profile
+  const loadUserProfile = async () => {
+    if (!user?.id) return
+
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.warn('Profile fetch error:', profileError)
+      }
+
+      setUserProfile({
+        full_name: profile?.full_name || '',
+        avatar_url: profile?.avatar_url || null,
+        email: user?.email || ''
+      })
+    } catch (error) {
+      console.error('Error loading user profile:', error)
+      setUserProfile({
+        full_name: '',
+        avatar_url: null,
+        email: user?.email || ''
+      })
+    }
+  }
+
+  // Generate waste reduction chart data
   const generateWasteReductionData = async (userId) => {
     try {
       const sixMonthsAgo = new Date()
@@ -83,10 +142,10 @@ const Dashboard = () => {
 
       const { data: events, error } = await supabase
         .from('pantry_events')
-        .select('type, quantity, at')
+        .select('event_type, quantity, event_date, created_at')
         .eq('user_id', userId)
-        .gte('at', sixMonthsAgo.toISOString())
-        .order('at', { ascending: true })
+        .gte('event_date', sixMonthsAgo.toISOString().split('T')[0])
+        .order('event_date', { ascending: true })
 
       if (error) {
         console.error('Error generating waste reduction data:', error)
@@ -104,7 +163,7 @@ const Dashboard = () => {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
       events?.forEach(event => {
-        const date = new Date(event.at)
+        const date = new Date(event.event_date || event.created_at)
         const monthKey = `${date.getFullYear()}-${date.getMonth()}`
         const monthName = monthNames[date.getMonth()]
 
@@ -117,9 +176,9 @@ const Dashboard = () => {
         }
 
         const quantity = parseFloat(event.quantity) || 0
-        if (event.type === 'consumed') {
+        if (event.event_type === 'consumed') {
           monthlyData[monthKey].consumed += quantity
-        } else if (event.type === 'wasted') {
+        } else if (event.event_type === 'wasted') {
           monthlyData[monthKey].wasted += quantity
         }
       })
@@ -154,35 +213,7 @@ const Dashboard = () => {
     }
   }
 
-  const loadUserProfile = async () => {
-    if (!user?.id) return
-
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.warn('Profile fetch error:', profileError)
-      }
-
-      setUserProfile({
-        full_name: profile?.full_name || user?.user_metadata?.full_name || '',
-        avatar: profile?.avatar_url || null,
-        email: user?.email || ''
-      })
-    } catch (error) {
-      console.error('Error loading user profile:', error)
-      setUserProfile({
-        full_name: user?.user_metadata?.full_name || '',
-        avatar: null,
-        email: user?.email || ''
-      })
-    }
-  }
-
+  // Calculate dashboard metrics
   const calculateDashboardMetrics = async (userId) => {
     try {
       let query = supabase
@@ -232,26 +263,29 @@ const Dashboard = () => {
 
       const { data: recentEvents } = await supabase
         .from('pantry_events')
-        .select('type, at')
+        .select('event_type, event_date, created_at')
         .eq('user_id', userId)
-        .gte('at', sixtyDaysAgo.toISOString())
+        .gte('event_date', sixtyDaysAgo.toISOString().split('T')[0])
 
       // Split into current and previous periods
-      const currentPeriodEvents = recentEvents?.filter(e => new Date(e.at) >= thirtyDaysAgo) || []
+      const currentPeriodEvents = recentEvents?.filter(e => {
+        const date = new Date(e.event_date || e.created_at)
+        return date >= thirtyDaysAgo
+      }) || []
       const previousPeriodEvents = recentEvents?.filter(e => {
-        const date = new Date(e.at)
+        const date = new Date(e.event_date || e.created_at)
         return date >= sixtyDaysAgo && date < thirtyDaysAgo
       }) || []
 
       // Current period
-      const consumedCount = currentPeriodEvents.filter(e => e.type === 'consumed').length
-      const wastedCount = currentPeriodEvents.filter(e => e.type === 'wasted').length
+      const consumedCount = currentPeriodEvents.filter(e => e.event_type === 'consumed').length
+      const wastedCount = currentPeriodEvents.filter(e => e.event_type === 'wasted').length
       const totalEvents = consumedCount + wastedCount
       const wasteReduction = totalEvents > 0 ? Math.round((consumedCount / totalEvents) * 100) : 0
 
       // Previous period
-      const prevConsumedCount = previousPeriodEvents.filter(e => e.type === 'consumed').length
-      const prevWastedCount = previousPeriodEvents.filter(e => e.type === 'wasted').length
+      const prevConsumedCount = previousPeriodEvents.filter(e => e.event_type === 'consumed').length
+      const prevWastedCount = previousPeriodEvents.filter(e => e.event_type === 'wasted').length
       const prevTotalEvents = prevConsumedCount + prevWastedCount
       const prevWasteReduction = prevTotalEvents > 0 ? Math.round((prevConsumedCount / prevTotalEvents) * 100) : 0
 
@@ -277,6 +311,7 @@ const Dashboard = () => {
     }
   }
 
+  // Load expiring items
   const loadExpiringItems = async (userId) => {
     try {
       const today = new Date()
@@ -326,7 +361,7 @@ const Dashboard = () => {
           quantityDisplay: `${item.quantity || 1} ${item.unit || 'unit'}`,
           expiryDate: item.expiry_date,
           category: item.category || 'other',
-          image: null,
+          image: item.image_url || null,
           status: status
         }
       }) || []
@@ -338,19 +373,21 @@ const Dashboard = () => {
     }
   }
 
+  // Handle consumed action
   const handleConsumed = async (item) => {
     if (!user?.id) return
 
     try {
-      // Record 1 unit consumed
+      // Record consumed event
       const { error: eventError } = await supabase
         .from('pantry_events')
         .insert([{
           user_id: user.id,
-          item_id: item.id,
-          type: 'consumed',
+          item_name: item.name,
           quantity: 1,
-          at: new Date().toISOString()
+          event_type: 'consumed',
+          category: item.category,
+          event_date: new Date().toISOString().split('T')[0]
         }])
 
       if (eventError) throw eventError
@@ -366,7 +403,6 @@ const Dashboard = () => {
 
         if (deleteError) throw deleteError
 
-        // Update UI - remove item
         setExpiringItems(prev => prev.filter(i => i.id !== item.id))
       } else {
         // Update the quantity
@@ -377,7 +413,6 @@ const Dashboard = () => {
 
         if (updateError) throw updateError
 
-        // Update UI - reduce quantity
         setExpiringItems(prev => prev.map(i =>
           i.id === item.id ? {
             ...i,
@@ -386,9 +421,6 @@ const Dashboard = () => {
           } : i
         ))
       }
-
-      // Check for badges
-      await checkBadges('pantry_consumed')
 
       // Refresh metrics
       const metrics = await calculateDashboardMetrics(user.id)
@@ -424,31 +456,36 @@ const Dashboard = () => {
           title: "Success Rate",
           value: `${metrics.wasteReduction}%`,
           subtitle: "food consumed (not wasted)",
-          icon: "TrendingUp",
+          icon: "TrendingDown",
           trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
           trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
           color: "success"
         }
       ])
+
+      // Reload events and chart data
+      await loadDashboardData()
     } catch (error) {
       console.error('Error marking item as consumed:', error)
       alert('Failed to mark item as consumed')
     }
   }
 
+  // Handle wasted action
   const handleWasted = async (item) => {
     if (!user?.id) return
 
     try {
-      // Record 1 unit wasted
+      // Record wasted event
       const { error: eventError } = await supabase
         .from('pantry_events')
         .insert([{
           user_id: user.id,
-          item_id: item.id,
-          type: 'wasted',
+          item_name: item.name,
           quantity: 1,
-          at: new Date().toISOString()
+          event_type: 'wasted',
+          category: item.category,
+          event_date: new Date().toISOString().split('T')[0]
         }])
 
       if (eventError) throw eventError
@@ -464,7 +501,6 @@ const Dashboard = () => {
 
         if (deleteError) throw deleteError
 
-        // Update UI - remove item
         setExpiringItems(prev => prev.filter(i => i.id !== item.id))
       } else {
         // Update the quantity
@@ -475,7 +511,6 @@ const Dashboard = () => {
 
         if (updateError) throw updateError
 
-        // Update UI - reduce quantity
         setExpiringItems(prev => prev.map(i =>
           i.id === item.id ? {
             ...i,
@@ -519,195 +554,121 @@ const Dashboard = () => {
           title: "Success Rate",
           value: `${metrics.wasteReduction}%`,
           subtitle: "food consumed (not wasted)",
-          icon: "TrendingUp",
+          icon: "TrendingDown",
           trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
           trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
           color: "success"
         }
       ])
+
+      // Reload events and chart data
+      await loadDashboardData()
     } catch (error) {
       console.error('Error marking item as wasted:', error)
       alert('Failed to mark item as wasted')
     }
   }
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!user?.id) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Check for pending onboarding data (from Google OAuth redirect)
-        const pendingOnboarding = localStorage.getItem('pending_onboarding')
-        if (pendingOnboarding) {
-          try {
-            const onboardingData = JSON.parse(pendingOnboarding)
-            // Save to profiles table
-            await supabase
-              .from('profiles')
-              .upsert({
-                id: user.id,
-                full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
-                avatar_url: user.user_metadata?.avatar_url || '',
-                onboarding_data: {
-                  subscription_tier: onboardingData.subscription_tier,
-                  account_type: onboardingData.account_type,
-                  onboarded_at: new Date().toISOString()
-                }
-              })
-
-            // Clear from localStorage
-            localStorage.removeItem('pending_onboarding')
-          } catch (err) {
-            console.error('Error saving pending onboarding data:', err)
-          }
-        }
-
-        // Ensure user profile exists
-        try {
-          await loadUserProfile()
-        } catch (profileError) {
-          console.error('Error loading user profile:', profileError)
-          // Try to create a basic profile if it doesn't exist
-          if (profileError.code === 'PGRST116') { // No rows returned
-            try {
-              await supabase
-                .from('profiles')
-                .upsert({
-                  id: user.id,
-                  full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
-                  avatar_url: user.user_metadata?.avatar_url || '',
-                  subscription_tier: 'basic',
-                  subscription_status: 'active',
-                  onboarding_completed: false
-                })
-              console.log('Created basic profile for user')
-            } catch (createError) {
-              console.error('Error creating profile:', createError)
-            }
-          }
-        }
-
-        const { data: rows } = await supabase
-          .from('pantry_events')
-          .select(`
-            *,
-            profiles!pantry_events_user_id_fkey (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('at', { ascending: false })
-          .limit(10)
-
-        // Fetch related pantry item details separately for items that still exist
-        const itemIds = rows?.map(e => e.item_id).filter(Boolean) || []
-        let itemsMap = {}
-
-        if (itemIds.length > 0) {
-          const { data: items } = await supabase
-            .from('pantry_items')
-            .select('id, name, unit, category')
-            .in('id', itemIds)
-
-          itemsMap = items?.reduce((acc, item) => {
-            acc[item.id] = item
-            return acc
-          }, {}) || {}
-        }
-
-        // Transform the data to include profile info and item details
-        // Use stored event data for deleted items, or fetch from pantry_items for existing items
-        const transformedEvents = rows?.map(event => ({
-          ...event,
-          user_name: event.profiles?.full_name || user?.email?.split('@')[0] || 'You',
-          user_avatar: event.profiles?.avatar_url || null,
-          user_email: user?.email || '',
-          // Use item data from pantry_items if available, otherwise use stored event data
-          name: itemsMap[event.item_id]?.name || event.name || 'Unknown Item',
-          unit: itemsMap[event.item_id]?.unit || event.unit || '',
-          category: itemsMap[event.item_id]?.category || event.category || ''
-        })) || []
-
-        setEvents(transformedEvents)
-
-        const chartData = await generateWasteReductionData(user.id)
-        setWasteReductionData(chartData)
-
-        const metrics = await calculateDashboardMetrics(user.id)
-        setMetricsData([
-          {
-            title: "Total Inventory",
-            value: metrics.totalInventory.toString(),
-            subtitle: "items in pantry",
-            icon: "Package",
-            trend: "neutral",
-            trendValue: "Current total",
-            color: "primary"
-          },
-          {
-            title: "Expiring Today",
-            value: metrics.expiringToday.toString(),
-            subtitle: "items need attention",
-            icon: "AlertTriangle",
-            trend: metrics.expiringToday > 0 ? "up" : "down",
-            trendValue: metrics.expiringToday > 0 ? "Take action now" : "All good!",
-            color: "warning"
-          },
-          {
-            title: "Expiring Soon",
-            value: metrics.expiringSoon.toString(),
-            subtitle: "within 3 days",
-            icon: "Clock",
-            trend: metrics.expiringSoon > 0 ? "up" : "down",
-            trendValue: metrics.expiringSoon > 0 ? "Use soon" : "No urgent items",
-            color: "orange"
-          },
-          {
-            title: "Success Rate",
-            value: `${metrics.wasteReduction}%`,
-            subtitle: "food consumed (not wasted)",
-            icon: "TrendingUp",
-            trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
-            trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
-            color: "success"
-          }
-        ])
-
-        await loadExpiringItems(user.id)
-
-      } catch (error) {
-        console.error('Error loading dashboard data:', error)
-        setError(error.message || 'Failed to load dashboard data')
-        setEvents([])
-        setWasteReductionData([
-          { month: 'Jul', consumed: 0, wasted: 0 },
-          { month: 'Aug', consumed: 0, wasted: 0 },
-          { month: 'Sep', consumed: 0, wasted: 0 },
-          { month: 'Oct', consumed: 0, wasted: 0 },
-          { month: 'Nov', consumed: 0, wasted: 0 },
-          { month: 'Dec', consumed: 0, wasted: 0 }
-        ])
-      } finally {
-        setLoading(false)
-      }
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
     }
 
+    try {
+      setLoading(true)
+      setError(null)
+
+      await loadUserProfile()
+
+      // Load recent events
+      const { data: rows, error: eventsError } = await supabase
+        .from('pantry_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (eventsError) throw eventsError
+
+      // Transform events for display
+      const transformedEvents = rows?.map(event => ({
+        ...event,
+        user_name: userProfile.full_name || user?.email?.split('@')[0] || 'You',
+        user_avatar: userProfile.avatar_url || null,
+        user_email: user?.email || ''
+      })) || []
+
+      setEvents(transformedEvents)
+
+      // Generate chart data
+      const chartData = await generateWasteReductionData(user.id)
+      setWasteReductionData(chartData)
+
+      // Calculate metrics
+      const metrics = await calculateDashboardMetrics(user.id)
+      setMetricsData([
+        {
+          title: "Total Inventory",
+          value: metrics.totalInventory.toString(),
+          subtitle: "items in pantry",
+          icon: "Package",
+          trend: "neutral",
+          trendValue: "Current total",
+          color: "primary"
+        },
+        {
+          title: "Expiring Today",
+          value: metrics.expiringToday.toString(),
+          subtitle: "items need attention",
+          icon: "AlertTriangle",
+          trend: metrics.expiringToday > 0 ? "up" : "down",
+          trendValue: metrics.expiringToday > 0 ? "Take action now" : "All good!",
+          color: "warning"
+        },
+        {
+          title: "Expiring Soon",
+          value: metrics.expiringSoon.toString(),
+          subtitle: "within 3 days",
+          icon: "Clock",
+          trend: metrics.expiringSoon > 0 ? "up" : "down",
+          trendValue: metrics.expiringSoon > 0 ? "Use soon" : "No urgent items",
+          color: "orange"
+        },
+        {
+          title: "Success Rate",
+          value: `${metrics.wasteReduction}%`,
+          subtitle: "food consumed (not wasted)",
+          icon: "TrendingDown",
+          trend: metrics.wasteReductionChange >= 0 ? "up" : "down",
+          trendValue: `${metrics.wasteReductionChange >= 0 ? '+' : ''}${metrics.wasteReductionChange}% vs last month`,
+          color: "success"
+        }
+      ])
+
+      await loadExpiringItems(user.id)
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error)
+      setError(error.message || 'Failed to load dashboard data')
+      setEvents([])
+      setWasteReductionData([
+        { month: 'Jul', consumed: 0, wasted: 0 },
+        { month: 'Aug', consumed: 0, wasted: 0 },
+        { month: 'Sep', consumed: 0, wasted: 0 },
+        { month: 'Oct', consumed: 0, wasted: 0 },
+        { month: 'Nov', consumed: 0, wasted: 0 },
+        { month: 'Dec', consumed: 0, wasted: 0 }
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     loadDashboardData()
-  }, [user?.id, isPersonal, currentHousehold?.id, supabase])
-
-  // Check for login badges when user loads dashboard
-  useEffect(() => {
-    if (user?.id && !loading) {
-      checkBadges('login')
-    }
-  }, [user?.id, loading, checkBadges])
+  }, [user?.id, isPersonal, currentHousehold?.id])
 
   const quickActions = [
     {
@@ -715,7 +676,7 @@ const Dashboard = () => {
       description: "Manually add food items to your inventory with expiration tracking",
       icon: "Plus",
       variant: "primary",
-      route: "/scanner"
+      route: "/inventory"
     },
     {
       title: "Scan Receipt",
@@ -757,6 +718,44 @@ const Dashboard = () => {
     })
   }
 
+  // Payment success/cancel banner
+  const PaymentBanner = () => {
+    if (!showPaymentMessage) return null
+
+    const isSuccess = showPaymentMessage.type === 'success'
+
+    return (
+      <div
+        className={`mb-6 p-4 rounded-lg border flex items-start gap-3 ${
+          isSuccess
+            ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'
+            : 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800'
+        }`}
+      >
+        {isSuccess ? (
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+        ) : (
+          <XCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+        )}
+        <div className="flex-1">
+          <p
+            className={`font-medium ${
+              isSuccess ? 'text-green-900 dark:text-green-100' : 'text-yellow-900 dark:text-yellow-100'
+            }`}
+          >
+            {showPaymentMessage.message}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowPaymentMessage(null)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          ✕
+        </button>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -781,8 +780,22 @@ const Dashboard = () => {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      {/* Payment Success/Cancel Banner */}
+      <PaymentBanner />
+
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border border-border rounded-lg">
         <div className="px-6 py-6">
@@ -880,15 +893,6 @@ const Dashboard = () => {
 
       {/* Recent Activity */}
       <RecentActivityGrid events={events} loading={loading} />
-
-      {/* Badge Celebration Modal */}
-      {celebrationBadge && (
-        <BadgeCelebration
-          badge={celebrationBadge}
-          onClose={closeCelebration}
-          userName={userProfile?.full_name || user?.email?.split('@')[0] || 'User'}
-        />
-      )}
     </div>
   )
 }

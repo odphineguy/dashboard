@@ -47,3 +47,4 @@ const QuickActionCard = ({ title, description, icon, action, variant = 'default'
 }
 
 export default QuickActionCard
+

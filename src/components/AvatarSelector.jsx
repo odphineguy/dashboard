@@ -79,11 +79,11 @@ const AvatarSelector = ({ currentAvatar, onAvatarSelect, isOpen, onClose }) => {
 
         {/* Actions */}
         <div className="flex gap-3">
-          <Button onClick={handleConfirm} className="flex-1">
-            Save Avatar
-          </Button>
           <Button onClick={onClose} variant="outline" className="flex-1">
             Cancel
+          </Button>
+          <Button onClick={handleConfirm} className="flex-1">
+            Save Avatar
           </Button>
         </div>
       </Card>

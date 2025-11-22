@@ -124,3 +124,4 @@ const WasteReductionChart = ({ data }) => {
 }
 
 export default WasteReductionChart
+

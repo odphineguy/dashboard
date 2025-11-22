@@ -1,9 +1,11 @@
-// Supabase Edge Function: Cancel Subscription
-// Purpose: Cancels a user's subscription at the end of the billing period
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
+import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+})
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,16 +13,16 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    })
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Missing authorization header')
+    }
 
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -28,81 +30,76 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
         },
       }
     )
 
-    // Get user from auth
+    // Get authenticated user
     const {
       data: { user },
-      error: userError,
+      error: authError,
     } = await supabaseClient.auth.getUser()
 
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        }
-      )
+    if (authError || !user) {
+      throw new Error('Unauthorized')
     }
 
     // Parse request body
     const { cancelImmediately } = await req.json()
 
     // Get user's active subscription
-    const { data: subscription, error: subError } = await supabaseClient
+    const { data: subscription } = await supabaseClient
       .from('subscriptions')
       .select('stripe_subscription_id, status')
       .eq('user_id', user.id)
-      .in('status', ['active', 'trialing'])
+      .in('status', ['active', 'trialing', 'past_due'])
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
 
-    if (subError || !subscription) {
-      return new Response(
-        JSON.stringify({ error: 'No active subscription found' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 404,
-        }
-      )
+    if (!subscription?.stripe_subscription_id) {
+      throw new Error('No active subscription found')
     }
 
-    // Cancel subscription in Stripe
+    console.log('Canceling subscription:', subscription.stripe_subscription_id, 'immediately:', cancelImmediately)
+
+    // Cancel the subscription in Stripe
+    let canceledSubscription
     if (cancelImmediately) {
       // Cancel immediately
-      await stripe.subscriptions.cancel(subscription.stripe_subscription_id)
+      canceledSubscription = await stripe.subscriptions.cancel(subscription.stripe_subscription_id)
     } else {
       // Cancel at period end
-      await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+      canceledSubscription = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
         cancel_at_period_end: true,
       })
     }
 
+    console.log('Subscription canceled:', canceledSubscription.id, canceledSubscription.status)
+
+    // Webhook will handle database updates
     return new Response(
       JSON.stringify({
         success: true,
-        message: cancelImmediately
-          ? 'Subscription canceled immediately'
-          : 'Subscription will be canceled at the end of the billing period',
+        canceledImmediately: cancelImmediately,
+        cancelAtPeriodEnd: canceledSubscription.cancel_at_period_end,
+        currentPeriodEnd: canceledSubscription.current_period_end,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     )
-  } catch (error) {
-    console.error('Error canceling subscription:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    )
+  } catch (err) {
+    console.error('Error canceling subscription:', err)
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })

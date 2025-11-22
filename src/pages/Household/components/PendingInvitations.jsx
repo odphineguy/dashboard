@@ -6,8 +6,8 @@ import { Badge } from '../../../components/ui/badge'
 import { useSupabase } from '../../../hooks/useSupabase'
 
 const PendingInvitations = ({ invitations, householdId }) => {
-  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
-  
+  const supabase = useSupabase()
+
   const handleCancelInvitation = async (invitationId) => {
     if (!confirm('Cancel this invitation?')) return
 

@@ -28,16 +28,14 @@ const StorageLocations = () => {
   // Define storage limits by tier
   const storageConfigByTier = {
     basic: {
-      maxTotal: 3,
       pantry: 1,
       refrigerator: 1,
       freezer: 1
     },
     premium: {
-      maxTotal: 3,
-      pantry: 1,
-      refrigerator: 1,
-      freezer: 1
+      pantry: 2,
+      refrigerator: 2,
+      freezer: 2
     },
     household_premium: {
       unlimited: true
@@ -48,7 +46,10 @@ const StorageLocations = () => {
   const defaultLocations = [
     { name: 'Pantry', icon: '🥫', type: 'pantry', tier: 'basic' },
     { name: 'Refrigerator', icon: '🧊', type: 'refrigerator', tier: 'basic' },
-    { name: 'Freezer', icon: '❄️', type: 'freezer', tier: 'basic' }
+    { name: 'Freezer', icon: '❄️', type: 'freezer', tier: 'basic' },
+    { name: 'Pantry 2', icon: '🥫', type: 'pantry', tier: 'premium' },
+    { name: 'Refrigerator 2', icon: '🧊', type: 'refrigerator', tier: 'premium' },
+    { name: 'Freezer 2', icon: '❄️', type: 'freezer', tier: 'premium' }
   ]
 
   // Check if user can add more of a specific location type
@@ -68,42 +69,16 @@ const StorageLocations = () => {
   const isLocationLocked = (location) => {
     if (subscriptionTier === 'household_premium') return false
     if (location.tier === 'basic') return !canAddLocation(location.type)
+    if (location.tier === 'premium' && subscriptionTier !== 'premium') return true
     return !canAddLocation(location.type)
   }
 
-  // Check if user can add custom storage locations
+  // Check if user can add custom storage locations (Basic users reach limit at 3 total)
   const canAddCustomLocation = () => {
-    const config = storageConfigByTier[subscriptionTier]
-    if (config.unlimited) return true
-    
-    // Check total limit
-    if (config.maxTotal && locations.length >= config.maxTotal) {
-      return false
-    }
-    
-    return true
-  }
-  
-  // Check if user can add a specific location type
-  const canAddLocationType = (locationType) => {
-    const config = storageConfigByTier[subscriptionTier]
-    if (config.unlimited) return true
-    
-    const typeKey = locationType?.toLowerCase() || ''
-    const typeLimit = config[typeKey]
-    
-    // If no specific limit for this type, check total limit
-    if (!typeLimit) {
-      return locations.length < (config.maxTotal || Infinity)
-    }
-    
-    // Check type-specific limit
-    const currentCount = locations.filter(loc => {
-      const locName = loc.name.toLowerCase()
-      return locName.includes(typeKey)
-    }).length
-    
-    return currentCount < typeLimit
+    if (subscriptionTier === 'household_premium') return true
+    if (subscriptionTier === 'premium') return true
+    // Basic tier: max 3 locations total (1 Pantry, 1 Refrigerator, 1 Freezer)
+    return locations.length < 3
   }
 
   // Load storage locations
@@ -124,7 +99,9 @@ const StorageLocations = () => {
           query = query.eq('household_id', currentHousehold.id)
         }
 
-        const { data, error } = await query.order('name', { ascending: true })
+        query = query.order('name', { ascending: true })
+
+        const { data, error } = await query
 
         if (error) throw error
         setLocations(data || [])
@@ -222,7 +199,7 @@ const StorageLocations = () => {
             </h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
               {subscriptionTier === 'basic' && `3 storage locations included (${locations.length}/3 used) - 1 Pantry, 1 Refrigerator, 1 Freezer`}
-              {subscriptionTier === 'premium' && `3 storage locations included (${locations.length}/3 used) - Pantry, Refrigerator, Freezer`}
+              {subscriptionTier === 'premium' && '6 storage locations included - 2 of each type'}
               {subscriptionTier === 'household_premium' && 'Unlimited storage locations'}
             </p>
           </div>
@@ -296,36 +273,16 @@ const StorageLocations = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from('storage_locations')
-                              .insert({
-                                name: location.name,
-                                user_id: user.id,
-                                household_id: isPersonal ? null : currentHousehold?.id
-                              })
-
-                            if (error) throw error
-
-                            // Reload locations instead of full page reload
-                            let reloadQuery = supabase
-                              .from('storage_locations')
-                              .select('*')
-                              .eq('user_id', user.id)
-
-                            if (isPersonal) {
-                              reloadQuery = reloadQuery.is('household_id', null)
-                            } else if (currentHousehold?.id) {
-                              reloadQuery = reloadQuery.eq('household_id', currentHousehold.id)
-                            }
-
-                            const { data } = await reloadQuery.order('name', { ascending: true })
-                            setLocations(data || [])
-                          } catch (error) {
-                            console.error('Error adding storage location:', error)
-                            alert(`Failed to add storage location: ${error.message}`)
-                          }
+                        onClick={() => {
+                          // Add this specific location
+                          supabase
+                            .from('storage_locations')
+                            .insert({
+                              name: location.name,
+                              user_id: user.id,
+                              household_id: isPersonal ? null : currentHousehold?.id
+                            })
+                            .then(() => window.location.reload())
                         }}
                       >
                         <Plus className="h-3 w-3 mr-1" />
@@ -381,9 +338,6 @@ const StorageLocations = () => {
           editingLocation={editingLocation}
           userId={user?.id}
           householdId={isPersonal ? null : currentHousehold?.id}
-          subscriptionTier={subscriptionTier}
-          locations={locations}
-          storageConfigByTier={storageConfigByTier}
           onSuccess={() => {
             window.location.reload()
           }}
@@ -393,73 +347,16 @@ const StorageLocations = () => {
   )
 }
 
-const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdId, onSuccess, subscriptionTier, locations, storageConfigByTier }) => {
+const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdId, onSuccess }) => {
   const supabase = useSupabase()
-  const { subscription } = useSubscription()
   const [name, setName] = useState(editingLocation?.name || '')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  // Check if user can add more locations
-  const canAddMore = () => {
-    if (editingLocation) return true // Editing is always allowed
-    
-    const config = storageConfigByTier[subscriptionTier] || storageConfigByTier.basic
-    if (config.unlimited) return true
-    
-    // Check total limit
-    if (config.maxTotal && locations.length >= config.maxTotal) {
-      return false
-    }
-    
-    return true
-  }
-
-  // Check if user can add this specific location type
-  const canAddThisType = (locationName) => {
-    if (editingLocation) return true // Editing is always allowed
-    
-    const config = storageConfigByTier[subscriptionTier] || storageConfigByTier.basic
-    if (config.unlimited) return true
-    
-    const typeKey = locationName?.toLowerCase() || ''
-    const typeLimit = config[typeKey]
-    
-    // If no specific limit for this type, check total limit
-    if (!typeLimit) {
-      return locations.length < (config.maxTotal || Infinity)
-    }
-    
-    // Check type-specific limit
-    const currentCount = locations.filter(loc => {
-      const locName = loc.name.toLowerCase()
-      return locName.includes(typeKey)
-    }).length
-    
-    return currentCount < typeLimit
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    // Check restrictions before submitting
-    if (!canAddMore()) {
-      setError(`You've reached your storage location limit. Please upgrade your plan to add more locations.`)
-      return
-    }
-
-    if (!canAddThisType(name.trim())) {
-      const config = storageConfigByTier[subscriptionTier] || storageConfigByTier.basic
-      const typeKey = name.trim().toLowerCase().split(' ')[0]
-      const limit = config[typeKey] || config.maxTotal
-      setError(`You've reached the limit for this location type (${limit} allowed). Please upgrade your plan or choose a different location name.`)
-      return
-    }
-
     setLoading(true)
-    setError(null)
-    
     try {
       if (editingLocation) {
         // Update
@@ -486,7 +383,7 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
       onClose()
     } catch (error) {
       console.error('Error saving location:', error)
-      setError(error.message || 'Failed to save location')
+      alert('Failed to save location')
     } finally {
       setLoading(false)
     }
@@ -509,30 +406,16 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
               type="text"
               placeholder="e.g., Refrigerator, Freezer, Pantry"
               value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                setError(null) // Clear error when user types
-              }}
+              onChange={(e) => setName(e.target.value)}
               autoFocus
             />
-            {!editingLocation && !canAddMore() && (
-              <p className="text-sm text-red-600">
-                You've reached your storage location limit. <Link to="/profile" className="underline">Upgrade your plan</Link> to add more.
-              </p>
-            )}
           </div>
-
-          {error && (
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-md p-3">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || loading || (!editingLocation && !canAddMore())}>
+            <Button type="submit" disabled={!name.trim() || loading}>
               {loading ? 'Saving...' : editingLocation ? 'Update' : 'Add'}
             </Button>
           </div>

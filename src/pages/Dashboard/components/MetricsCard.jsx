@@ -5,7 +5,6 @@ const iconMap = {
   Package,
   AlertTriangle,
   Clock,
-  TrendingUp,
   TrendingDown: TrendDown
 }
 
@@ -87,3 +86,4 @@ const MetricsCard = ({ title, value, subtitle, icon, trend, trendValue, color = 
 }
 
 export default MetricsCard
+

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useSignIn, useSignUp } from '@clerk/clerk-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -7,11 +7,12 @@ import { Card } from './ui/card'
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function Login() {
-  const { signIn, signUp, signInWithGoogle, signInWithApple } = useAuth()
+  const { signIn } = useSignIn()
+  const { signUp } = useSignUp()
   const { isDark } = useTheme()
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [isSignUpMode, setIsSignUpMode] = useState(false)
+  const [emailInput, setEmailInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -23,30 +24,31 @@ export default function Login() {
     setSuccess(null)
 
     try {
-      if (isSignUp) {
-        const result = await signUp(email, password)
+      if (isSignUpMode) {
+        const result = await signUp.create({
+          emailAddress: emailInput,
+          password: passwordInput,
+        })
 
         // Check if email verification is required
-        if (result?.needsEmailVerification) {
-          setSuccess('✅ Account created! Please check your email to verify your account before signing in.')
-          setEmail('')
-          setPassword('')
-          // Don't auto-switch - keep the message visible
+        if (result.status === 'missing_requirements') {
+          await result.prepareEmailAddressVerification({ strategy: 'email_code' })
+          setSuccess('✅ Account created! Please check your email to verify your account.')
+          setEmailInput('')
+          setPasswordInput('')
         } else {
-          // Auto-confirm is enabled in Supabase - user can sign in immediately
-          setSuccess('Account created! You can now sign in.')
-          setTimeout(() => {
-            setIsSignUp(false)
-            setSuccess(null)
-          }, 2000)
+          setSuccess('Account created! Signing you in...')
+          window.location.href = '/'
         }
       } else {
-        await signIn(email, password)
-        // Auth context will handle the user state change
+        await signIn.create({
+          identifier: emailInput,
+          password: passwordInput,
+        })
+        window.location.href = '/'
       }
     } catch (err) {
       console.error('Auth error:', err)
-      // Handle Clerk-specific error format
       const errorMessage = err.errors?.[0]?.message || err.message || 'Authentication failed'
       setError(errorMessage)
     } finally {
@@ -58,8 +60,11 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      await signInWithGoogle()
-      // OAuth will handle the redirect
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+      })
     } catch (err) {
       console.error('Google sign-in error:', err)
       const errorMessage = err.errors?.[0]?.message || err.message || 'Google sign-in failed'
@@ -72,8 +77,11 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      await signInWithApple()
-      // OAuth will handle the redirect
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_apple',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+      })
     } catch (err) {
       console.error('Apple sign-in error:', err)
       const errorMessage = err.errors?.[0]?.message || err.message || 'Apple sign-in failed'
@@ -94,7 +102,7 @@ export default function Login() {
             />
           </div>
           <p className="text-muted-foreground">
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            {isSignUpMode ? 'Create your account' : 'Sign in to your account'}
           </p>
         </div>
 
@@ -122,8 +130,8 @@ export default function Login() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
                 className="pl-10 !bg-white !text-gray-900 placeholder:text-gray-500"
                 required
                 disabled={loading}
@@ -141,15 +149,15 @@ export default function Login() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
                 className="pl-10 !bg-white !text-gray-900 placeholder:text-gray-500"
                 required
                 minLength={6}
                 disabled={loading}
               />
             </div>
-            {isSignUp && (
+            {isSignUpMode && (
               <p className="text-xs text-muted-foreground">
                 Password must be at least 6 characters
               </p>
@@ -164,10 +172,10 @@ export default function Login() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {isSignUp ? 'Creating account...' : 'Signing in...'}
+                {isSignUpMode ? 'Creating account...' : 'Signing in...'}
               </>
             ) : (
-              <>{isSignUp ? 'Create Account' : 'Sign In'}</>
+              <>{isSignUpMode ? 'Create Account' : 'Sign In'}</>
             )}
           </Button>
 
@@ -228,14 +236,14 @@ export default function Login() {
           <button
             type="button"
             onClick={() => {
-              setIsSignUp(!isSignUp)
+              setIsSignUpMode(!isSignUpMode)
               setError(null)
               setSuccess(null)
             }}
             className="text-sm text-primary hover:underline"
             disabled={loading}
           >
-            {isSignUp
+            {isSignUpMode
               ? 'Already have an account? Sign in'
               : "Don't have an account? Sign up"}
           </button>

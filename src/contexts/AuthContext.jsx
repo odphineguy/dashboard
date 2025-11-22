@@ -1,5 +1,6 @@
-import { createContext, useContext } from 'react'
-import { useUser, useSignIn, useSignUp, useClerk } from '@clerk/clerk-react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { useUser, useClerk } from '@clerk/clerk-react'
+import { createClient } from '@supabase/supabase-js'
 
 const AuthContext = createContext({})
 
@@ -13,123 +14,93 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const { isLoaded, isSignedIn, user: clerkUser } = useUser()
-  const { signIn: clerkSignIn } = useSignIn()
-  const { signUp: clerkSignUp } = useSignUp()
   const { signOut: clerkSignOut } = useClerk()
+  const [profileReady, setProfileReady] = useState(false)
 
-  // Transform Clerk user to match existing app structure
-  const user = clerkUser ? {
-    id: clerkUser.id,
-    email: clerkUser.primaryEmailAddress?.emailAddress,
-    user_metadata: {
-      full_name: clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
-      avatar_url: clerkUser.imageUrl,
-    },
-    // Add raw Clerk user for any Clerk-specific needs
-    _clerk: clerkUser
-  } : null
-
-  const loading = !isLoaded
-  const sessionLoaded = isLoaded
-
-  // Email/Password Sign Up
-  const signUp = async (email, password) => {
-    try {
-      const result = await clerkSignUp.create({
-        emailAddress: email,
-        password: password,
-      })
-
-      // Check if email verification is required
-      if (result.status === 'missing_requirements') {
-        // Send verification email
-        await result.prepareEmailAddressVerification({ strategy: 'email_code' })
-        return { needsEmailVerification: true, signUp: result }
+  // Simple user object
+  const user = clerkUser
+    ? {
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress,
+        user_metadata: {
+          full_name: clerkUser.fullName || clerkUser.firstName || '',
+          avatar_url: clerkUser.imageUrl,
+        },
       }
+    : null
 
-      return { user: result, needsEmailVerification: false }
-    } catch (error) {
-      console.error('Sign up error:', error)
-      throw error
+  // Create/update profile on first sign-in
+  useEffect(() => {
+    if (!isLoaded || !clerkUser) {
+      setProfileReady(true)
+      return
     }
-  }
 
-  // Email/Password Sign In
-  const signIn = async (email, password) => {
-    try {
-      const result = await clerkSignIn.create({
-        identifier: email,
-        password: password,
-      })
-      return result
-    } catch (error) {
-      console.error('Sign in error:', error)
-      throw error
+    const ensureProfile = async () => {
+      try {
+        // Use service role to bypass RLS policies
+        const supabase = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+        )
+
+        const { error } = await supabase.from('profiles').upsert(
+          {
+            id: clerkUser.id,
+            email: clerkUser.primaryEmailAddress?.emailAddress,
+            full_name: clerkUser.fullName || clerkUser.firstName || 'User',
+            avatar_url: clerkUser.imageUrl || null,
+            subscription_tier: 'basic',
+            subscription_status: 'active',
+          },
+          { onConflict: 'id' }
+        )
+
+        if (error) {
+          console.error('Profile sync error:', error)
+        } else {
+          console.log('✅ Profile synced for user:', clerkUser.id)
+        }
+      } catch (error) {
+        console.error('Error ensuring profile:', error)
+      } finally {
+        setProfileReady(true)
+      }
     }
-  }
 
-  // Sign Out
+    ensureProfile()
+  }, [isLoaded, clerkUser?.id])
+
   const signOut = async () => {
-    try {
-      await clerkSignOut()
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Sign out error:', error)
-      window.location.href = '/login'
-    }
+    await clerkSignOut()
+    window.location.href = '/login'
   }
 
-  // Google OAuth - Clerk handles this automatically via their UI components
-  const signInWithGoogle = async () => {
-    try {
-      await clerkSignIn.authenticateWithRedirect({
-        strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/onboarding'
-      })
-    } catch (error) {
-      console.error('Google OAuth error:', error)
-      throw error
-    }
-  }
-
-  // Apple OAuth - Clerk handles this automatically via their UI components
-  const signInWithApple = async () => {
-    try {
-      await clerkSignIn.authenticateWithRedirect({
-        strategy: 'oauth_apple',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/onboarding'
-      })
-    } catch (error) {
-      console.error('Apple OAuth error:', error)
-      throw error
-    }
-  }
-
-  const value = {
-    user,
-    loading,
-    sessionLoaded,
-    isSignedIn,
-    signUp,
-    signIn,
-    signOut,
-    signInWithGoogle,
-    signInWithApple,
+  // Show loading while auth initializes or profile is being created
+  if (!isLoaded || (isSignedIn && !profileReady)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">
+            {!isLoaded ? 'Loading authentication...' : 'Setting up your profile...'}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <AuthContext.Provider value={value}>
-      {loading ? (
-        <div className="flex items-center justify-center h-screen bg-background">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-sm text-muted-foreground">Loading authentication...</p>
-          </div>
-        </div>
-      ) : children}
+    <AuthContext.Provider
+      value={{
+        user,
+        isSignedIn,
+        signOut,
+        loading: !isLoaded,
+        sessionLoaded: isLoaded && profileReady,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   )
 }
-

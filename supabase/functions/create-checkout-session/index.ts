@@ -1,9 +1,11 @@
-// Supabase Edge Function: Create Stripe Checkout Session
-// Purpose: Initiates a Stripe Checkout session for subscription payment
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
+import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno'
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+})
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,155 +13,110 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    })
+    // Get auth token from headers
+    const authHeader = req.headers.get('Authorization')
+    const clerkToken = req.headers.get('x-clerk-token')
 
-    // Parse request body first to get Clerk user info
-    const { priceId, successUrl, cancelUrl, planTier, billingInterval, clerkUserId, userEmail, userName } = await req.json()
-
-    if (!priceId || !successUrl || !cancelUrl) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: priceId, successUrl, cancelUrl' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      )
+    if (!authHeader && !clerkToken) {
+      throw new Error('Missing authorization header')
     }
 
-    // Clerk is now the auth provider - require clerkUserId
-    if (!clerkUserId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing clerkUserId. User must be authenticated with Clerk.' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        }
-      )
-    }
-
-    // Use service role key to bypass RLS since we're using Clerk auth.
-    // The Supabase gateway will accept the anon key; we pass Clerk token separately if needed.
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader! },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
     )
 
-    // Use Clerk user ID (Clerk handles all authentication)
-    const effectiveUserId = clerkUserId
-    const effectiveEmail = userEmail || ''
-    const effectiveName = userName || effectiveEmail?.split('@')[0] || 'User'
+    // Get user from Supabase or Clerk
+    let userId: string
+    let userEmail: string
+    let userName: string | null = null
 
-    // Get profile - retry if not found (wait for Clerk webhook to complete)
-    const MAX_PROFILE_RETRIES = 5
-    const RETRY_DELAY_MS = 500
+    if (clerkToken) {
+      // Parse Clerk token (you may need to verify it with Clerk's API)
+      const { clerkUserId, userEmail: email, userName: name } = await req.json()
+      userId = clerkUserId
+      userEmail = email
+      userName = name
+    } else {
+      // Get user from Supabase auth
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseClient.auth.getUser()
 
-    let { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('stripe_customer_id, full_name')
-      .eq('id', effectiveUserId)
-      .single()
-
-    // If profile doesn't exist, retry a few times, then create it if still missing
-    if (!profile) {
-      console.log('Profile not found, waiting for Clerk webhook to complete...')
-
-      for (let i = 0; i < MAX_PROFILE_RETRIES; i++) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
-
-        const { data: retryProfile } = await supabaseClient
-          .from('profiles')
-          .select('stripe_customer_id, full_name')
-          .eq('id', effectiveUserId)
-          .single()
-
-        if (retryProfile) {
-          profile = retryProfile
-          console.log(`Profile found after ${i + 1} retries`)
-          break
-        }
+      if (authError || !user) {
+        throw new Error('Unauthorized')
       }
 
-      // If profile still doesn't exist after retries, create it on-demand
-      if (!profile) {
-        console.log('Profile still not found after retries, creating on-demand...')
-        
-        const { data: newProfile, error: createError } = await supabaseClient
-          .from('profiles')
-          .insert({
-            id: effectiveUserId,
-            email: effectiveEmail,
-            full_name: effectiveName,
-            subscription_tier: 'basic',
-            subscription_status: 'active',
-            onboarding_completed: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select('stripe_customer_id, full_name')
-          .single()
-
-        if (createError) {
-          console.error('Error creating profile on-demand:', createError)
-          // If insert fails (e.g., duplicate), try to fetch again
-          const { data: fetchedProfile } = await supabaseClient
-            .from('profiles')
-            .select('stripe_customer_id, full_name')
-            .eq('id', effectiveUserId)
-            .single()
-          
-          if (fetchedProfile) {
-            profile = fetchedProfile
-            console.log('Profile found after insert attempt (race condition)')
-          } else {
-            return new Response(
-              JSON.stringify({ error: 'Failed to create profile. Please try again.' }),
-              {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 500,
-              }
-            )
-          }
-        } else {
-          profile = newProfile
-          console.log('Profile created on-demand successfully')
-        }
-      }
+      userId = user.id
+      userEmail = user.email!
+      userName = user.user_metadata?.full_name || null
     }
+
+    // Parse request body
+    const { priceId, successUrl, cancelUrl, planTier, billingInterval } = await req.json()
+
+    if (!priceId || !successUrl || !cancelUrl || !planTier) {
+      throw new Error('Missing required parameters: priceId, successUrl, cancelUrl, planTier')
+    }
+
+    console.log('Creating checkout session for:', { userId, planTier, billingInterval, priceId })
+
+    // Check if customer already exists
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', userId)
+      .single()
 
     let customerId = profile?.stripe_customer_id
 
-    // Create Stripe customer if doesn't exist
+    // Create or retrieve Stripe customer
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: effectiveEmail,
-        name: profile?.full_name || effectiveName,
+        email: userEmail,
+        name: userName || undefined,
         metadata: {
-          user_id: effectiveUserId,
-          clerk_user_id: clerkUserId || '',
+          user_id: userId,
         },
       })
       customerId = customer.id
 
-      // Update profile with Stripe customer ID
-      await supabaseClient
+      // Update profile with customer ID
+      await supabaseAdmin
         .from('profiles')
         .update({ stripe_customer_id: customerId })
-        .eq('id', effectiveUserId)
+        .eq('id', userId)
+
+      console.log('Created new Stripe customer:', customerId)
+    } else {
+      console.log('Using existing Stripe customer:', customerId)
     }
 
-    // Create Checkout Session
+    // Create checkout session with metadata
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      payment_method_types: ['card'],
       line_items: [
         {
           price: priceId,
@@ -170,40 +127,32 @@ serve(async (req) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        user_id: effectiveUserId,
-        clerk_user_id: clerkUserId || '',
-        plan_tier: planTier || 'premium',
+        user_id: userId,
+        plan_tier: planTier,
         billing_interval: billingInterval || 'month',
+        price_id: priceId,
       },
       subscription_data: {
         metadata: {
-          user_id: effectiveUserId,
-          clerk_user_id: clerkUserId || '',
-          plan_tier: planTier || 'premium',
+          user_id: userId,
+          plan_tier: planTier,
         },
       },
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
     })
 
-    return new Response(
-      JSON.stringify({
-        sessionId: session.id,
-        url: session.url,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
-  } catch (error) {
-    console.error('Error creating checkout session:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    )
+    console.log('Checkout session created:', session.id)
+
+    return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (err) {
+    console.error('Error creating checkout session:', err)
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })

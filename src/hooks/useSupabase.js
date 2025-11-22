@@ -32,7 +32,26 @@ export const useSupabase = () => {
       global: {
         fetch: async (url, options = {}) => {
           // Get Clerk session token for Supabase RLS compatibility
-          const clerkToken = globalGetToken ? await globalGetToken().catch(() => null) : null
+          // Try 'supabase' JWT template first, fallback to default token if template doesn't exist
+          let clerkToken = null
+          if (globalGetToken) {
+            try {
+              // Try with supabase template first
+              clerkToken = await globalGetToken({ template: 'supabase' })
+            } catch (err) {
+              // If template doesn't exist, try without template (fallback)
+              if (err?.message?.includes('No JWT template')) {
+                console.warn('Supabase JWT template not found, using default token. Please configure JWT template in Clerk Dashboard.')
+                try {
+                  clerkToken = await globalGetToken()
+                } catch (fallbackErr) {
+                  console.error('Failed to get Clerk token:', fallbackErr)
+                }
+              } else {
+                console.error('Failed to get Clerk token:', err)
+              }
+            }
+          }
 
           const headers = new Headers(options?.headers)
           if (clerkToken) {

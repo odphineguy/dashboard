@@ -39,23 +39,6 @@ const ExpiringItemCard = ({ item, onConsumed, onWasted }) => {
 
   const urgencyConfig = getUrgencyConfig(item?.status)
 
-  const formatExpiryDate = (date) => {
-    const today = new Date()
-    const expiryDate = new Date(date)
-    const diffTime = expiryDate - today
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays < 0) {
-      return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''} ago`
-    } else if (diffDays === 0) {
-      return 'Expires today'
-    } else if (diffDays === 1) {
-      return 'Expires tomorrow'
-    } else {
-      return `Expires in ${diffDays} days`
-    }
-  }
-
   return (
     <div className={`bg-card rounded-lg border ${urgencyConfig?.borderColor} p-4 min-w-[280px] hover:shadow-md transition-all duration-200 flex flex-col`}>
       <div className="flex items-start gap-3 mb-3">
@@ -80,7 +63,7 @@ const ExpiringItemCard = ({ item, onConsumed, onWasted }) => {
 
       <div className="flex items-center text-sm text-muted-foreground mb-3">
         <Package size={14} className="mr-1.5" />
-        <span className="truncate">{item?.quantityDisplay || item?.quantity}</span>
+        <span className="truncate">{item?.quantityDisplay || `${item?.quantity || 1} ${item?.unit || 'unit'}`}</span>
       </div>
 
       <div className="flex items-center gap-2 mt-auto">
@@ -124,3 +107,4 @@ const ExpiringItemCard = ({ item, onConsumed, onWasted }) => {
 }
 
 export default ExpiringItemCard
+

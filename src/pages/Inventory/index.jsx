@@ -1,327 +1,139 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Filter } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSupabase } from '../../hooks/useSupabase'
+import { useHousehold } from '../../contexts/HouseholdContext'
+import AddItemModal from './components/AddItemModal'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import { Badge } from '../../components/ui/badge'
-import InventoryTable from './components/InventoryTable'
-import AddItemModal from './components/AddItemModal'
-import { useAuth } from '../../contexts/AuthContext'
-import { useHousehold } from '../../contexts/HouseholdContext'
-import { useSupabase } from '../../hooks/useSupabase'
-import { useBadgeAwarder } from '../../hooks/useBadgeAwarder'
-import BadgeCelebration from '../../components/BadgeCelebration'
-import ViewSwitcher from '../../components/ViewSwitcher'
+import { Card, CardContent } from '../../components/ui/card'
+import { Search, Plus, Edit, Trash2, Package } from 'lucide-react'
+import { format } from 'date-fns'
+import { toast } from 'sonner'
 
 const Inventory = () => {
-  const [inventoryItems, setInventoryItems] = useState([])
-  const [filteredItems, setFilteredItems] = useState([])
-  const [selectedItems, setSelectedItems] = useState([])
+  const { user } = useAuth()
+  const supabase = useSupabase()
+  const { currentHousehold, isPersonal } = useHousehold()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const { user } = useAuth()
-  const { currentHousehold, isPersonal } = useHousehold()
-  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
-  const { checkBadges, celebrationBadge, closeCelebration } = useBadgeAwarder(user?.id)
 
-  // Load inventory items
   useEffect(() => {
-    const loadInventory = async () => {
-      if (!user?.id) return
+    loadItems()
+  }, [user?.id, currentHousehold?.id, isPersonal])
 
-      try {
-        setIsLoading(true)
+  const loadItems = async () => {
+    if (!user?.id) return
 
-        // Build query based on household selection (join with storage_locations)
-        let query = supabase
-          .from('pantry_items')
-          .select(`
-            *,
-            storage_locations (
-              id,
-              name
-            )
-          `)
-          .eq('user_id', user.id)
+    try {
+      setLoading(true)
+      let query = supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('user_id', user.id)
 
-        if (isPersonal) {
-          // Personal items: household_id is null
-          query = query.is('household_id', null)
-        } else if (currentHousehold?.id) {
-          // Household items: match household_id
-          query = query.eq('household_id', currentHousehold.id)
-        }
-
-        query = query.order('created_at', { ascending: false })
-
-        const { data: pantryItems, error } = await query
-
-        if (error) throw error
-
-        const normalized = pantryItems?.map(item => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
-          category: item.category,
-          expirationDate: item.expiry_date || null,
-          addedDate: item.created_at,
-          image: null,
-          brand: item.brand,
-          storageLocationId: item.storage_location_id,
-          storageLocationName: item.storage_locations?.name || null,
-          householdId: item.household_id,
-          addedBy: 'You',
-          addedByUserId: item.user_id
-        })) || []
-
-        setInventoryItems(normalized)
-        setFilteredItems(normalized)
-      } catch (error) {
-        console.error('Error loading inventory:', error)
-      } finally {
-        setIsLoading(false)
+      if (!isPersonal && currentHousehold?.id) {
+        query = query.or(`household_id.eq.${currentHousehold.id},user_id.eq.${user.id}`)
+      } else {
+        query = query.is('household_id', null)
       }
-    }
 
-    loadInventory()
-  }, [user?.id, isPersonal, currentHousehold?.id, supabase])
+      const { data, error } = await query.order('created_at', { ascending: false })
 
-  // Filter items based on search
-  useEffect(() => {
-    let filtered = [...inventoryItems]
-
-    if (searchQuery) {
-      filtered = filtered.filter(item =>
-        item?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase()) ||
-        item?.category?.toLowerCase()?.includes(searchQuery?.toLowerCase())
-      )
-    }
-
-    setFilteredItems(filtered)
-  }, [inventoryItems, searchQuery])
-
-  // Item selection handlers
-  const handleSelectItem = (itemId) => {
-    setSelectedItems(prev =>
-      prev?.includes(itemId)
-        ? prev?.filter(id => id !== itemId)
-        : [...prev, itemId]
-    )
-  }
-
-  const handleSelectAll = () => {
-    if (selectedItems?.length === filteredItems?.length) {
-      setSelectedItems([])
-    } else {
-      setSelectedItems(filteredItems?.map(item => item?.id))
+      if (error) throw error
+      setItems(data || [])
+    } catch (error) {
+      console.error('Error loading items:', error)
+      toast.error('Failed to load inventory')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleClearSelection = () => {
-    setSelectedItems([])
-  }
-
-  // CRUD operations
   const handleAddItem = async (itemData) => {
     if (!user?.id) return
 
-    const itemWithUser = {
-      ...itemData,
-      user_id: user.id,
-      household_id: isPersonal ? null : currentHousehold?.id
-    }
-
-    if (editingItem) {
-      // Update existing item
-      const { data, error } = await supabase
-        .from('pantry_items')
-        .update(itemWithUser)
-        .eq('id', editingItem.id)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error updating item:', error)
-        alert(error.message || 'Failed to update item')
-        return
+    try {
+      const itemWithUser = {
+        ...itemData,
+        user_id: user.id,
+        household_id: isPersonal ? null : currentHousehold?.id
       }
 
-      const normalized = {
-        id: data.id,
-        name: data.name,
-        quantity: data.quantity,
-        unit: data.unit,
-        category: data.category,
-        expirationDate: data.expiry_date,
-        addedDate: data.created_at,
-        image: null,
-        brand: data.brand,
-        storageLocationId: data.storage_location_id,
-        householdId: data.household_id,
-        addedBy: 'You',
-        addedByUserId: data.user_id
-      }
-
-      setInventoryItems(prev => prev.map(item => item.id === editingItem.id ? normalized : item))
-      setEditingItem(null)
-    } else {
-      // Insert new item
       const { data, error } = await supabase
         .from('pantry_items')
         .insert([itemWithUser])
         .select()
         .single()
 
-      if (error) {
-        console.error('Error adding item:', error)
-        alert(error.message || 'Failed to add item')
-        return
-      }
+      if (error) throw error
 
-      const normalized = {
-        id: data.id,
-        name: data.name,
-        quantity: data.quantity,
-        unit: data.unit,
-        category: data.category,
-        expirationDate: data.expiry_date,
-        addedDate: data.created_at,
-        image: null,
-        brand: data.brand,
-        storageLocationId: data.storage_location_id,
-        householdId: data.household_id,
-        addedBy: 'You',
-        addedByUserId: data.user_id
-      }
-
-      setInventoryItems(prev => [normalized, ...prev])
+      toast.success('Item added successfully')
+      setIsAddModalOpen(false)
+      loadItems()
+    } catch (error) {
+      console.error('Error adding item:', error)
+      toast.error('Failed to add item')
     }
   }
 
-  const handleEditItem = (item) => {
-    setEditingItem(item)
-    setIsAddModalOpen(true)
-  }
-
-
-  const handleConsumed = async (item) => {
-    if (!user?.id) return
+  const handleUpdateItem = async (itemData) => {
+    if (!editingItem?.id) return
 
     try {
-      // Record 1 unit consumed
-      const { error: eventError } = await supabase
-        .from('pantry_events')
-        .insert([{
-          user_id: user.id,
-          item_id: item.id,
-          type: 'consumed',
-          quantity: 1,
-          name: item.name,
-          unit: item.unit,
-          category: item.category,
-          at: new Date().toISOString()
-        }])
+      const { error } = await supabase
+        .from('pantry_items')
+        .update(itemData)
+        .eq('id', editingItem.id)
 
-      if (eventError) throw eventError
+      if (error) throw error
 
-      const newQuantity = item.quantity - 1
-
-      if (newQuantity <= 0) {
-        // Delete the item if quantity reaches 0
-        const { error: deleteError } = await supabase
-          .from('pantry_items')
-          .delete()
-          .eq('id', item.id)
-
-        if (deleteError) throw deleteError
-
-        // Update UI - remove item
-        setInventoryItems(prev => prev.filter(i => i.id !== item.id))
-        setSelectedItems(prev => prev.filter(id => id !== item.id))
-      } else {
-        // Update the quantity
-        const { error: updateError } = await supabase
-          .from('pantry_items')
-          .update({ quantity: newQuantity })
-          .eq('id', item.id)
-
-        if (updateError) throw updateError
-
-        // Update UI - reduce quantity
-        setInventoryItems(prev => prev.map(i =>
-          i.id === item.id ? { ...i, quantity: newQuantity } : i
-        ))
-      }
-
-      // Check for badges
-      await checkBadges('pantry_consumed')
+      toast.success('Item updated successfully')
+      setEditingItem(null)
+      loadItems()
     } catch (error) {
-      console.error('Error marking item as consumed:', error)
-      alert(error.message || 'Failed to mark item as consumed')
+      console.error('Error updating item:', error)
+      toast.error('Failed to update item')
     }
   }
 
-  const handleWasted = async (item) => {
-    if (!user?.id) return
+  const handleDeleteItem = async (itemId) => {
+    if (!confirm('Are you sure you want to delete this item?')) return
 
     try {
-      // Record 1 unit wasted
-      const { error: eventError } = await supabase
-        .from('pantry_events')
-        .insert([{
-          user_id: user.id,
-          item_id: item.id,
-          type: 'wasted',
-          quantity: 1,
-          name: item.name,
-          unit: item.unit,
-          category: item.category,
-          at: new Date().toISOString()
-        }])
+      const { error } = await supabase
+        .from('pantry_items')
+        .delete()
+        .eq('id', itemId)
 
-      if (eventError) throw eventError
+      if (error) throw error
 
-      const newQuantity = item.quantity - 1
-
-      if (newQuantity <= 0) {
-        // Delete the item if quantity reaches 0
-        const { error: deleteError } = await supabase
-          .from('pantry_items')
-          .delete()
-          .eq('id', item.id)
-
-        if (deleteError) throw deleteError
-
-        // Update UI - remove item
-        setInventoryItems(prev => prev.filter(i => i.id !== item.id))
-        setSelectedItems(prev => prev.filter(id => id !== item.id))
-      } else {
-        // Update the quantity
-        const { error: updateError } = await supabase
-          .from('pantry_items')
-          .update({ quantity: newQuantity })
-          .eq('id', item.id)
-
-        if (updateError) throw updateError
-
-        // Update UI - reduce quantity
-        setInventoryItems(prev => prev.map(i =>
-          i.id === item.id ? { ...i, quantity: newQuantity } : i
-        ))
-      }
+      toast.success('Item deleted successfully')
+      loadItems()
     } catch (error) {
-      console.error('Error marking item as wasted:', error)
-      alert(error.message || 'Failed to mark item as wasted')
+      console.error('Error deleting item:', error)
+      toast.error('Failed to delete item')
     }
   }
 
-  if (isLoading) {
+  const categories = ['all', ...new Set(items.map(item => item.category).filter(Boolean))]
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = !searchQuery || 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="p-6 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading inventory...</p>
         </div>
       </div>
@@ -329,107 +141,122 @@ const Inventory = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      {/* Page Header */}
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Track and manage your food items efficiently
-          </p>
+          <h1 className="text-3xl font-bold mb-2">Inventory</h1>
+          <p className="text-muted-foreground">Manage your pantry items</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <ViewSwitcher />
-          <Button
-            variant="default"
-            onClick={() => {
-              setEditingItem(null)
-              setIsAddModalOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
-          </Button>
-        </div>
+        <Button onClick={() => setIsAddModalOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </Button>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search items..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-medium">Total:</span>
-          <span>{inventoryItems.length} items</span>
-          {searchQuery && (
-            <>
-              <span className="mx-2">•</span>
-              <span>Showing: {filteredItems.length} items</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Selection Actions */}
-      {selectedItems.length > 0 && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-foreground">
-              {selectedItems.length} item{selectedItems.length > 1 ? 's' : ''} selected
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleClearSelection}>
-              Clear Selection
-            </Button>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-3 py-2 border border-input rounded-md bg-background"
+            >
+              {categories.map(cat => (
+                <option key={cat} value={cat}>
+                  {cat === 'all' ? 'All Categories' : cat}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="flex items-center gap-2">
-          </div>
+        </CardContent>
+      </Card>
+
+      {/* Items List */}
+      {filteredItems.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">
+              {searchQuery || selectedCategory !== 'all' 
+                ? 'No items match your filters' 
+                : 'No items in inventory. Add your first item!'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredItems.map((item) => (
+            <Card key={item.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                    {item.category && (
+                      <span className="text-xs text-muted-foreground">{item.category}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingItem(item)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Quantity: </span>
+                    <span className="font-medium">{item.quantity} {item.unit || 'units'}</span>
+                  </div>
+                  {item.expiry_date && (
+                    <div>
+                      <span className="text-muted-foreground">Expires: </span>
+                      <span className="font-medium">
+                        {format(new Date(item.expiry_date), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                  )}
+                  {item.notes && (
+                    <div className="text-muted-foreground text-xs mt-2">
+                      {item.notes}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Inventory Table */}
-      <InventoryTable
-        items={filteredItems}
-        selectedItems={selectedItems}
-        onSelectItem={handleSelectItem}
-        onSelectAll={handleSelectAll}
-        onEditItem={handleEditItem}
-        onConsumed={handleConsumed}
-        onWasted={handleWasted}
-        isAllSelected={selectedItems?.length === filteredItems?.length && filteredItems?.length > 0}
-        onAddItem={() => {
-          setEditingItem(null)
-          setIsAddModalOpen(true)
-        }}
-      />
-
-      {/* Add/Edit Item Modal */}
+      {/* Add/Edit Modal */}
       <AddItemModal
-        isOpen={isAddModalOpen}
+        isOpen={isAddModalOpen || !!editingItem}
         onClose={() => {
           setIsAddModalOpen(false)
           setEditingItem(null)
         }}
-        onAddItem={handleAddItem}
+        onAddItem={editingItem ? handleUpdateItem : handleAddItem}
         editingItem={editingItem}
       />
-
-      {/* Badge Celebration Modal */}
-      {celebrationBadge && (
-        <BadgeCelebration
-          badge={celebrationBadge}
-          onClose={closeCelebration}
-          userName={user?.email?.split('@')[0] || 'User'}
-        />
-      )}
     </div>
   )
 }

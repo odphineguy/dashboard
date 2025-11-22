@@ -86,15 +86,16 @@ const BadgeCelebration = ({ badge, onClose, userName }) => {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 justify-center">
+        <div className="flex flex-col gap-3">
           <ShareBadge
             badge={badge}
             userName={userName}
+            variant="default"
             onShare={() => {
               console.log('Badge shared from celebration modal')
             }}
           />
-          <Button onClick={onClose}>
+          <Button onClick={onClose} variant="outline">
             Awesome!
           </Button>
         </div>

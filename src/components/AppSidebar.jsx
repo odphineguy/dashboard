@@ -9,8 +9,6 @@ import {
   HelpCircle,
   Search,
   Database,
-  FileText,
-  FileSpreadsheet,
   MoreHorizontal,
   X,
   Package,
@@ -198,46 +196,9 @@ const AppSidebar = ({ onClose }) => {
           </NavLink>
         </div>
 
-        {/* Documents Section */}
-        <div className="pt-8">
-          <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider">
-            Documents
-          </div>
-          <div className="space-y-1 mt-2">
-            <NavLink
-              to="/reports"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
-                  isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                }`
-              }
-            >
-              <FileText className="h-5 w-5" />
-              <span className="text-sm">Reports</span>
-            </NavLink>
-          </div>
-        </div>
-
         {/* Bottom Navigation */}
         <div className="pt-8 mt-auto">
           <div className="space-y-1">
-            <NavLink
-              to="/profile"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
-                  isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                }`
-              }
-            >
-              <User className="h-5 w-5" />
-              <span className="text-sm">Profile</span>
-            </NavLink>
             <a
               href="https://mealsaver.app/app-support"
               target="_blank"

@@ -16,7 +16,8 @@ export const useSubscription = () => {
 export const SubscriptionProvider = ({ children }) => {
   const { user: supabaseUser } = useAuth()
   const { user: clerkUser } = useUser()
-  const { getToken } = useClerkAuth() // Get Clerk token getter
+  const clerkAuth = useClerkAuth() // Get Clerk auth hook
+  const getToken = clerkAuth?.getToken || null // Safely extract getToken
   const supabase = useSupabase() // Use authenticated Supabase client
 
   // Use Clerk user if available, otherwise Supabase
@@ -27,66 +28,81 @@ export const SubscriptionProvider = ({ children }) => {
   const [limits, setLimits] = useState(null)
 
   // Load subscription data
-  useEffect(() => {
-    const loadSubscription = async () => {
-      if (!user?.id) {
-        setLoading(false)
-        return
+  const loadSubscription = async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // Get profile with subscription info
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_status, stripe_customer_id')
+        .eq('id', user.id)
+        .maybeSingle() // Use maybeSingle to allow 0 rows without throwing error
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError)
+        throw profileError
       }
 
-      try {
-        setLoading(true)
-
-        // Get profile with subscription info
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('subscription_tier, subscription_status, stripe_customer_id')
-          .eq('id', user.id)
-          .single()
-
-        if (profileError) throw profileError
-
-        // Get active subscription details if not basic tier
-        let subscriptionDetails = null
-        if (profile.subscription_tier !== 'basic') {
-          const { data: subData } = await supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', user.id)
-            .in('status', ['active', 'trialing', 'past_due'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-
-          subscriptionDetails = subData
-        }
-
-        // Get subscription limits
-        const { data: limitsData } = await supabase.rpc('get_subscription_limits', {
-          p_user_id: user.id,
-        })
-
-        setSubscription({
-          tier: profile.subscription_tier || 'basic',
-          status: profile.subscription_status || 'active',
-          stripeCustomerId: profile.stripe_customer_id,
-          ...subscriptionDetails,
-        })
-
-        setLimits(limitsData?.[0] || null)
-      } catch (error) {
-        console.error('Error loading subscription:', error)
-        // Set defaults on error
+      // If no profile exists yet, wait for it to be created
+      if (!profile) {
+        console.log('Profile not found yet, waiting for sync...')
         setSubscription({
           tier: 'basic',
           status: 'active',
           stripeCustomerId: null,
         })
-      } finally {
         setLoading(false)
+        return
       }
-    }
 
+      // Get active subscription details if not basic tier
+      let subscriptionDetails = null
+      if (profile.subscription_tier !== 'basic') {
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing', 'past_due'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        subscriptionDetails = subData
+      }
+
+      // Get subscription limits
+      const { data: limitsData } = await supabase.rpc('get_subscription_limits', {
+        p_user_id: user.id,
+      })
+
+      setSubscription({
+        tier: profile.subscription_tier || 'basic',
+        status: profile.subscription_status || 'active',
+        stripeCustomerId: profile.stripe_customer_id,
+        ...subscriptionDetails,
+      })
+
+      setLimits(limitsData?.[0] || null)
+    } catch (error) {
+      console.error('Error loading subscription:', error)
+      // Set defaults on error
+      setSubscription({
+        tier: 'basic',
+        status: 'active',
+        stripeCustomerId: null,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     loadSubscription()
   }, [user?.id, supabase])
 
@@ -179,11 +195,11 @@ export const SubscriptionProvider = ({ children }) => {
   const createCheckoutSession = async ({ priceId, planTier, billingInterval }) => {
     if (!user) throw new Error('User not authenticated')
 
-    const successUrl = `${window.location.origin}/onboarding?success=true&session_id={CHECKOUT_SESSION_ID}`
-    const cancelUrl = `${window.location.origin}/onboarding?canceled=true`
+    const successUrl = `${window.location.origin}/?payment_success=true&tier=${planTier}`
+    const cancelUrl = `${window.location.origin}/?payment_canceled=true`
 
     // Get Clerk session token for Supabase edge function authentication
-    const clerkToken = clerkUser ? await getToken().catch(() => null) : null
+    const clerkToken = clerkUser && getToken ? await getToken().catch(() => null) : null
 
     if (!clerkToken && clerkUser) {
       throw new Error('Failed to get authentication token. Please try signing in again.')
@@ -309,6 +325,11 @@ export const SubscriptionProvider = ({ children }) => {
     })
   }
 
+  // Refresh subscription data (useful after payment completion)
+  const refreshSubscription = async () => {
+    await loadSubscription()
+  }
+
   const value = {
     subscription,
     limits,
@@ -320,6 +341,7 @@ export const SubscriptionProvider = ({ children }) => {
     openCustomerPortal,
     cancelSubscription,
     upgradeSubscription,
+    refreshSubscription,
   }
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>

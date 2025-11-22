@@ -43,22 +43,19 @@ import Recipes from './pages/Recipes'
 import Household from './pages/Household'
 import StorageLocations from './pages/StorageLocations'
 import Profile from './pages/Profile'
-import Reports from './pages/Reports'
 import ScannerTest from './components/ScannerTest'
 import GmailConnectCallback from './pages/GmailConnect'
 import SplashPage from './pages/Splash'
-import OnboardingPage from './pages/Onboarding'
 import { useAuth } from './contexts/AuthContext'
 import AppSidebar from './components/AppSidebar'
 import Header from './components/Header'
 import FloatingActionButton from './components/FloatingActionButton'
 import QuickAddItemModal from './components/QuickAddItemModal'
 import QuickScanModal from './components/QuickScanModal'
-import OnboardingGuard from './components/OnboardingGuard'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const ProtectedRoute = ({ element, skipOnboarding = false }) => {
+const ProtectedRoute = ({ element }) => {
   const { user, loading, isSignedIn } = useAuth()
 
   if (loading) {
@@ -66,7 +63,7 @@ const ProtectedRoute = ({ element, skipOnboarding = false }) => {
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">Loading protected route...</p>
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
@@ -74,10 +71,7 @@ const ProtectedRoute = ({ element, skipOnboarding = false }) => {
 
   if (!isSignedIn || !user) return <Navigate to="/login" replace />
 
-  // Skip onboarding check for onboarding page itself
-  if (skipOnboarding) return element
-
-  return <OnboardingGuard>{element}</OnboardingGuard>
+  return element
 }
 
 const MainLayout = ({ children }) => {
@@ -178,7 +172,6 @@ const Routes = () => {
       <RouterRoutes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
 
         {/* Protected Routes */}
@@ -293,18 +286,6 @@ const Routes = () => {
               element={
                 <MainLayout>
                   <Profile />
-                </MainLayout>
-              }
-            />
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute
-              element={
-                <MainLayout>
-                  <Reports />
                 </MainLayout>
               }
             />

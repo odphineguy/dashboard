@@ -16,7 +16,7 @@ import HouseholdInformation from '../Profile/components/HouseholdInformation'
 
 const Household = () => {
   const { user } = useAuth()
-  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
+  const supabase = useSupabase()
   const {
     households,
     currentHousehold,
@@ -71,7 +71,7 @@ const Household = () => {
             profiles (
               id,
               full_name,
-              avatar_url
+              avatar
             )
           `)
           .eq('household_id', currentHousehold.id)
@@ -81,7 +81,7 @@ const Household = () => {
         const membersList = data?.map(m => ({
           id: m.user_id,
           name: m.profiles?.full_name || 'Unknown User',
-          avatar: m.profiles?.avatar_url,
+          avatar: m.profiles?.avatar,
           role: m.role,
           joined_at: m.joined_at
         })) || []

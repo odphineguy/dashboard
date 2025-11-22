@@ -8,7 +8,7 @@ import AvatarSelector from '../../../components/AvatarSelector'
 import { useSupabase } from '../../../hooks/useSupabase'
 
 const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
-  const supabase = useSupabase() // Use authenticated Supabase client with Clerk JWT
+  const supabase = useSupabase()
   const [isEditing, setIsEditing] = useState(false)
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [editData, setEditData] = useState({
@@ -96,7 +96,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
         result = await supabase
           .from('profiles')
           .update({
-            avatar_url: avatarValue,
+            avatar: avatarValue,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId)
@@ -107,7 +107,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
           .from('profiles')
           .insert({
             id: userId,
-            avatar_url: avatarValue,
+            avatar: avatarValue,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -209,7 +209,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
                   <Calendar className="h-4 w-4" />
                   <span>Joined {formatDate(user?.joinDate)}</span>
                 </div>
-                {user?.subscriptionTier && user.subscriptionTier !== 'basic' && (
+                {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
                   <div className="flex items-center gap-1">
                     <Crown className="h-4 w-4" />
                     <span className="capitalize">{user.subscriptionTier.replace('_', ' ')}</span>
