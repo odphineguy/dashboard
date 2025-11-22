@@ -164,8 +164,24 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session, supabase
 
   console.log(`Checkout completed for user ${userId} (Clerk or Supabase ID), plan ${planTier}`)
 
-  // Subscription will be created/updated via subscription.created webhook
-  // Just log for now
+  // Immediately sync subscription to reduce delay in upgrading features
+  if (session.subscription) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+
+      // Ensure plan tier metadata is present (fallback to checkout session metadata)
+      if (!subscription.metadata?.plan_tier && planTier) {
+        subscription.metadata = {
+          ...subscription.metadata,
+          plan_tier: planTier,
+        }
+      }
+
+      await handleSubscriptionUpdate(subscription as Stripe.Subscription, supabase)
+    } catch (error) {
+      console.error('Error syncing subscription after checkout completion:', error)
+    }
+  }
 }
 
 // Handler: Subscription Created/Updated
