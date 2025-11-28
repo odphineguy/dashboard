@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useUser, useClerk } from '@clerk/clerk-react'
-import { createClient } from '@supabase/supabase-js'
+import { useSupabase } from '../hooks/useSupabase'
 
 const AuthContext = createContext({})
 
@@ -15,6 +15,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const { isLoaded, isSignedIn, user: clerkUser } = useUser()
   const { signOut: clerkSignOut } = useClerk()
+  const supabase = useSupabase()
   const [profileReady, setProfileReady] = useState(false)
 
   // Simple user object
@@ -38,23 +39,19 @@ export const AuthProvider = ({ children }) => {
 
     const ensureProfile = async () => {
       try {
-        // Use service role to bypass RLS policies
-        const supabase = createClient(
-          import.meta.env.VITE_SUPABASE_URL,
-          import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-        )
-
-        const { error } = await supabase.from('profiles').upsert(
-          {
-            id: clerkUser.id,
-            email: clerkUser.primaryEmailAddress?.emailAddress,
-            full_name: clerkUser.fullName || clerkUser.firstName || 'User',
-            avatar_url: clerkUser.imageUrl || null,
-            subscription_tier: 'basic',
-            subscription_status: 'active',
-          },
-          { onConflict: 'id' }
-        )
+        const { error } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: clerkUser.id,
+              email: clerkUser.primaryEmailAddress?.emailAddress,
+              full_name: clerkUser.fullName || clerkUser.firstName || 'User',
+              avatar_url: clerkUser.imageUrl || null,
+              subscription_tier: 'basic',
+              subscription_status: 'active',
+            },
+            { onConflict: 'id' }
+          )
 
         if (error) {
           console.error('Profile sync error:', error)
@@ -69,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     ensureProfile()
-  }, [isLoaded, clerkUser?.id])
+  }, [isLoaded, clerkUser?.id, supabase])
 
   const signOut = async () => {
     await clerkSignOut()

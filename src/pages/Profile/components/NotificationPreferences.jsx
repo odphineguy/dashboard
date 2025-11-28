@@ -5,12 +5,16 @@ import { Checkbox } from '../../../components/ui/checkbox'
 import { Label } from '../../../components/ui/label'
 
 const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
+  const safePreferences = preferences || {}
+
   const handleCheckboxChange = (category, option) => {
+    const categoryPreferences = safePreferences[category] || {}
+
     onUpdatePreferences({
-      ...preferences,
+      ...safePreferences,
       [category]: {
-        ...preferences[category],
-        [option]: !preferences[category][option]
+        ...categoryPreferences,
+        [option]: !categoryPreferences[option]
       }
     })
   }
@@ -77,7 +81,7 @@ const NotificationPreferences = ({ preferences, onUpdatePreferences }) => {
                 <div key={option.key} className="flex items-center space-x-2">
                   <Checkbox
                     id={`${section.category}-${option.key}`}
-                    checked={preferences[section.category]?.[option.key] || false}
+                    checked={safePreferences[section.category]?.[option.key] || false}
                     onCheckedChange={() => handleCheckboxChange(section.category, option.key)}
                   />
                   <Label

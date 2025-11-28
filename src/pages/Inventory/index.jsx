@@ -33,12 +33,11 @@ const Inventory = () => {
       let query = supabase
         .from('pantry_items')
         .select('*')
-        .eq('user_id', user.id)
 
       if (!isPersonal && currentHousehold?.id) {
-        query = query.or(`household_id.eq.${currentHousehold.id},user_id.eq.${user.id}`)
+        query = query.eq('household_id', currentHousehold.id)
       } else {
-        query = query.is('household_id', null)
+        query = query.eq('user_id', user.id).is('household_id', null)
       }
 
       const { data, error } = await query.order('created_at', { ascending: false })
