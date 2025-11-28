@@ -168,7 +168,9 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
           cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
           planTier,
           billingInterval,
-          userId: user?.id || userData?.id
+          userId: user?.id || userData?.id,
+          userEmail: user?.email || userData?.email,
+          userName: user?.user_metadata?.full_name || userData?.fullName
         }
       })
 
