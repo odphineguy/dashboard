@@ -84,7 +84,7 @@ serve(async (req) => {
       .single()
 
     let customerId = profile?.stripe_customer_id
-    const email = userEmail || profile?.email || payload.email
+    const email = userEmail || profile?.email
     const name = userName || profile?.full_name
 
     if (!email) {
