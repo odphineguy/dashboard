@@ -14,13 +14,13 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const [actionLoading, setActionLoading] = useState(false)
   const [showPlanSelector, setShowPlanSelector] = useState(false)
 
-  // Helper to check if tier is the free/basic tier (defined early for useEffect)
-  const checkIsFreeTier = (tier) => !tier || tier === 'free' || tier === 'basic'
+  // Helper to check if tier is the basic (free) tier
+  const isBasicTier = (tier) => !tier || tier === 'basic'
 
   // Load subscription data
   useEffect(() => {
     const loadSubscription = async () => {
-      if (checkIsFreeTier(userData?.subscriptionTier)) {
+      if (isBasicTier(userData?.subscriptionTier)) {
         setLoading(false)
         return
       }
@@ -49,12 +49,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     loadSubscription()
   }, [userData?.id, userData?.subscriptionTier, supabase])
 
-  // Helper to check if tier is the free/basic tier
-  const isFreeTier = (tier) => !tier || tier === 'free' || tier === 'basic'
-
   const getTierDisplayName = (tier) => {
     switch (tier) {
-      case 'free':
       case 'basic':
         return 'Basic (Free)'
       case 'premium':
@@ -67,7 +63,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const getTierIcon = (tier) => {
-    if (isFreeTier(tier)) return <CheckCircle className="h-5 w-5 text-green-600" />
+    if (isBasicTier(tier)) return <CheckCircle className="h-5 w-5 text-green-600" />
     switch (tier) {
       case 'premium':
         return <Crown className="h-5 w-5 text-yellow-600" />
@@ -79,7 +75,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const getTierColor = (tier) => {
-    if (isFreeTier(tier)) return 'bg-green-100 text-green-800'
+    if (isBasicTier(tier)) return 'bg-green-100 text-green-800'
     switch (tier) {
       case 'premium':
         return 'bg-yellow-100 text-yellow-800'
@@ -138,8 +134,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   }
 
   const handleUpgrade = () => {
-    // Free/basic users: show plan selector modal
-    if (isFreeTier(userData?.subscriptionTier)) {
+    // Basic tier users: show plan selector modal
+    if (isBasicTier(userData?.subscriptionTier)) {
       setShowPlanSelector(true)
     } else {
       // Paid users: use customer portal
@@ -310,7 +306,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
         </Badge>
       </div>
 
-      {isFreeTier(userData.subscriptionTier) ? (
+      {isBasicTier(userData.subscriptionTier) ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             {getTierIcon(userData.subscriptionTier)}
