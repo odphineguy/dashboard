@@ -142,10 +142,10 @@ const Dashboard = () => {
 
       const { data: events, error } = await supabase
         .from('pantry_events')
-        .select('event_type, quantity, event_date, created_at')
+        .select('type, quantity, at, created_at')
         .eq('user_id', userId)
-        .gte('event_date', sixMonthsAgo.toISOString().split('T')[0])
-        .order('event_date', { ascending: true })
+        .gte('at', sixMonthsAgo.toISOString())
+        .order('at', { ascending: true })
 
       if (error) {
         console.error('Error generating waste reduction data:', error)
@@ -163,7 +163,7 @@ const Dashboard = () => {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
       events?.forEach(event => {
-        const date = new Date(event.event_date || event.created_at)
+        const date = new Date(event.at || event.created_at)
         const monthKey = `${date.getFullYear()}-${date.getMonth()}`
         const monthName = monthNames[date.getMonth()]
 
@@ -176,9 +176,9 @@ const Dashboard = () => {
         }
 
         const quantity = parseFloat(event.quantity) || 0
-        if (event.event_type === 'consumed') {
+        if (event.type === 'consumed') {
           monthlyData[monthKey].consumed += quantity
-        } else if (event.event_type === 'wasted') {
+        } else if (event.type === 'wasted') {
           monthlyData[monthKey].wasted += quantity
         }
       })
@@ -263,29 +263,29 @@ const Dashboard = () => {
 
       const { data: recentEvents } = await supabase
         .from('pantry_events')
-        .select('event_type, event_date, created_at')
+        .select('type, at, created_at')
         .eq('user_id', userId)
-        .gte('event_date', sixtyDaysAgo.toISOString().split('T')[0])
+        .gte('at', sixtyDaysAgo.toISOString())
 
       // Split into current and previous periods
       const currentPeriodEvents = recentEvents?.filter(e => {
-        const date = new Date(e.event_date || e.created_at)
+        const date = new Date(e.at || e.created_at)
         return date >= thirtyDaysAgo
       }) || []
       const previousPeriodEvents = recentEvents?.filter(e => {
-        const date = new Date(e.event_date || e.created_at)
+        const date = new Date(e.at || e.created_at)
         return date >= sixtyDaysAgo && date < thirtyDaysAgo
       }) || []
 
       // Current period
-      const consumedCount = currentPeriodEvents.filter(e => e.event_type === 'consumed').length
-      const wastedCount = currentPeriodEvents.filter(e => e.event_type === 'wasted').length
+      const consumedCount = currentPeriodEvents.filter(e => e.type === 'consumed').length
+      const wastedCount = currentPeriodEvents.filter(e => e.type === 'wasted').length
       const totalEvents = consumedCount + wastedCount
       const wasteReduction = totalEvents > 0 ? Math.round((consumedCount / totalEvents) * 100) : 0
 
       // Previous period
-      const prevConsumedCount = previousPeriodEvents.filter(e => e.event_type === 'consumed').length
-      const prevWastedCount = previousPeriodEvents.filter(e => e.event_type === 'wasted').length
+      const prevConsumedCount = previousPeriodEvents.filter(e => e.type === 'consumed').length
+      const prevWastedCount = previousPeriodEvents.filter(e => e.type === 'wasted').length
       const prevTotalEvents = prevConsumedCount + prevWastedCount
       const prevWasteReduction = prevTotalEvents > 0 ? Math.round((prevConsumedCount / prevTotalEvents) * 100) : 0
 
@@ -383,11 +383,12 @@ const Dashboard = () => {
         .from('pantry_events')
         .insert([{
           user_id: user.id,
-          item_name: item.name,
+          item_id: item.id,
+          name: item.name,
           quantity: 1,
-          event_type: 'consumed',
+          type: 'consumed',
           category: item.category,
-          event_date: new Date().toISOString().split('T')[0]
+          at: new Date().toISOString()
         }])
 
       if (eventError) throw eventError
@@ -481,11 +482,12 @@ const Dashboard = () => {
         .from('pantry_events')
         .insert([{
           user_id: user.id,
-          item_name: item.name,
+          item_id: item.id,
+          name: item.name,
           quantity: 1,
-          event_type: 'wasted',
+          type: 'wasted',
           category: item.category,
-          event_date: new Date().toISOString().split('T')[0]
+          at: new Date().toISOString()
         }])
 
       if (eventError) throw eventError

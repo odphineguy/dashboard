@@ -1,69 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, MapPin } from 'lucide-react'
+import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Label } from '../../../components/ui/label'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useSupabase } from '../../../hooks/useSupabase'
 import { useHousehold } from '../../../contexts/HouseholdContext'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../components/ui/select'
+import { useSupabase } from '../../../hooks/useSupabase'
+import { NavLink } from 'react-router-dom'
 
 const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
   const { user } = useAuth()
-  const supabase = useSupabase()
   const { currentHousehold, isPersonal } = useHousehold()
-  const [storageLocations, setStorageLocations] = useState([])
+  const supabase = useSupabase()
   const [formData, setFormData] = useState({
     name: '',
     quantity: '',
-    unit: '',
+    unit: 'pieces',
     category: '',
-    expiry_date: '',
-    notes: '',
-    storage_location_id: null
+    expirationDate: '',
+    storageLocationId: ''
   })
-
-  // Common food categories
-  const categories = [
-    'Dairy',
-    'Produce',
-    'Meat',
-    'Seafood',
-    'Bakery',
-    'Beverages',
-    'Snacks',
-    'Frozen',
-    'Canned Goods',
-    'Grains & Pasta',
-    'Spices & Seasonings',
-    'Condiments',
-    'Deli',
-    'Other'
-  ]
-
-  // Common units
-  const units = [
-    'pieces',
-    'lb',
-    'oz',
-    'kg',
-    'g',
-    'cup',
-    'tbsp',
-    'tsp',
-    'fl oz',
-    'ml',
-    'L',
-    'box',
-    'bag',
-    'can',
-    'jar',
-    'bottle',
-    'package'
-  ]
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [storageLocations, setStorageLocations] = useState([])
 
   // Load storage locations
   useEffect(() => {
@@ -82,7 +40,9 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
           query = query.eq('household_id', currentHousehold.id)
         }
 
-        const { data, error } = await query.order('name', { ascending: true })
+        query = query.order('name', { ascending: true })
+
+        const { data, error } = await query
 
         if (error) throw error
         setStorageLocations(data || [])
@@ -94,244 +54,243 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
     if (isOpen) {
       loadStorageLocations()
     }
-  }, [user?.id, isPersonal, currentHousehold?.id, isOpen, supabase])
+  }, [isOpen, user?.id, isPersonal, currentHousehold?.id])
 
   useEffect(() => {
-    if (editingItem) {
+    if (isOpen) {
       setFormData({
-        name: editingItem.name || '',
-        quantity: editingItem.quantity || '',
-        unit: editingItem.unit || '',
-        category: editingItem.category || '',
-        expiry_date: editingItem.expiry_date || editingItem.expirationDate || '',
-        notes: editingItem.notes || '',
-        storage_location_id: editingItem.storage_location_id || null
+        name: editingItem?.name || '',
+        quantity: editingItem?.quantity || '',
+        unit: editingItem?.unit || 'pieces',
+        category: editingItem?.category || '',
+        expirationDate: editingItem?.expirationDate || '',
+        storageLocationId: editingItem?.storageLocationId || ''
       })
-    } else {
-      // Reset form for new item
+    }
+  }, [isOpen, editingItem])
+
+  const categoryOptions = [
+    { value: 'fruits', label: 'Fruits' },
+    { value: 'vegetables', label: 'Vegetables' },
+    { value: 'dairy', label: 'Dairy' },
+    { value: 'meat', label: 'Meat & Fish' },
+    { value: 'pantry', label: 'Pantry Items' },
+    { value: 'beverages', label: 'Beverages' },
+    { value: 'snacks', label: 'Snacks' },
+    { value: 'frozen', label: 'Frozen Foods' },
+    { value: 'bakery', label: 'Bakery' },
+    { value: 'condiments', label: 'Condiments' }
+  ]
+
+  const unitOptions = [
+    { value: 'pieces', label: 'Pieces' },
+    { value: 'g', label: 'Grams' },
+    { value: 'kg', label: 'Kilograms' },
+    { value: 'lbs', label: 'Pounds' },
+    { value: 'oz', label: 'Ounces' },
+    { value: 'liters', label: 'Liters' },
+    { value: 'gallons', label: 'Gallons' },
+    { value: 'bag', label: 'Bag' },
+    { value: 'container', label: 'Container' },
+    { value: 'cups', label: 'Cups' }
+  ]
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      const itemData = {
+        name: formData?.name,
+        quantity: Number(formData?.quantity) || 0,
+        unit: formData?.unit,
+        category: formData?.category,
+        expiry_date: formData?.expirationDate || null,
+        storage_location_id: formData?.storageLocationId || null
+      }
+
+      await onAddItem(itemData)
+
+      // Reset form
       setFormData({
         name: '',
         quantity: '',
-        unit: '',
+        unit: 'pieces',
         category: '',
-        expiry_date: '',
-        notes: '',
-        storage_location_id: null
+        expirationDate: '',
+        storageLocationId: ''
       })
+      onClose()
+    } catch (error) {
+      console.error('Error saving item:', error)
+    } finally {
+      setIsSubmitting(false)
     }
-  }, [editingItem, isOpen])
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
   }
 
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value === 'none' ? null : value
-    }))
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.quantity) {
-      alert('Please fill in at least name and quantity')
-      return
-    }
-
-    const itemData = {
-      ...formData,
-      quantity: parseFloat(formData.quantity) || 0,
-      expiry_date: formData.expiry_date || null,
-      storage_location_id: formData.storage_location_id || null
-    }
-
-    onAddItem(itemData)
-  }
+  const isFormValid = formData?.name && formData?.quantity && formData?.category
 
   if (!isOpen) return null
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-50"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">
+              {editingItem ? 'Edit Item' : 'Add New Item'}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {editingItem ? 'Update item details' : 'Add a new item to your inventory'}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8"
+          >
+            <X size={20} />
+          </Button>
+        </div>
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-background rounded-lg shadow-xl max-w-md w-full pointer-events-auto max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-background">
-            <h3 className="text-lg font-semibold">
-              {editingItem ? 'Edit Item' : 'Add Item'}
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Item Name */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Item Name *</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="e.g., Organic Bananas"
+              value={formData?.name}
+              onChange={(e) => handleInputChange('name', e?.target?.value)}
+              required
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">
-                Item Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
+          {/* Quantity and Unit */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantity *</Label>
+              <Input
+                id="quantity"
+                type="number"
+                placeholder="1"
+                value={formData?.quantity}
+                onChange={(e) => handleInputChange('quantity', e?.target?.value)}
                 required
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="e.g., Milk, Bread, Apples"
+                min="0.1"
+                step="0.1"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unit *</Label>
+              <select
+                id="unit"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData?.unit}
+                onChange={(e) => handleInputChange('unit', e?.target?.value)}
+                required
+              >
+                {unitOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="quantity" className="block text-sm font-medium mb-1">
-                  Quantity <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+          {/* Category */}
+          <div className="space-y-2">
+            <Label htmlFor="category">Category *</Label>
+            <select
+              id="category"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={formData?.category}
+              onChange={(e) => handleInputChange('category', e?.target?.value)}
+              required
+            >
+              <option value="">Select category...</option>
+              {categoryOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Storage Location */}
+          <div className="space-y-2">
+            <Label htmlFor="storageLocation">Storage Location (Optional)</Label>
+            {storageLocations.length === 0 ? (
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground flex-1">
+                  No storage locations yet.
+                </span>
+                <NavLink to="/storage" className="text-sm text-primary hover:underline">
+                  Add one
+                </NavLink>
               </div>
-
-              <div>
-                <label htmlFor="unit" className="block text-sm font-medium mb-1">
-                  Unit
-                </label>
-                <Select
-                  value={formData.unit || 'none'}
-                  onValueChange={(value) => handleSelectChange('unit', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {units.map((unit) => (
-                      <SelectItem key={unit} value={unit}>
-                        {unit}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium mb-1">
-                Category
-              </label>
-              <Select
-                value={formData.category || 'none'}
-                onValueChange={(value) => handleSelectChange('category', value)}
+            ) : (
+              <select
+                id="storageLocation"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData?.storageLocationId}
+                onChange={(e) => handleInputChange('storageLocationId', e?.target?.value)}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <option value="">Select location...</option>
+                {storageLocations.map(location => (
+                  <option key={location.id} value={location.id}>
+                    {location.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
-            <div>
-              <label htmlFor="storage_location_id" className="block text-sm font-medium mb-1">
-                Storage Location
-              </label>
-              <Select
-                value={formData.storage_location_id ? formData.storage_location_id : 'none'}
-                onValueChange={(value) => handleSelectChange('storage_location_id', value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select storage location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {storageLocations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.icon && <span className="mr-2">{location.icon}</span>}
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Expiration Date */}
+          <div className="space-y-2">
+            <Label htmlFor="expirationDate">Expiration Date (Optional)</Label>
+            <Input
+              id="expirationDate"
+              type="date"
+              value={formData?.expirationDate}
+              onChange={(e) => handleInputChange('expirationDate', e?.target?.value)}
+            />
+          </div>
 
-            <div>
-              <label htmlFor="expiry_date" className="block text-sm font-medium mb-1">
-                Expiry Date
-              </label>
-              <input
-                type="date"
-                id="expiry_date"
-                name="expiry_date"
-                value={formData.expiry_date}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium mb-1">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows="3"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Additional notes..."
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-muted transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                {editingItem ? 'Update' : 'Add'} Item
-              </button>
-            </div>
-          </form>
-        </div>
+          {/* Actions */}
+          <div className="flex items-center justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isFormValid || isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : editingItem ? 'Update Item' : 'Add Item'}
+            </Button>
+          </div>
+        </form>
       </div>
-    </>
+    </div>
   )
 }
 
 export default AddItemModal
-

@@ -49,17 +49,6 @@ const RecentActivityGrid = ({ events, loading }) => {
     )
   }
 
-  const formatEventDate = (dateString) => {
-    const date = new Date(dateString)
-    return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-  }
-
   return (
     <div className="bg-card rounded-lg border border-border p-6">
       <div className="flex items-center justify-between mb-4">
@@ -88,77 +77,77 @@ const RecentActivityGrid = ({ events, loading }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {events.map((event, index) => {
-                const { date, time } = formatEventDate(event.event_date || event.created_at)
-                return (
-                  <tr key={event.id || index} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border">
-                          {event.user_avatar ? (
-                            <img
-                              src={event.user_avatar}
-                              alt={event.user_name || 'User'}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <User size={16} className="text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {event.user_name || 'You'}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {event.user_email || ''}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="p-4">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${event.event_type === 'wasted' ? 'bg-red-500' : 'bg-green-500'
-                          }`}>
-                          {event.event_type === 'wasted' ? (
-                            <Trash2 size={14} color="white" />
-                          ) : (
-                            <Check size={14} color="white" />
-                          )}
-                        </div>
-                        <span className={`text-sm font-medium ${event.event_type === 'wasted' ? 'text-red-600' : 'text-green-600'
-                          }`}>
-                          {event.event_type === 'wasted' ? 'Wasted' : 'Consumed'}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="p-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {event.quantity || 1} {event.unit || ''} {event.item_name || event.name || 'Item'}
-                        </p>
-                        {event.category && (
-                          <p className="text-xs text-muted-foreground capitalize truncate">
-                            {event.category}
-                          </p>
+              {events.map((event, index) => (
+                <tr key={event.id || index} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border">
+                        {event.user_avatar ? (
+                          <img
+                            src={event.user_avatar}
+                            alt={event.user_name || 'User'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User size={16} className="text-muted-foreground" />
                         )}
                       </div>
-                    </td>
-
-                    <td className="p-4">
-                      <div className="text-right">
-                        <p className="text-sm text-foreground">
-                          {date}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {event.user_name || 'You'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {time}
+                        <p className="text-xs text-muted-foreground truncate">
+                          {event.user_email || ''}
                         </p>
                       </div>
-                    </td>
-                  </tr>
-                )
-              })}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${event.type === 'wasted' ? 'bg-red-500' : 'bg-green-500'
+                        }`}>
+                        {event.type === 'wasted' ? (
+                          <Trash2 size={14} color="white" />
+                        ) : (
+                          <Check size={14} color="white" />
+                        )}
+                      </div>
+                      <span className={`text-sm font-medium ${event.type === 'wasted' ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                        {event.type === 'wasted' ? 'Wasted' : 'Consumed'}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {event.quantity || 1} {event.unit || ''} {event.name}
+                      </p>
+                      {event.category && (
+                        <p className="text-xs text-muted-foreground capitalize truncate">
+                          {event.category}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+
+                  <td className="p-4">
+                    <div className="text-right">
+                      <p className="text-sm text-foreground">
+                        {new Date(event.at || event.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(event.at || event.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -166,77 +155,76 @@ const RecentActivityGrid = ({ events, loading }) => {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
-        {events.map((event, index) => {
-          const { date, time } = formatEventDate(event.event_date || event.created_at)
-          return (
-            <div key={event.id || index} className="bg-muted/30 rounded-lg border border-border p-4">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
-                  {event.user_avatar ? (
-                    <img
-                      src={event.user_avatar}
-                      alt={event.user_name || 'User'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User size={18} className="text-muted-foreground" />
-                  )}
-                </div>
+        {events.map((event, index) => (
+          <div key={event.id || index} className="bg-muted/30 rounded-lg border border-border p-4">
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
+                {event.user_avatar ? (
+                  <img
+                    src={event.user_avatar}
+                    alt={event.user_name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={18} className="text-muted-foreground" />
+                )}
+              </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {event.user_name || 'You'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {event.user_email || ''}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">
-                        {date}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {time}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${event.event_type === 'wasted' ? 'bg-red-500' : 'bg-green-500'
-                      }`}>
-                      {event.event_type === 'wasted' ? (
-                        <Trash2 size={12} color="white" />
-                      ) : (
-                        <Check size={12} color="white" />
-                      )}
-                    </div>
-                    <span className={`text-sm font-medium ${event.event_type === 'wasted' ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                      {event.event_type === 'wasted' ? 'Wasted' : 'Consumed'}
-                    </span>
-                  </div>
-
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {event.quantity || 1} {event.unit || ''} {event.item_name || event.name || 'Item'}
+                      {event.user_name || 'You'}
                     </p>
-                    {event.category && (
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {event.category}
-                      </p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.user_email || ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(event.at || event.created_at).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(event.at || event.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${event.type === 'wasted' ? 'bg-red-500' : 'bg-green-500'
+                    }`}>
+                    {event.type === 'wasted' ? (
+                      <Trash2 size={12} color="white" />
+                    ) : (
+                      <Check size={12} color="white" />
                     )}
                   </div>
+                  <span className={`text-sm font-medium ${event.type === 'wasted' ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                    {event.type === 'wasted' ? 'Wasted' : 'Consumed'}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {event.quantity || 1} {event.unit || ''} {event.name}
+                  </p>
+                  {event.category && (
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {event.category}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 export default RecentActivityGrid
-
