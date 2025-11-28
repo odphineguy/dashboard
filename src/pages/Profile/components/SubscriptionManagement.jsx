@@ -148,14 +148,15 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
       setActionLoading(true)
       setShowPlanSelector(false)
 
+      // Official Stripe Price IDs from STRIPE_PRICE_IDS.md
       const PRICE_IDS = {
         premium: {
-          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
-          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+          month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe',
+          year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'
         },
         household_premium: {
-          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
-          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+          month: 'price_1SOSMNIWZQ4LZaTjUFica6uR',
+          year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'
         }
       }
 
@@ -176,7 +177,19 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
       if (error) {
         console.error('Error creating checkout session:', error)
-        alert('Failed to start upgrade process. Please try again.')
+        // Try to get the actual error message
+        let errorMsg = 'Failed to start upgrade process. Please try again.'
+        if (error.message) {
+          errorMsg = error.message
+        }
+        if (error.context?.body) {
+          try {
+            const body = JSON.parse(error.context.body)
+            if (body.error) errorMsg = body.error
+          } catch (e) { /* ignore parse errors */ }
+        }
+        console.error('Detailed error:', errorMsg)
+        alert(errorMsg)
         return
       }
 
