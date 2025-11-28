@@ -9,7 +9,19 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-clerk-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Decode JWT without verification (Supabase handles verification via the supabase template)
+function decodeJWT(token: string): { sub?: string; email?: string; [key: string]: any } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload
+  } catch {
+    return null
+  }
 }
 
 serve(async (req) => {
@@ -21,56 +33,25 @@ serve(async (req) => {
   try {
     // Get auth token from headers
     const authHeader = req.headers.get('Authorization')
-    const clerkToken = req.headers.get('x-clerk-token')
 
-    if (!authHeader && !clerkToken) {
+    if (!authHeader) {
       throw new Error('Missing authorization header')
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader! },
-        },
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    )
-
-    // Get user from Supabase or Clerk
-    let userId: string
-    let userEmail: string
-    let userName: string | null = null
-
-    if (clerkToken) {
-      // Parse Clerk token (you may need to verify it with Clerk's API)
-      const { clerkUserId, userEmail: email, userName: name } = await req.json()
-      userId = clerkUserId
-      userEmail = email
-      userName = name
-    } else {
-      // Get user from Supabase auth
-      const {
-        data: { user },
-        error: authError,
-      } = await supabaseClient.auth.getUser()
-
-      if (authError || !user) {
-        throw new Error('Unauthorized')
-      }
-
-      userId = user.id
-      userEmail = user.email!
-      userName = user.user_metadata?.full_name || null
+    // Extract and decode Clerk JWT
+    const token = authHeader.replace('Bearer ', '')
+    const payload = decodeJWT(token)
+    
+    if (!payload?.sub) {
+      throw new Error('Invalid or missing user ID in token')
     }
 
+    const userId = payload.sub
+    console.log('Clerk user ID from JWT:', userId)
+
     // Parse request body
-    const { priceId, successUrl, cancelUrl, planTier, billingInterval } = await req.json()
+    const body = await req.json()
+    const { priceId, successUrl, cancelUrl, planTier, billingInterval, userEmail, userName } = body
 
     if (!priceId || !successUrl || !cancelUrl || !planTier) {
       throw new Error('Missing required parameters: priceId, successUrl, cancelUrl, planTier')
@@ -78,25 +59,32 @@ serve(async (req) => {
 
     console.log('Creating checkout session for:', { userId, planTier, billingInterval, priceId })
 
-    // Check if customer already exists
+    // Initialize Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Get user profile including email if not provided
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, email, full_name')
       .eq('id', userId)
       .single()
 
     let customerId = profile?.stripe_customer_id
+    const email = userEmail || profile?.email || payload.email
+    const name = userName || profile?.full_name
+
+    if (!email) {
+      throw new Error('User email is required')
+    }
 
     // Create or retrieve Stripe customer
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: userEmail,
-        name: userName || undefined,
+        email: email,
+        name: name || undefined,
         metadata: {
           user_id: userId,
         },

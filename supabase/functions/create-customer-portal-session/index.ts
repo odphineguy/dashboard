@@ -12,6 +12,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Decode JWT without verification (Supabase handles verification via the supabase template)
+function decodeJWT(token: string): { sub?: string; [key: string]: any } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload
+  } catch {
+    return null
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -24,44 +36,41 @@ serve(async (req) => {
       throw new Error('Missing authorization header')
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    )
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser()
-
-    if (authError || !user) {
-      throw new Error('Unauthorized')
+    // Extract token from Bearer header
+    const token = authHeader.replace('Bearer ', '')
+    const payload = decodeJWT(token)
+    
+    if (!payload?.sub) {
+      throw new Error('Invalid or missing user ID in token')
     }
+
+    const userId = payload.sub
+    console.log('Clerk user ID from JWT:', userId)
 
     // Parse request body
-    const { returnUrl } = await req.json()
+    const { return_url } = await req.json()
 
-    if (!returnUrl) {
-      throw new Error('Missing required parameter: returnUrl')
+    if (!return_url) {
+      throw new Error('Missing required parameter: return_url')
     }
 
+    // Initialize Supabase admin client to query profiles
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     // Get user's Stripe customer ID
-    const { data: profile } = await supabaseClient
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('stripe_customer_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
+
+    if (profileError) {
+      console.error('Profile query error:', profileError)
+      throw new Error('Failed to retrieve user profile')
+    }
 
     if (!profile?.stripe_customer_id) {
       throw new Error('No Stripe customer found. Please subscribe first.')
@@ -72,7 +81,7 @@ serve(async (req) => {
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: returnUrl,
+      return_url: return_url,
     })
 
     console.log('Customer portal session created:', session.id)
