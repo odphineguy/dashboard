@@ -4,9 +4,11 @@ import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { useSupabase } from '../../../hooks/useSupabase'
+import { useAuth } from '../../../contexts/AuthContext'
 
 const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const supabase = useSupabase()
+  const { user } = useAuth()
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -100,8 +102,12 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     try {
       setActionLoading(true)
 
+      // Pass userId in body for Clerk compatibility
       const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
-        body: { return_url: window.location.href }
+        body: { 
+          return_url: window.location.href,
+          userId: user?.id || userData?.id
+        }
       })
 
       if (error) {
@@ -160,7 +166,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
           successUrl: `${window.location.origin}/profile?upgrade=success`,
           cancelUrl: `${window.location.origin}/profile?upgrade=canceled`,
           planTier,
-          billingInterval
+          billingInterval,
+          userId: user?.id || userData?.id
         }
       })
 

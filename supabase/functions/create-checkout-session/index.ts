@@ -9,7 +9,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-clerk-token',
 }
 
 // Decode JWT without verification (Supabase handles verification via the supabase template)
@@ -31,30 +31,41 @@ serve(async (req) => {
   }
 
   try {
-    // Get auth token from headers
-    const authHeader = req.headers.get('Authorization')
-
-    if (!authHeader) {
-      throw new Error('Missing authorization header')
-    }
-
-    // Extract and decode Clerk JWT
-    const token = authHeader.replace('Bearer ', '')
-    const payload = decodeJWT(token)
-    
-    if (!payload?.sub) {
-      throw new Error('Invalid or missing user ID in token')
-    }
-
-    const userId = payload.sub
-    console.log('Clerk user ID from JWT:', userId)
-
-    // Parse request body
+    // Parse request body first to get userId if provided
     const body = await req.json()
-    const { priceId, successUrl, cancelUrl, planTier, billingInterval, userEmail, userName } = body
+    const { priceId, successUrl, cancelUrl, planTier, billingInterval, userEmail, userName, userId: bodyUserId } = body
 
     if (!priceId || !successUrl || !cancelUrl || !planTier) {
       throw new Error('Missing required parameters: priceId, successUrl, cancelUrl, planTier')
+    }
+
+    // Try to get user ID from multiple sources (in order of preference):
+    // 1. From request body (most reliable with Clerk)
+    // 2. From x-clerk-token header
+    // 3. From Authorization header JWT
+    let userId = bodyUserId
+
+    if (!userId) {
+      // Try x-clerk-token header
+      const clerkToken = req.headers.get('x-clerk-token')
+      if (clerkToken) {
+        const clerkPayload = decodeJWT(clerkToken)
+        userId = clerkPayload?.sub
+      }
+    }
+
+    if (!userId) {
+      // Fall back to Authorization header
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '')
+        const payload = decodeJWT(token)
+        userId = payload?.sub
+      }
+    }
+
+    if (!userId) {
+      throw new Error('Missing user ID. Please provide userId in request body or valid auth token.')
     }
 
     console.log('Creating checkout session for:', { userId, planTier, billingInterval, priceId })
