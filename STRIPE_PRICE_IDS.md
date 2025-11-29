@@ -1,82 +1,78 @@
-# Stripe Product & Price IDs
+# Stripe Product & Price IDs (Sandbox/Test Mode)
 
 ## Products
 
 ### Meal Saver Premium
 - **Product ID**: `prod_TFP3we7PBUdvwS`
-- **Description**: Advanced features for power users
-- **Features**: Unlimited pantry items, unlimited AI scanner, advanced recipe generation, up to 3 household members, priority support
+- **Description**: Premium subscription for power users
 
 ### Meal Saver Household Premium
 - **Product ID**: `prod_TFP4qAg9zTAa1D`
-- **Description**: Perfect for families and shared households
-- **Features**: Everything in Premium plus unlimited household members, unlimited storage locations, shared inventory management, family meal planning, household analytics
+- **Description**: Household subscription for families
 
 ---
 
 ## Prices
 
-**Note**: These prices match the Pricing page (`src/pages/Pricing/index.jsx`) which is the single source of truth.
-
 ### Premium Monthly
-- **Price ID**: `price_1SOSNiIWZQ4LZaTjtxDaAhDe`
-- **Amount**: $9.99/month ($999 cents)
+- **Price ID**: `price_1SKiIoIqliEA9Uot0fgA3c8M`
+- **Amount**: $9.99/month
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Premium
-- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $9.99/month
 
 ### Premium Yearly
-- **Price ID**: `price_1SOSLDIWZQ4LZaTju4d1x4Kl`
-- **Amount**: $99.99/year ($9999 cents)
+- **Price ID**: `price_1SIuGNIqliEA9UotGD93WZdc`
+- **Amount**: $99.00/year
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Premium
-- **Savings**: $19.89/year (2 months free)
-- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $99.99/year
+- **Savings**: ~$20/year (2 months free)
 
 ### Household Premium Monthly
-- **Price ID**: `price_1SOSMNIWZQ4LZaTjUFica6uR`
-- **Amount**: $14.99/month ($1499 cents)
+- **Price ID**: `price_1SIuGPIqliEA9UotfLjoddkj`
+- **Amount**: $14.99/month
 - **Type**: Recurring (monthly)
 - **Product**: Meal Saver Household Premium
-- **✅ CORRECT**: This matches Pricing page
 
 ### Household Premium Yearly
-- **Price ID**: `price_1SOSMzIWZQ4LZaTjv77IRyqJ`
-- **Amount**: $149.99/year ($14999 cents)
+- **Price ID**: `price_1SIuGSIqliEA9UotuHlR3qoH`
+- **Amount**: $149.00/year
 - **Type**: Recurring (yearly)
 - **Product**: Meal Saver Household Premium
-- **Savings**: $29.89/year (2 months free)
-- **⚠️ ACTION REQUIRED**: Update this price ID in Stripe dashboard to charge $149.99/year
+- **Savings**: ~$31/year (2 months free)
 
 ---
 
-## Usage in Code
-
-Add these as environment variables or use directly in edge functions:
-
-```bash
-# .env.local (for reference only - use in edge functions)
-STRIPE_PRICE_PREMIUM_MONTHLY=price_1SOSNiIWZQ4LZaTjtxDaAhDe
-STRIPE_PRICE_PREMIUM_YEARLY=price_1SOSLDIWZQ4LZaTju4d1x4Kl
-STRIPE_PRICE_HOUSEHOLD_MONTHLY=price_1SOSMNIWZQ4LZaTjUFica6uR
-STRIPE_PRICE_HOUSEHOLD_YEARLY=price_1SOSMzIWZQ4LZaTjv77IRyqJ
-```
-
-## Price Mapping
+## Price Mapping (Copy-Paste Ready)
 
 ```javascript
 const PRICE_IDS = {
   premium: {
-    monthly: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe',
-    yearly: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl'
+    month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
+    year: 'price_1SIuGNIqliEA9UotGD93WZdc'
   },
   household_premium: {
-    monthly: 'price_1SOSMNIWZQ4LZaTjUFica6uR',
-    yearly: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ'
+    month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+    year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
   }
 }
 ```
 
 ---
 
-**Note**: These are TEST mode price IDs. When ready for production, create corresponding LIVE mode products/prices and update these IDs.
+## Usage in Code
+
+These price IDs are used in:
+- `src/pages/Profile/components/SubscriptionManagement.jsx`
+- `src/contexts/SubscriptionContext.jsx`
+
+---
+
+## Stripe Account Info
+
+**Mode**: Sandbox/Test  
+**Account Suffix**: `IqliEA9Uot`
+
+**Note**: When moving to production, you'll need to:
+1. Create products/prices in LIVE mode Stripe
+2. Update the `STRIPE_SECRET_KEY` in Supabase to use the live key
+3. Update these price IDs to the live mode versions

@@ -92,6 +92,19 @@ serve(async (req) => {
     }
 
     // Create or retrieve Stripe customer
+    if (customerId) {
+      // Verify the customer exists in Stripe
+      try {
+        await stripe.customers.retrieve(customerId)
+        console.log('Using existing Stripe customer:', customerId)
+      } catch (err) {
+        // Customer doesn't exist in Stripe (maybe from different account)
+        // Clear it and create a new one
+        console.log('Stripe customer not found, creating new one:', err.message)
+        customerId = null
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: email,
@@ -109,8 +122,6 @@ serve(async (req) => {
         .eq('id', userId)
 
       console.log('Created new Stripe customer:', customerId)
-    } else {
-      console.log('Using existing Stripe customer:', customerId)
     }
 
     // Create checkout session with metadata
@@ -148,8 +159,26 @@ serve(async (req) => {
       status: 200,
     })
   } catch (err) {
-    console.error('Error creating checkout session:', err)
-    return new Response(JSON.stringify({ error: err.message }), {
+    // Log detailed error info including Stripe-specific details
+    console.error('Error creating checkout session:', {
+      message: err.message,
+      type: err.type,
+      code: err.code,
+      statusCode: err.statusCode,
+      raw: err.raw || err,
+    })
+    
+    // Build detailed error message for debugging
+    let errorMessage = err.message || 'Unknown error'
+    if (err.type === 'StripeInvalidRequestError') {
+      errorMessage = `Stripe Error: ${err.message} (Code: ${err.code || 'N/A'})`
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      code: err.code || null,
+      type: err.type || null 
+    }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

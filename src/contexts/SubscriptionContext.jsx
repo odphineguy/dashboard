@@ -306,12 +306,12 @@ export const SubscriptionProvider = ({ children }) => {
     // Map tier to price ID
     const PRICE_IDS = {
       premium: {
-        month: 'price_1SOSNiIWZQ4LZaTjtxDaAhDe',
-        year: 'price_1SOSLDIWZQ4LZaTju4d1x4Kl',
+        month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
+        year: 'price_1SIuGNIqliEA9UotGD93WZdc',
       },
       household_premium: {
-        month: 'price_1SOSMNIWZQ4LZaTjUFica6uR',
-        year: 'price_1SOSMzIWZQ4LZaTjv77IRyqJ',
+        month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+        year: 'price_1SIuGSIqliEA9UotuHlR3qoH',
       },
     }
 
