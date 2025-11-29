@@ -325,9 +325,65 @@ export const SubscriptionProvider = ({ children }) => {
     })
   }
 
+  // Sync subscription from Stripe (fixes webhook failures)
+  const syncSubscriptionFromStripe = async () => {
+    if (!user?.id) return null
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      // Get Clerk token if available
+      const clerkToken = clerkUser && getToken ? await getToken().catch(() => null) : null
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/sync-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+          ...(clerkToken ? { 'x-clerk-token': clerkToken } : {}),
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          stripeCustomerId: subscription?.stripeCustomerId || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Sync subscription failed:', errorText)
+        return null
+      }
+
+      const data = await response.json()
+      console.log('Subscription sync result:', data)
+
+      if (data.synced) {
+        // Update local state with synced data
+        setSubscription(prev => ({
+          ...prev,
+          tier: data.tier,
+          status: data.status,
+        }))
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error syncing subscription:', error)
+      return null
+    }
+  }
+
   // Refresh subscription data (useful after payment completion)
   const refreshSubscription = async () => {
+    // First try to sync from Stripe to handle webhook failures
+    const syncResult = await syncSubscriptionFromStripe()
+    
+    // Then reload from database to get full data
     await loadSubscription()
+    
+    return syncResult
   }
 
   const value = {
@@ -342,6 +398,7 @@ export const SubscriptionProvider = ({ children }) => {
     cancelSubscription,
     upgradeSubscription,
     refreshSubscription,
+    syncSubscriptionFromStripe,
   }
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>

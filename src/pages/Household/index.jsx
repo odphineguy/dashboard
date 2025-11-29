@@ -71,7 +71,7 @@ const Household = () => {
             profiles (
               id,
               full_name,
-              avatar
+              avatar_url
             )
           `)
           .eq('household_id', currentHousehold.id)
@@ -81,7 +81,7 @@ const Household = () => {
         const membersList = data?.map(m => ({
           id: m.user_id,
           name: m.profiles?.full_name || 'Unknown User',
-          avatar: m.profiles?.avatar,
+          avatar: m.profiles?.avatar_url,
           role: m.role,
           joined_at: m.joined_at
         })) || []

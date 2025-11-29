@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ProfileHeader from './components/ProfileHeader'
 import PersonalGoals from './components/PersonalGoals'
 import AchievementSystem from './components/AchievementSystem'
@@ -8,14 +9,18 @@ import SubscriptionManagement from './components/SubscriptionManagement'
 import ClearDataButton from '../../components/ClearDataButton'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSupabase } from '../../hooks/useSupabase'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 import { getUserAchievementsByCategory } from '../../services/achievements'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
-import { Wrench } from 'lucide-react'
+import { Wrench, CheckCircle, XCircle } from 'lucide-react'
 
 const Profile = () => {
   const { user } = useAuth()
   const supabase = useSupabase()
+  const { syncSubscriptionFromStripe, refreshSubscription } = useSubscription()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
+  const [upgradeMessage, setUpgradeMessage] = useState(null)
 
   // User data state
   const [userData, setUserData] = useState({
@@ -71,6 +76,49 @@ const Profile = () => {
     }
   })
 
+  // Handle upgrade success/cancel from Stripe checkout
+  useEffect(() => {
+    const upgrade = searchParams.get('upgrade')
+
+    if (upgrade === 'success') {
+      setUpgradeMessage({
+        type: 'success',
+        message: 'Payment successful! Your subscription is being activated...'
+      })
+      // Auto-sync subscription from Stripe
+      syncSubscriptionFromStripe().then((result) => {
+        if (result?.synced) {
+          setUpgradeMessage({
+            type: 'success',
+            message: `Welcome to ${result.tier === 'premium' ? 'Premium' : 'Household Premium'}! Your subscription is now active.`
+          })
+          refreshSubscription()
+          // Reload user data to update subscription tier display
+          window.location.reload()
+        }
+      }).catch((error) => {
+        console.error('Error syncing subscription:', error)
+        setUpgradeMessage({
+          type: 'info',
+          message: 'Payment successful! If your subscription isn\'t showing, click the refresh button.'
+        })
+      })
+      setSearchParams({})
+    } else if (upgrade === 'canceled') {
+      setUpgradeMessage({
+        type: 'canceled',
+        message: 'Upgrade was canceled. You can upgrade anytime.'
+      })
+      setSearchParams({})
+    }
+
+    // Auto-dismiss message
+    if (upgradeMessage) {
+      const timer = setTimeout(() => setUpgradeMessage(null), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams, setSearchParams, syncSubscriptionFromStripe, refreshSubscription])
+
   // Load user data and achievements
   useEffect(() => {
     const loadUserData = async () => {
@@ -116,7 +164,7 @@ const Profile = () => {
         setUserData({
           name: profile?.full_name || user.email?.split('@')[0] || 'User',
           email: user.email || '',
-          avatar: profile?.avatar || null,
+          avatar: profile?.avatar_url || null,
           joinDate: profile?.created_at || new Date().toISOString(),
           subscriptionTier: profile?.subscription_tier || 'free',
           subscriptionStatus: profile?.subscription_status || 'active',
@@ -346,6 +394,24 @@ const Profile = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      {/* Upgrade Status Message */}
+      {upgradeMessage && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${
+          upgradeMessage.type === 'success' 
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+            : upgradeMessage.type === 'canceled'
+            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+        }`}>
+          {upgradeMessage.type === 'success' ? (
+            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <XCircle className="h-5 w-5 flex-shrink-0" />
+          )}
+          <span>{upgradeMessage.message}</span>
+        </div>
+      )}
+
       {/* Profile Header */}
       <ProfileHeader
         user={userData}

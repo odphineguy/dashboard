@@ -44,22 +44,49 @@ export const AuthProvider = ({ children }) => {
           import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
         )
 
-        const { error } = await supabase.from('profiles').upsert(
-          {
+        // First check if profile exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, subscription_tier, avatar_url')
+          .eq('id', clerkUser.id)
+          .single()
+
+        if (existingProfile) {
+          // Profile exists - only update email/name from Clerk, preserve subscription and custom avatar
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              email: clerkUser.primaryEmailAddress?.emailAddress,
+              full_name: clerkUser.fullName || clerkUser.firstName || 'User',
+              // Only update avatar if user doesn't have a custom one (custom avatars start with /avatars/)
+              ...(existingProfile.avatar_url?.startsWith('/avatars/') 
+                ? {} 
+                : { avatar_url: clerkUser.imageUrl || existingProfile.avatar_url }),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', clerkUser.id)
+
+          if (error) {
+            console.error('Profile update error:', error)
+          } else {
+            console.log('✅ Profile updated for user:', clerkUser.id, '- Tier preserved:', existingProfile.subscription_tier)
+          }
+        } else {
+          // New user - create profile with basic tier
+          const { error } = await supabase.from('profiles').insert({
             id: clerkUser.id,
             email: clerkUser.primaryEmailAddress?.emailAddress,
             full_name: clerkUser.fullName || clerkUser.firstName || 'User',
             avatar_url: clerkUser.imageUrl || null,
             subscription_tier: 'basic',
             subscription_status: 'active',
-          },
-          { onConflict: 'id' }
-        )
+          })
 
-        if (error) {
-          console.error('Profile sync error:', error)
-        } else {
-          console.log('✅ Profile synced for user:', clerkUser.id)
+          if (error) {
+            console.error('Profile create error:', error)
+          } else {
+            console.log('✅ New profile created for user:', clerkUser.id)
+          }
         }
       } catch (error) {
         console.error('Error ensuring profile:', error)

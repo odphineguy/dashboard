@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X } from 'lucide-react'
+import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X, RefreshCw } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { useSupabase } from '../../../hooks/useSupabase'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useSubscription } from '../../../contexts/SubscriptionContext'
 
 const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const supabase = useSupabase()
   const { user } = useAuth()
+  const { syncSubscriptionFromStripe, refreshSubscription } = useSubscription()
   const [subscription, setSubscription] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
   const [showPlanSelector, setShowPlanSelector] = useState(false)
 
   // Helper to check if tier is the basic (free) tier
@@ -211,6 +214,26 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     })
   }
 
+  // Sync subscription from Stripe (fix webhook failures)
+  const handleSyncSubscription = async () => {
+    try {
+      setSyncLoading(true)
+      const result = await syncSubscriptionFromStripe()
+      
+      if (result?.synced) {
+        // Reload page to show updated subscription
+        window.location.reload()
+      } else {
+        alert('Subscription synced. If you recently made a payment and still see Basic tier, please try again in a few seconds.')
+      }
+    } catch (error) {
+      console.error('Error syncing subscription:', error)
+      alert('Failed to sync subscription. Please try again.')
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -344,9 +367,22 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
             </ul>
           </div>
 
-          <Button onClick={handleUpgrade} className="w-full">
-            Upgrade to Premium
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleUpgrade} className="flex-1">
+              Upgrade to Premium
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleSyncSubscription}
+              disabled={syncLoading}
+              title="Sync subscription status from Stripe"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Recently upgraded? Click the sync button to refresh your subscription status.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -427,6 +463,14 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
               className="flex-1"
             >
               Change Plan
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleSyncSubscription}
+              disabled={syncLoading}
+              title="Sync subscription status from Stripe"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>

@@ -1,0 +1,19 @@
+# Supabase Edge Functions Configuration
+
+[functions.stripe-webhook]
+# Disable JWT verification for Stripe webhook - it uses its own signature verification
+verify_jwt = false
+
+[functions.sync-subscription]
+# Allow sync-subscription to be called by authenticated users (via anon key + clerk token)
+verify_jwt = false
+
+[functions.create-checkout-session]
+verify_jwt = false
+
+[functions.create-customer-portal-session]
+verify_jwt = false
+
+[functions.cancel-subscription]
+verify_jwt = false
+

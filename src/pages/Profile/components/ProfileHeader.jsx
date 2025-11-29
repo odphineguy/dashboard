@@ -96,7 +96,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
         result = await supabase
           .from('profiles')
           .update({
-            avatar: avatarValue,
+            avatar_url: avatarValue,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId)
@@ -107,7 +107,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
           .from('profiles')
           .insert({
             id: userId,
-            avatar: avatarValue,
+            avatar_url: avatarValue,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
