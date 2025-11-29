@@ -43,34 +43,36 @@ const StorageLocations = () => {
   }
 
   // Default storage locations with tier requirements
+  // location_type must match DB constraint: 'pantry', 'fridge', 'freezer', 'other'
   const defaultLocations = [
-    { name: 'Pantry', icon: '🥫', type: 'pantry', tier: 'basic' },
-    { name: 'Refrigerator', icon: '🧊', type: 'refrigerator', tier: 'basic' },
-    { name: 'Freezer', icon: '❄️', type: 'freezer', tier: 'basic' },
-    { name: 'Pantry 2', icon: '🥫', type: 'pantry', tier: 'premium' },
-    { name: 'Refrigerator 2', icon: '🧊', type: 'refrigerator', tier: 'premium' },
-    { name: 'Freezer 2', icon: '❄️', type: 'freezer', tier: 'premium' }
+    { name: 'Pantry', icon: '🥫', type: 'pantry', location_type: 'pantry', tier: 'basic' },
+    { name: 'Refrigerator', icon: '🧊', type: 'refrigerator', location_type: 'fridge', tier: 'basic' },
+    { name: 'Freezer', icon: '❄️', type: 'freezer', location_type: 'freezer', tier: 'basic' },
+    { name: 'Pantry 2', icon: '🥫', type: 'pantry', location_type: 'pantry', tier: 'premium' },
+    { name: 'Refrigerator 2', icon: '🧊', type: 'refrigerator', location_type: 'fridge', tier: 'premium' },
+    { name: 'Freezer 2', icon: '❄️', type: 'freezer', location_type: 'freezer', tier: 'premium' }
   ]
 
-  // Check if user can add more of a specific location type
-  const canAddLocation = (typeName) => {
-    const config = storageConfigByTier[subscriptionTier]
-    if (config.unlimited) return true
-
-    const typeKey = typeName.toLowerCase().split(' ')[0] // Get base type
-    const currentCount = locations.filter(loc =>
-      loc.name.toLowerCase().includes(typeKey)
-    ).length
-
-    return currentCount < (config[typeKey] || 0)
+  // Check if user already has a location with this name
+  const hasLocation = (locationName) => {
+    return locations.some(loc => 
+      loc.name.toLowerCase() === locationName.toLowerCase()
+    )
   }
 
-  // Check if a default location is locked
+  // Check if a default location should be locked (requires upgrade)
+  // A location is locked if:
+  // 1. It's a premium tier location and user is on basic
+  // 2. User is on basic and has reached their limit for this type
   const isLocationLocked = (location) => {
+    // Household premium users have no restrictions
     if (subscriptionTier === 'household_premium') return false
-    if (location.tier === 'basic') return !canAddLocation(location.type)
-    if (location.tier === 'premium' && subscriptionTier !== 'premium') return true
-    return !canAddLocation(location.type)
+    
+    // Premium tier locations (Pantry 2, Refrigerator 2, Freezer 2) require premium
+    if (location.tier === 'premium' && subscriptionTier === 'basic') return true
+    
+    // For basic tier locations, they're never locked (user can have 1 of each)
+    return false
   }
 
   // Check if user can add custom storage locations (Basic users reach limit at 3 total)
@@ -88,14 +90,19 @@ const StorageLocations = () => {
 
       try {
         setLoading(true)
+        
+        // Build query - get user's storage locations
+        // If in household mode, get household locations; if none exist, fall back to personal
         let query = supabase
           .from('storage_locations')
           .select('*')
           .eq('user_id', user.id)
 
         if (isPersonal) {
+          // Personal mode: only get locations without household_id
           query = query.is('household_id', null)
         } else if (currentHousehold?.id) {
+          // Household mode: get locations for this household
           query = query.eq('household_id', currentHousehold.id)
         }
 
@@ -103,7 +110,29 @@ const StorageLocations = () => {
 
         const { data, error } = await query
 
-        if (error) throw error
+        if (error) {
+          console.error('Supabase error loading locations:', error)
+          throw error
+        }
+        
+        // If in household mode but no household locations exist, 
+        // show personal locations instead (they can be migrated)
+        if (!isPersonal && currentHousehold?.id && (!data || data.length === 0)) {
+          const { data: personalData, error: personalError } = await supabase
+            .from('storage_locations')
+            .select('*')
+            .eq('user_id', user.id)
+            .is('household_id', null)
+            .order('name', { ascending: true })
+          
+          if (personalError) {
+            console.error('Error loading personal locations:', personalError)
+          } else {
+            setLocations(personalData || [])
+            return
+          }
+        }
+        
         setLocations(data || [])
       } catch (error) {
         console.error('Error loading storage locations:', error)
@@ -117,8 +146,11 @@ const StorageLocations = () => {
 
   const handleAddDefaultLocations = async () => {
     try {
-      const newLocations = defaultLocations.map(loc => ({
+      // Only add basic tier locations (3 default locations for basic users)
+      const basicLocations = defaultLocations.filter(loc => loc.tier === 'basic')
+      const newLocations = basicLocations.map(loc => ({
         name: loc.name,
+        location_type: loc.location_type,
         user_id: user.id,
         household_id: isPersonal ? null : currentHousehold?.id
       }))
@@ -133,7 +165,7 @@ const StorageLocations = () => {
       window.location.reload()
     } catch (error) {
       console.error('Error adding default locations:', error)
-      alert('Failed to add default locations')
+      alert('Failed to add default locations: ' + (error.message || 'Unknown error'))
     }
   }
 
@@ -273,16 +305,22 @@ const StorageLocations = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
+                        onClick={async () => {
                           // Add this specific location
-                          supabase
+                          const { error } = await supabase
                             .from('storage_locations')
                             .insert({
                               name: location.name,
+                              location_type: location.location_type,
                               user_id: user.id,
                               household_id: isPersonal ? null : currentHousehold?.id
                             })
-                            .then(() => window.location.reload())
+                          if (error) {
+                            console.error('Error adding location:', error)
+                            alert('Failed to add location: ' + (error.message || 'Unknown error'))
+                          } else {
+                            window.location.reload()
+                          }
                         }}
                       >
                         <Plus className="h-3 w-3 mr-1" />
@@ -350,7 +388,15 @@ const StorageLocations = () => {
 const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdId, onSuccess }) => {
   const supabase = useSupabase()
   const [name, setName] = useState(editingLocation?.name || '')
+  const [locationType, setLocationType] = useState(editingLocation?.location_type || 'other')
   const [loading, setLoading] = useState(false)
+
+  const locationTypes = [
+    { value: 'pantry', label: 'Pantry', icon: '🥫' },
+    { value: 'fridge', label: 'Refrigerator', icon: '🧊' },
+    { value: 'freezer', label: 'Freezer', icon: '❄️' },
+    { value: 'other', label: 'Other', icon: '📦' }
+  ]
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -362,7 +408,7 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
         // Update
         const { error } = await supabase
           .from('storage_locations')
-          .update({ name: name.trim() })
+          .update({ name: name.trim(), location_type: locationType })
           .eq('id', editingLocation.id)
 
         if (error) throw error
@@ -372,6 +418,7 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
           .from('storage_locations')
           .insert({
             name: name.trim(),
+            location_type: locationType,
             user_id: userId,
             household_id: householdId
           })
@@ -383,7 +430,7 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
       onClose()
     } catch (error) {
       console.error('Error saving location:', error)
-      alert('Failed to save location')
+      alert('Failed to save location: ' + (error.message || 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -404,11 +451,32 @@ const AddLocationModal = ({ isOpen, onClose, editingLocation, userId, householdI
             <Input
               id="location-name"
               type="text"
-              placeholder="e.g., Refrigerator, Freezer, Pantry"
+              placeholder="e.g., Kitchen Pantry, Garage Freezer"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location-type">Location Type</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {locationTypes.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setLocationType(type.value)}
+                  className={`p-3 rounded-lg border text-left flex items-center gap-2 transition-colors ${
+                    locationType === type.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className="font-medium">{type.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end">
