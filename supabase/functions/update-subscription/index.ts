@@ -33,7 +33,11 @@ serve(async (req) => {
   try {
     // Parse request body first to get userId if provided
     const body = await req.json()
-    const { cancelImmediately, userId: bodyUserId } = body
+    const { newPriceId, newPlanTier, userId: bodyUserId } = body
+
+    if (!newPriceId || !newPlanTier) {
+      throw new Error('Missing required parameters: newPriceId, newPlanTier')
+    }
 
     // Try to get user ID from multiple sources (in order of preference):
     let userId = bodyUserId
@@ -59,7 +63,7 @@ serve(async (req) => {
       throw new Error('Missing user ID. Please provide userId in request body or valid auth token.')
     }
 
-    console.log('User ID for cancel subscription:', userId)
+    console.log('User ID for subscription update:', userId)
 
     // Initialize Supabase admin client
     const supabaseAdmin = createClient(
@@ -70,7 +74,7 @@ serve(async (req) => {
     // Get user's active subscription
     const { data: subscription, error: subError } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_subscription_id, status')
+      .select('stripe_subscription_id, status, plan_tier')
       .eq('user_id', userId)
       .in('status', ['active', 'trialing', 'past_due'])
       .order('created_at', { ascending: false })
@@ -82,56 +86,65 @@ serve(async (req) => {
       throw new Error('No active subscription found')
     }
 
-    console.log('Canceling subscription:', subscription.stripe_subscription_id, 'immediately:', cancelImmediately)
+    console.log('Current subscription:', subscription.stripe_subscription_id, 'tier:', subscription.plan_tier)
+    console.log('Updating to:', newPlanTier, 'price:', newPriceId)
 
-    // Cancel the subscription in Stripe
-    let canceledSubscription
-    if (cancelImmediately) {
-      // Cancel immediately
-      canceledSubscription = await stripe.subscriptions.cancel(subscription.stripe_subscription_id)
-      
-      // Update profile to basic tier immediately
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          subscription_tier: 'basic',
-          subscription_status: 'canceled',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId)
-      
-      if (profileError) {
-        console.error('Error updating profile:', profileError)
-      }
-
-      // Update subscription record
-      const { error: subUpdateError } = await supabaseAdmin
-        .from('subscriptions')
-        .update({
-          status: 'canceled',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('stripe_subscription_id', subscription.stripe_subscription_id)
-      
-      if (subUpdateError) {
-        console.error('Error updating subscription record:', subUpdateError)
-      }
-    } else {
-      // Cancel at period end
-      canceledSubscription = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-        cancel_at_period_end: true,
-      })
+    // Get current subscription from Stripe to find the subscription item
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id)
+    
+    if (!stripeSubscription.items.data.length) {
+      throw new Error('No subscription items found')
     }
 
-    console.log('Subscription canceled:', canceledSubscription.id, canceledSubscription.status)
+    const subscriptionItemId = stripeSubscription.items.data[0].id
 
-    // Webhook will handle database updates for cancel_at_period_end
+    // Update the subscription to the new price
+    // proration_behavior: 'create_prorations' will credit the user for unused time
+    const updatedSubscription = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+      items: [{
+        id: subscriptionItemId,
+        price: newPriceId,
+      }],
+      proration_behavior: 'create_prorations',
+      metadata: {
+        plan_tier: newPlanTier,
+      }
+    })
+
+    console.log('Subscription updated:', updatedSubscription.id, 'status:', updatedSubscription.status)
+
+    // Update local database immediately (webhook will also update, but this gives instant feedback)
+    const { error: updateError } = await supabaseAdmin
+      .from('subscriptions')
+      .update({
+        plan_tier: newPlanTier,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_subscription_id', subscription.stripe_subscription_id)
+
+    if (updateError) {
+      console.error('Error updating local subscription:', updateError)
+      // Don't throw - Stripe update succeeded, webhook will sync
+    }
+
+    // Update profile subscription tier
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        subscription_tier: newPlanTier,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError)
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
-        canceledImmediately: cancelImmediately,
-        cancelAtPeriodEnd: canceledSubscription.cancel_at_period_end,
-        currentPeriodEnd: canceledSubscription.current_period_end,
+        newPlanTier,
+        message: `Successfully changed to ${newPlanTier} plan`,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -139,10 +152,11 @@ serve(async (req) => {
       }
     )
   } catch (err) {
-    console.error('Error canceling subscription:', err)
+    console.error('Error updating subscription:', err)
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
+

@@ -53,6 +53,27 @@ const AppSidebar = ({ onClose }) => {
     }
 
     loadProfile()
+
+    // Listen for profile updates from other components (e.g., Profile page avatar/name changes)
+    const handleProfileUpdate = (event) => {
+      const updates = {}
+      if (event.detail?.avatar_url !== undefined) {
+        updates.avatar_url = event.detail.avatar_url
+      }
+      if (event.detail?.full_name !== undefined) {
+        updates.full_name = event.detail.full_name
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        setProfile(prev => prev ? { ...prev, ...updates } : prev)
+      } else {
+        // Full refresh if no specific detail provided
+        loadProfile()
+      }
+    }
+
+    window.addEventListener('profile-updated', handleProfileUpdate)
+    return () => window.removeEventListener('profile-updated', handleProfileUpdate)
   }, [user?.id, supabase])
 
   const getInitials = () => {

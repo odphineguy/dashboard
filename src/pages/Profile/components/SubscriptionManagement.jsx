@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X, RefreshCw } from 'lucide-react'
+import { CreditCard, Crown, Users, CheckCircle, XCircle, Calendar, X, RefreshCw, AlertTriangle, ArrowRight, ArrowDown, Sparkles } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
@@ -16,6 +16,8 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const [actionLoading, setActionLoading] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
   const [showPlanSelector, setShowPlanSelector] = useState(false)
+  const [showChangePlanModal, setShowChangePlanModal] = useState(false)
+  const [changePlanLoading, setChangePlanLoading] = useState(null) // Track which action is loading
 
   // Helper to check if tier is the basic (free) tier
   const isBasicTier = (tier) => !tier || tier === 'basic'
@@ -141,8 +143,131 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     if (isBasicTier(userData?.subscriptionTier)) {
       setShowPlanSelector(true)
     } else {
-      // Paid users: use customer portal
-      handleManageSubscription()
+      // Paid users: show change plan modal with downgrade/cancel options
+      setShowChangePlanModal(true)
+    }
+  }
+
+  // Price IDs for plan changes
+  const PRICE_IDS = {
+    premium: {
+      month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
+      year: 'price_1SIuGNIqliEA9UotGD93WZdc'
+    },
+    household_premium: {
+      month: 'price_1SIuGPIqliEA9UotfLjoddkj',
+      year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
+    }
+  }
+
+  const handleDowngradeToPremium = async () => {
+    try {
+      setChangePlanLoading('premium')
+      
+      // Use the same billing interval as current subscription
+      const billingInterval = subscription?.billing_interval || 'month'
+      const newPriceId = PRICE_IDS.premium[billingInterval]
+      
+      const { data, error } = await supabase.functions.invoke('update-subscription', {
+        body: {
+          newPriceId,
+          newPlanTier: 'premium',
+          userId: user?.id || userData?.id
+        }
+      })
+
+      if (error) {
+        console.error('Error downgrading to premium:', error)
+        alert('Failed to change plan. Please try again or contact support.')
+        return
+      }
+
+      alert('Successfully changed to Premium plan! Your account has been updated.')
+      setShowChangePlanModal(false)
+      window.location.reload()
+    } catch (error) {
+      console.error('Error downgrading to premium:', error)
+      alert('Failed to change plan. Please try again.')
+    } finally {
+      setChangePlanLoading(null)
+    }
+  }
+
+  const handleUpgradeToHousehold = async () => {
+    try {
+      setChangePlanLoading('household')
+      
+      // Use the same billing interval as current subscription
+      const billingInterval = subscription?.billing_interval || 'month'
+      const newPriceId = PRICE_IDS.household_premium[billingInterval]
+      
+      const { data, error } = await supabase.functions.invoke('update-subscription', {
+        body: {
+          newPriceId,
+          newPlanTier: 'household_premium',
+          userId: user?.id || userData?.id
+        }
+      })
+
+      if (error) {
+        console.error('Error upgrading to household premium:', error)
+        alert('Failed to change plan. Please try again or contact support.')
+        return
+      }
+
+      alert('Successfully upgraded to Household Premium! Your account has been updated.')
+      setShowChangePlanModal(false)
+      window.location.reload()
+    } catch (error) {
+      console.error('Error upgrading to household premium:', error)
+      alert('Failed to change plan. Please try again.')
+    } finally {
+      setChangePlanLoading(null)
+    }
+  }
+
+  const handleCancelSubscription = async (cancelImmediately = false) => {
+    try {
+      setChangePlanLoading('cancel')
+      
+      const confirmMessage = cancelImmediately
+        ? 'Are you sure you want to cancel immediately? You will lose access to premium features right away.'
+        : 'Are you sure you want to cancel? You will keep access until your current billing period ends.'
+      
+      if (!confirm(confirmMessage)) {
+        setChangePlanLoading(null)
+        return
+      }
+
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { 
+          cancelImmediately,
+          userId: user?.id || userData?.id
+        }
+      })
+
+      if (error) {
+        console.error('Error canceling subscription:', error)
+        alert('Failed to cancel subscription. Please try again or contact support.')
+        return
+      }
+
+      if (cancelImmediately) {
+        alert('Your subscription has been canceled. You now have a Basic (Free) account.')
+      } else {
+        const endDate = data.currentPeriodEnd 
+          ? new Date(data.currentPeriodEnd * 1000).toLocaleDateString()
+          : 'the end of your billing period'
+        alert(`Your subscription will be canceled at ${endDate}. You will keep access until then.`)
+      }
+      
+      setShowChangePlanModal(false)
+      window.location.reload()
+    } catch (error) {
+      console.error('Error canceling subscription:', error)
+      alert('Failed to cancel subscription. Please try again.')
+    } finally {
+      setChangePlanLoading(null)
     }
   }
 
@@ -150,18 +275,6 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     try {
       setActionLoading(true)
       setShowPlanSelector(false)
-
-      // Official Stripe Price IDs from STRIPE_PRICE_IDS.md (Sandbox/Test Mode)
-      const PRICE_IDS = {
-        premium: {
-          month: 'price_1SKiIoIqliEA9Uot0fgA3c8M',
-          year: 'price_1SIuGNIqliEA9UotGD93WZdc'
-        },
-        household_premium: {
-          month: 'price_1SIuGPIqliEA9UotfLjoddkj',
-          year: 'price_1SIuGSIqliEA9UotuHlR3qoH'
-        }
-      }
 
       const priceId = PRICE_IDS[planTier][billingInterval]
 
@@ -247,6 +360,145 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
 
   return (
     <>
+      {/* Change Plan Modal */}
+      {showChangePlanModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold">Change Your Plan</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Current plan: <span className="font-semibold">{getTierDisplayName(userData?.subscriptionTier)}</span>
+                </p>
+              </div>
+              <button onClick={() => setShowChangePlanModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Upgrade option (only for Premium users) */}
+              {userData?.subscriptionTier === 'premium' && (
+                <Card className="p-4 border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                        <Users className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">Upgrade to Household Premium</h3>
+                        <Badge className="bg-purple-100 text-purple-800">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Recommended
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Unlimited household members, unlimited storage locations, family meal planning
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold">$14.99/month</span>
+                        <Button 
+                          onClick={handleUpgradeToHousehold}
+                          disabled={changePlanLoading !== null}
+                          size="sm"
+                        >
+                          {changePlanLoading === 'household' ? 'Upgrading...' : 'Upgrade'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Downgrade to Premium (only for Household Premium users) */}
+              {userData?.subscriptionTier === 'household_premium' && (
+                <Card className="p-4 border hover:border-yellow-300 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+                        <Crown className="h-6 w-6 text-yellow-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">Downgrade to Premium</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Keep unlimited items & AI scanner. Limited to 3 household members & 6 storage locations.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold">$9.99/month</span>
+                        <span className="text-sm text-green-600">Save $5/month</span>
+                        <Button 
+                          onClick={handleDowngradeToPremium}
+                          disabled={changePlanLoading !== null}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {changePlanLoading === 'premium' ? 'Changing...' : 'Downgrade'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Downgrade to Basic (Free) */}
+              <Card className="p-4 border hover:border-gray-300 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-gray-600" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1">Downgrade to Basic (Free)</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      50 items limit, 10 AI scans/month, 3 storage locations. Your data will be preserved.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-bold">$0/month</span>
+                      <Button 
+                        onClick={() => handleCancelSubscription(false)}
+                        disabled={changePlanLoading !== null}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {changePlanLoading === 'cancel' ? 'Processing...' : 'Cancel at Period End'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Info box */}
+              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">How plan changes work</h4>
+                <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
+                  <li>• <strong>Upgrades</strong> take effect immediately with prorated billing</li>
+                  <li>• <strong>Downgrades</strong> take effect at your next billing date</li>
+                  <li>• <strong>Cancellation</strong> keeps access until your current period ends</li>
+                  <li>• Your data is always preserved - nothing is deleted</li>
+                </ul>
+              </div>
+
+              {/* Manage payment method */}
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-sm text-muted-foreground">Need to update payment method?</span>
+                <Button 
+                  variant="link" 
+                  onClick={handleManageSubscription}
+                  disabled={actionLoading}
+                  className="text-sm"
+                >
+                  Manage in Stripe →
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Plan Selector Modal */}
       {showPlanSelector && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

@@ -337,6 +337,61 @@ const StorageLocations = () => {
             </div>
           </div>
 
+          {/* Custom Storage Locations (not matching default names) */}
+          {locations.filter(loc => 
+            !defaultLocations.some(def => def.name.toLowerCase() === loc.name.toLowerCase())
+          ).length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Custom Locations</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {locations.filter(loc => 
+                  !defaultLocations.some(def => def.name.toLowerCase() === loc.name.toLowerCase())
+                ).map((location) => {
+                  const typeInfo = {
+                    pantry: { icon: '🥫', label: 'Pantry' },
+                    fridge: { icon: '🧊', label: 'Refrigerator' },
+                    freezer: { icon: '❄️', label: 'Freezer' },
+                    other: { icon: '📦', label: 'Other' }
+                  }[location.location_type] || { icon: '📦', label: 'Other' }
+
+                  return (
+                    <Card key={location.id} className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-2xl">{typeInfo.icon}</span>
+                            <h3 className="text-lg font-semibold">{location.name}</h3>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{typeInfo.label}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingLocation(location)
+                              setIsAddModalOpen(true)
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteLocation(location.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Locked Storage Locations */}
           {defaultLocations.filter(loc => isLocationLocked(loc)).length > 0 && (
             <div>

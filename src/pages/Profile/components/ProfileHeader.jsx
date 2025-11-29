@@ -58,6 +58,10 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
 
       onUpdateProfile(editData)
       setIsEditing(false)
+      
+      // Dispatch custom event to notify other components (like sidebar) of the profile update
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { full_name: editData.name } }))
+      
       alert('Profile saved successfully!')
     } catch (error) {
       console.error('Error saving profile:', error)
@@ -117,6 +121,10 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
       if (result.error) throw result.error
 
       onUpdateProfile({ avatar: avatarValue })
+      
+      // Dispatch custom event to notify other components (like sidebar) of the profile update
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: { avatar_url: avatarValue } }))
+      
       alert('Avatar saved successfully!')
     } catch (error) {
       console.error('Error saving avatar:', error)
