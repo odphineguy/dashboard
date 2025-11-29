@@ -5,9 +5,12 @@ import AchievementSystem from './components/AchievementSystem'
 import NotificationPreferences from './components/NotificationPreferences'
 import AccountSettings from './components/AccountSettings'
 import SubscriptionManagement from './components/SubscriptionManagement'
+import ClearDataButton from '../../components/ClearDataButton'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSupabase } from '../../hooks/useSupabase'
 import { getUserAchievementsByCategory } from '../../services/achievements'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
+import { Wrench } from 'lucide-react'
 
 const Profile = () => {
   const { user } = useAuth()
@@ -379,6 +382,22 @@ const Profile = () => {
         onDataExport={handleDataExport}
         onAccountDelete={handleAccountDelete}
       />
+
+      {/* Dev Tools - REMOVE AFTER TESTING */}
+      <Card className="border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+            <Wrench className="h-5 w-5" />
+            Developer Tools
+          </CardTitle>
+          <CardDescription className="text-yellow-600 dark:text-yellow-500">
+            Testing utilities - Remove before production
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ClearDataButton />
+        </CardContent>
+      </Card>
     </div>
   )
 }
