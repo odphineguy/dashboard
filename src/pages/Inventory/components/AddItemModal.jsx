@@ -29,20 +29,46 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
       if (!user?.id) return
 
       try {
-        let query = supabase
-          .from('storage_locations')
-          .select('*')
-          .eq('user_id', user.id)
+        let data = []
+        let error = null
 
         if (isPersonal) {
-          query = query.is('household_id', null)
+          // Personal mode: get user's personal locations (no household)
+          const result = await supabase
+            .from('storage_locations')
+            .select('*')
+            .eq('user_id', user.id)
+            .is('household_id', null)
+            .order('name', { ascending: true })
+          
+          data = result.data
+          error = result.error
         } else if (currentHousehold?.id) {
-          query = query.eq('household_id', currentHousehold.id)
+          // Household mode: get ALL locations for this household (any user)
+          const result = await supabase
+            .from('storage_locations')
+            .select('*')
+            .eq('household_id', currentHousehold.id)
+            .order('name', { ascending: true })
+          
+          data = result.data
+          error = result.error
+          
+          // If no household locations exist, fall back to user's personal locations
+          if (!error && (!data || data.length === 0)) {
+            const personalResult = await supabase
+              .from('storage_locations')
+              .select('*')
+              .eq('user_id', user.id)
+              .is('household_id', null)
+              .order('name', { ascending: true })
+            
+            if (!personalResult.error && personalResult.data) {
+              setStorageLocations(personalResult.data)
+              return
+            }
+          }
         }
-
-        query = query.order('name', { ascending: true })
-
-        const { data, error } = await query
 
         if (error) throw error
         setStorageLocations(data || [])
@@ -54,7 +80,7 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
     if (isOpen) {
       loadStorageLocations()
     }
-  }, [isOpen, user?.id, isPersonal, currentHousehold?.id])
+  }, [isOpen, user?.id, isPersonal, currentHousehold?.id, supabase])
 
   useEffect(() => {
     if (isOpen) {
@@ -238,7 +264,7 @@ const AddItemModal = ({ isOpen, onClose, onAddItem, editingItem = null }) => {
                 <span className="text-sm text-muted-foreground flex-1">
                   No storage locations yet.
                 </span>
-                <NavLink to="/storage" className="text-sm text-primary hover:underline">
+                <NavLink to="/storage-locations" className="text-sm text-primary hover:underline">
                   Add one
                 </NavLink>
               </div>

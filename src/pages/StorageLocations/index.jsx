@@ -90,47 +90,51 @@ const StorageLocations = () => {
 
       try {
         setLoading(true)
-        
-        // Build query - get user's storage locations
-        // If in household mode, get household locations; if none exist, fall back to personal
-        let query = supabase
-          .from('storage_locations')
-          .select('*')
-          .eq('user_id', user.id)
+        let data = []
+        let error = null
 
         if (isPersonal) {
-          // Personal mode: only get locations without household_id
-          query = query.is('household_id', null)
-        } else if (currentHousehold?.id) {
-          // Household mode: get locations for this household
-          query = query.eq('household_id', currentHousehold.id)
-        }
-
-        query = query.order('name', { ascending: true })
-
-        const { data, error } = await query
-
-        if (error) {
-          console.error('Supabase error loading locations:', error)
-          throw error
-        }
-        
-        // If in household mode but no household locations exist, 
-        // show personal locations instead (they can be migrated)
-        if (!isPersonal && currentHousehold?.id && (!data || data.length === 0)) {
-          const { data: personalData, error: personalError } = await supabase
+          // Personal mode: get user's personal locations (no household)
+          const result = await supabase
             .from('storage_locations')
             .select('*')
             .eq('user_id', user.id)
             .is('household_id', null)
             .order('name', { ascending: true })
           
-          if (personalError) {
-            console.error('Error loading personal locations:', personalError)
-          } else {
-            setLocations(personalData || [])
-            return
+          data = result.data
+          error = result.error
+        } else if (currentHousehold?.id) {
+          // Household mode: get ALL locations for this household (any user)
+          const result = await supabase
+            .from('storage_locations')
+            .select('*')
+            .eq('household_id', currentHousehold.id)
+            .order('name', { ascending: true })
+          
+          data = result.data
+          error = result.error
+          
+          // If no household locations exist, fall back to user's personal locations
+          if (!error && (!data || data.length === 0)) {
+            const personalResult = await supabase
+              .from('storage_locations')
+              .select('*')
+              .eq('user_id', user.id)
+              .is('household_id', null)
+              .order('name', { ascending: true })
+            
+            if (!personalResult.error && personalResult.data) {
+              setLocations(personalResult.data)
+              setLoading(false)
+              return
+            }
           }
+        }
+
+        if (error) {
+          console.error('Supabase error loading locations:', error)
+          throw error
         }
         
         setLocations(data || [])
