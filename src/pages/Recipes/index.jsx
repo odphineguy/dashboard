@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useHousehold } from '../../contexts/HouseholdContext'
 import { useSupabase } from '../../hooks/useSupabase'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { ChefHat, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import ViewSwitcher from '../../components/ViewSwitcher'
 
 const Recipes = () => {
   const { user } = useAuth()
+  const { currentHousehold, isPersonal } = useHousehold()
   const supabase = useSupabase()
   const [expiringItems, setExpiringItems] = useState([])
   const [recipes, setRecipes] = useState([])
@@ -17,25 +20,36 @@ const Recipes = () => {
 
   useEffect(() => {
     loadExpiringItems()
-  }, [user?.id])
+  }, [user?.id, isPersonal, currentHousehold?.id])
 
   const loadExpiringItems = async () => {
     if (!user?.id) return
 
     try {
-      const threeDaysFromNow = new Date()
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
+      const sevenDaysFromNow = new Date()
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('pantry_items')
         .select('*')
         .eq('user_id', user.id)
-        .is('household_id', null)
-        .lte('expiry_date', threeDaysFromNow.toISOString().split('T')[0])
+
+      // Filter by household mode
+      if (isPersonal) {
+        query = query.is('household_id', null)
+      } else if (currentHousehold?.id) {
+        query = query.eq('household_id', currentHousehold.id)
+      }
+
+      query = query
+        .not('expiry_date', 'is', null)
+        .lte('expiry_date', sevenDaysFromNow.toISOString().split('T')[0])
         .gte('expiry_date', today.toISOString().split('T')[0])
         .order('expiry_date', { ascending: true })
+
+      const { data, error } = await query
 
       if (error) throw error
       setExpiringItems(data || [])
@@ -102,43 +116,50 @@ Return ONLY valid JSON (no markdown, no code blocks):
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Recipes</h1>
-          <p className="text-muted-foreground">AI-powered recipe suggestions based on expiring ingredients</p>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ChefHat className="h-7 w-7" />
+            Recipe Suggestions
+          </h1>
+          <p className="text-muted-foreground mt-1">AI-powered recipes using your expiring ingredients</p>
         </div>
-        <Button onClick={generateRecipes} disabled={generating || expiringItems.length === 0}>
-          {generating ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate Recipes
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-3">
+          <ViewSwitcher />
+          <Button onClick={generateRecipes} disabled={generating || expiringItems.length === 0}>
+            {generating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Recipes
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Expiring Items Info */}
       {expiringItems.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">
-              Found <span className="font-semibold text-foreground">{expiringItems.length}</span> items expiring in the next 3 days
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {expiringItems.slice(0, 10).map((item) => (
-                <span key={item.id} className="text-xs bg-muted px-2 py-1 rounded">
-                  {item.name}
-                </span>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 rounded-lg p-4">
+          <h3 className="font-semibold text-foreground mb-2">
+            Ingredients expiring in the next 7 days ({expiringItems.length} items):
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {expiringItems.map((item) => (
+              <span
+                key={item.id}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+              >
+                {item.name}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Recipes */}
@@ -146,11 +167,19 @@ Return ONLY valid JSON (no markdown, no code blocks):
         <Card>
           <CardContent className="p-12 text-center">
             <ChefHat className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              {expiringItems.length === 0 ? 'No Expiring Ingredients' : 'Ready to Cook?'}
+            </h3>
             <p className="text-muted-foreground mb-4">
               {expiringItems.length === 0
-                ? 'Add items with expiry dates to get recipe suggestions!'
-                : 'Click "Generate Recipes" to get AI-powered recipe suggestions based on your expiring ingredients.'}
+                ? 'Add items with expiry dates to your inventory to get personalized recipe suggestions.'
+                : 'Click "Generate Recipes" to get AI-powered suggestions using your expiring ingredients.'}
             </p>
+            {expiringItems.length === 0 && (
+              <Button variant="outline" onClick={() => window.location.href = '/inventory'}>
+                Go to Inventory
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

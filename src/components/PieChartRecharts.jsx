@@ -1,50 +1,94 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
-import { TrendingUp } from 'lucide-react'
+import { Package } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from './ui/chart'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart'
 
-const PieChart = () => {
-  const data = [
-    { name: 'Chrome', value: 45, color: '#3b82f6' },
-    { name: 'Safari', value: 25, color: '#10b981' },
-    { name: 'Firefox', value: 15, color: '#f59e0b' },
-    { name: 'Edge', value: 10, color: '#ef4444' },
-    { name: 'Other', value: 5, color: '#8b5cf6' }
-  ]
+const CATEGORY_COLORS = {
+  fruits: '#22c55e',
+  vegetables: '#84cc16',
+  dairy: '#3b82f6',
+  meat: '#ef4444',
+  pantry: '#f59e0b',
+  beverages: '#06b6d4',
+  snacks: '#8b5cf6',
+  frozen: '#0ea5e9',
+  bakery: '#f97316',
+  condiments: '#ec4899',
+  other: '#6b7280'
+}
 
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-  const centerValue = '1,125'
-  const centerLabel = 'Visitors'
+const CATEGORY_LABELS = {
+  fruits: 'Fruits',
+  vegetables: 'Vegetables',
+  dairy: 'Dairy',
+  meat: 'Meat & Fish',
+  pantry: 'Pantry Items',
+  beverages: 'Beverages',
+  snacks: 'Snacks',
+  frozen: 'Frozen Foods',
+  bakery: 'Bakery',
+  condiments: 'Condiments',
+  other: 'Other'
+}
 
-  const chartConfig = {
-    Chrome: {
-      label: "Chrome",
-      color: "#3b82f6",
-    },
-    Safari: {
-      label: "Safari", 
-      color: "#10b981",
-    },
-    Firefox: {
-      label: "Firefox",
-      color: "#f59e0b",
-    },
-    Edge: {
-      label: "Edge",
-      color: "#ef4444",
-    },
-    Other: {
-      label: "Other",
-      color: "#8b5cf6",
-    },
+const PieChartRecharts = ({ data }) => {
+  const chartData = useMemo(() => {
+    if (!data?.pantryItems || data.pantryItems.length === 0) return []
+
+    // Count items by category
+    const categoryCounts = {}
+    data.pantryItems.forEach(item => {
+      const category = item.category?.toLowerCase() || 'other'
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1
+    })
+
+    // Convert to chart format
+    return Object.entries(categoryCounts)
+      .map(([category, count]) => ({
+        name: CATEGORY_LABELS[category] || category,
+        value: count,
+        color: CATEGORY_COLORS[category] || CATEGORY_COLORS.other
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [data])
+
+  const totalItems = chartData.reduce((sum, item) => sum + item.value, 0)
+
+  const chartConfig = useMemo(() => {
+    const config = {}
+    chartData.forEach(item => {
+      config[item.name] = {
+        label: item.name,
+        color: item.color
+      }
+    })
+    return config
+  }, [chartData])
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Items by Category</CardTitle>
+          <CardDescription>Distribution of pantry items</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Package className="h-12 w-12 mb-4 opacity-50" />
+            <p>No items in inventory yet</p>
+            <p className="text-sm">Add items to see category breakdown</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Browser Usage</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Items by Category</CardTitle>
+        <CardDescription>Distribution of {totalItems} pantry items</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-center mb-6">
@@ -55,7 +99,7 @@ const PieChart = () => {
             >
               <RechartsPieChart width={200} height={200}>
                 <Pie
-                  data={data}
+                  data={chartData}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -65,7 +109,7 @@ const PieChart = () => {
                   paddingAngle={2}
                   strokeWidth={0}
                 >
-                  {data.map((entry, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -74,7 +118,7 @@ const PieChart = () => {
                     <ChartTooltipContent
                       hideLabel
                       formatter={(value, name) => [
-                        `${value}%`,
+                        `${value} items`,
                         name
                       ]}
                     />
@@ -85,29 +129,28 @@ const PieChart = () => {
             
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-2xl font-bold text-foreground">{centerValue}</div>
-              <div className="text-sm text-muted-foreground">{centerLabel}</div>
+              <div className="text-2xl font-bold text-foreground">{totalItems}</div>
+              <div className="text-sm text-muted-foreground">Items</div>
             </div>
           </div>
         </div>
 
-        <ChartLegend
-          content={<ChartLegendContent nameKey="name" />}
-        />
-
-        {/* Bottom description */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
-            Trending up by 5.2% this month
-            <TrendingUp className="h-4 w-4 text-chart-1" />
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Showing total visitors for the last 6 months
-          </div>
+        {/* Legend */}
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          {chartData.slice(0, 6).map((item, index) => (
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <div 
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="text-muted-foreground truncate">{item.name}</span>
+              <span className="text-foreground font-medium ml-auto">{item.value}</span>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
   )
 }
 
-export default PieChart
+export default PieChartRecharts
