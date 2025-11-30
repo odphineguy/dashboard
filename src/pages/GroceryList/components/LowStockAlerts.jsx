@@ -29,15 +29,27 @@ const LowStockAlerts = ({ onAddToGroceryList }) => {
         .is('household_id', null)
         .or('is_low_stock_marked.eq.true,quantity.lte.1')
         .order('quantity', { ascending: true })
-        .limit(10)
+        .limit(20) // Get more to account for filtering
 
       if (error) throw error
 
-      // Filter to only show items that are actually low stock
+      // Get items already on the grocery list
+      const { data: groceryItems } = await supabase
+        .from('grocery_list_items')
+        .select('name')
+        .eq('user_id', user.id)
+
+      const groceryNames = new Set(
+        (groceryItems || []).map(item => item.name.toLowerCase())
+      )
+
+      // Filter to only show items that are actually low stock AND not on grocery list
       const filtered = data?.filter(item => {
         const threshold = item.low_stock_threshold || 1
-        return item.is_low_stock_marked || item.quantity <= threshold
-      }) || []
+        const isLowStock = item.is_low_stock_marked || item.quantity <= threshold
+        const isOnGroceryList = groceryNames.has(item.name.toLowerCase())
+        return isLowStock && !isOnGroceryList
+      }).slice(0, 10) || []
 
       setLowStockItems(filtered)
     } catch (error) {
@@ -55,6 +67,10 @@ const LowStockAlerts = ({ onAddToGroceryList }) => {
     setAddingItemId(item.id)
     try {
       await onAddToGroceryList(item)
+      // Remove from local state immediately after adding
+      setLowStockItems(prev => prev.filter(i => i.id !== item.id))
+    } catch (error) {
+      // Item stays visible if there was an error
     } finally {
       setAddingItemId(null)
     }
