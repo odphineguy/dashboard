@@ -112,6 +112,7 @@ const Header = ({ onMenuClick }) => {
           <NotificationsDropdown
             isOpen={isNotificationsOpen}
             onClose={() => setIsNotificationsOpen(false)}
+            onMarkAllRead={() => setUnreadCount(0)}
           />
         </div>
 

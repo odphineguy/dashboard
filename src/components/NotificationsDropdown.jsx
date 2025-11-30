@@ -6,7 +6,7 @@ import { useHousehold } from '../contexts/HouseholdContext'
 import { useSupabase } from '../hooks/useSupabase'
 import { formatDistanceToNow } from 'date-fns'
 
-const NotificationsDropdown = ({ isOpen, onClose }) => {
+const NotificationsDropdown = ({ isOpen, onClose, onMarkAllRead }) => {
   const supabase = useSupabase()
   const { user } = useAuth()
   const { currentHousehold, isPersonal } = useHousehold()
@@ -125,6 +125,10 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
 
   const markAllAsRead = () => {
     setUnreadCount(0)
+    // Also update the Header's badge count
+    if (onMarkAllRead) {
+      onMarkAllRead()
+    }
   }
 
   const addToGroceryList = async (itemName, notificationId) => {
