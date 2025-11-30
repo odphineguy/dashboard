@@ -248,12 +248,6 @@ export default function Login() {
               : "Don't have an account? Sign up"}
           </button>
         </div>
-
-        <div className="mt-6 pt-6 border-t border-border">
-          <p className="text-xs text-muted-foreground text-center">
-            Quick Test: Use any email and password (min 6 chars) to create an account
-          </p>
-        </div>
       </Card>
     </div>
   )
