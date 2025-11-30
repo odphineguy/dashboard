@@ -147,7 +147,7 @@ async function calculateActivityStreaks(userId, supabase) {
 const DEFAULT_BADGE_CATALOG = [
   // Waste Reduction Badges
   { key: 'waste-warrior', title: 'Waste Warrior', description: 'Consume 50 items before they expire', tier: 'bronze', rule_value: 50, unit: 'items' },
-  { key: 'eco-champion', title: 'Eco Champion', description: 'Maintain 50% waste reduction for 3 consecutive weeks', tier: 'silver', rule_value: 50, unit: '%' },
+  { key: 'eco-champion', title: 'Eco Champion', description: 'Maintain 50% waste reduction for 3 consecutive weeks', tier: 'silver', rule_value: 3, unit: 'weeks' },
   { key: 'zero-waste', title: 'Zero Waste Hero', description: 'Achieve a week with zero food waste', tier: 'gold', rule_value: 1, unit: 'week' },
   { key: 'sustainability-champion', title: 'Sustainability Champion', description: 'Save 100kg CO2 through waste reduction', tier: 'silver', rule_value: 100, unit: 'kg' },
   { key: 'food-saver-pro', title: 'Food Saver Pro', description: 'Prevent 500 items from going to waste', tier: 'gold', rule_value: 500, unit: 'items' },
@@ -162,7 +162,7 @@ const DEFAULT_BADGE_CATALOG = [
   { key: 'month-streak', title: 'Month Streak', description: 'Log in for 30 consecutive days', tier: 'silver', rule_value: 30, unit: 'days' },
   { key: 'year-streak', title: 'Year Streak', description: 'Log in for 365 consecutive days', tier: 'gold', rule_value: 365, unit: 'days' },
   { key: 'early-adopter', title: 'Early Adopter', description: 'Use the app for 30 days', tier: 'bronze', rule_value: 30, unit: 'days' },
-  { key: 'inventory-master', title: 'Inventory Master', description: 'Maintain 95% inventory accuracy for 30 days', tier: 'silver', rule_value: 95, unit: '%' },
+  { key: 'inventory-master', title: 'Inventory Master', description: 'Maintain 95% inventory accuracy for 30 days', tier: 'silver', rule_value: 30, unit: 'days' },
   { key: 'money-saver', title: 'Money Saver', description: 'Save $200 through waste reduction', tier: 'silver', rule_value: 200, unit: '$' },
   { key: 'perfect-week', title: 'Perfect Week', description: 'Complete 7 consecutive days with perfect inventory management', tier: 'gold', rule_value: 7, unit: 'days' }
 ]
@@ -260,7 +260,8 @@ export async function getUserAchievementProgress(userId, supabase) {
       achievements.push({
         key: achievement.key,
         title: achievement.title || achievement.key,
-        description: achievement.description || requirement?.description || '',
+        // Prioritize requirement description to ensure it's always up-to-date
+        description: requirement?.description || achievement.description || '',
         tier: achievement.tier || 'bronze',
         earned: userProgress ? Boolean(userProgress.unlocked_at) : false,
         earnedDate: userProgress?.unlocked_at 

@@ -15,8 +15,8 @@ const BADGE_REQUIREMENTS = {
     description: 'Consume 50 items before they expire'
   },
   'eco-champion': {
-    type: 'waste_reduction_percentage',
-    requirement: 50,
+    type: 'consecutive_weeks_waste_reduction',
+    requirement: 3, // 3 consecutive weeks
     description: 'Maintain 50% waste reduction for 3 consecutive weeks'
   },
   'zero-waste': {
@@ -74,8 +74,8 @@ const BADGE_REQUIREMENTS = {
     description: 'Use the app for 30 days'
   },
   'inventory-master': {
-    type: 'inventory_accuracy',
-    requirement: 95,
+    type: 'consecutive_days_inventory_accuracy',
+    requirement: 30, // 30 consecutive days
     description: 'Maintain 95% inventory accuracy for 30 days'
   },
   'money-saver': {
@@ -109,7 +109,7 @@ async function getConsumedItemsCount(userId, supabase) {
 }
 
 /**
- * Calculate waste reduction percentage
+ * Calculate waste reduction percentage (overall)
  */
 async function getWasteReductionPercentage(userId, supabase) {
   const { data, error } = await supabase
@@ -127,6 +127,96 @@ async function getWasteReductionPercentage(userId, supabase) {
   const total = consumed + wasted
 
   return total > 0 ? Math.round((consumed / total) * 100) : 0
+}
+
+/**
+ * Calculate consecutive weeks with 50%+ waste reduction
+ * Returns the number of consecutive weeks (up to requirement) where waste reduction >= 50%
+ */
+async function getConsecutiveWeeksWasteReduction(userId, supabase) {
+  try {
+    // Get all pantry events
+    const { data: events, error } = await supabase
+      .from('pantry_events')
+      .select('type, created_at, at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error || !events || events.length === 0) {
+      return 0
+    }
+
+    // Group events by week (Sunday to Saturday)
+    const eventsByWeek = new Map()
+    
+    events.forEach(event => {
+      const eventDate = new Date(event.at || event.created_at)
+      // Get the start of the week (Sunday)
+      const weekStart = new Date(eventDate)
+      const dayOfWeek = eventDate.getDay()
+      weekStart.setDate(eventDate.getDate() - dayOfWeek)
+      weekStart.setHours(0, 0, 0, 0)
+      
+      const weekKey = weekStart.toISOString().split('T')[0]
+      
+      if (!eventsByWeek.has(weekKey)) {
+        eventsByWeek.set(weekKey, { consumed: 0, wasted: 0 })
+      }
+      
+      const week = eventsByWeek.get(weekKey)
+      if (event.type === 'consumed') {
+        week.consumed++
+      } else if (event.type === 'wasted') {
+        week.wasted++
+      }
+    })
+
+    // Calculate waste reduction percentage for each week
+    const weeks = Array.from(eventsByWeek.entries())
+      .map(([weekKey, data]) => {
+        const total = data.consumed + data.wasted
+        const percentage = total > 0 ? (data.consumed / total) * 100 : 0
+        return {
+          weekKey,
+          percentage,
+          date: new Date(weekKey)
+        }
+      })
+      .sort((a, b) => b.date - a.date) // Most recent first
+
+    // Count consecutive weeks from most recent week with activity backwards
+    // Start from the most recent week that has events
+    if (weeks.length === 0) {
+      return 0
+    }
+
+    let consecutiveWeeks = 0
+    const mostRecentWeek = weeks[0] // Already sorted most recent first
+    
+    // Start checking from the most recent week backwards
+    const startWeekDate = new Date(mostRecentWeek.date)
+    
+    for (let i = 0; i < 52; i++) { // Check up to 1 year
+      const weekStart = new Date(startWeekDate)
+      weekStart.setDate(startWeekDate.getDate() - (i * 7))
+      weekStart.setHours(0, 0, 0, 0)
+      const weekKey = weekStart.toISOString().split('T')[0]
+      
+      const week = weeks.find(w => w.weekKey === weekKey)
+      
+      if (week && week.percentage >= 50) {
+        consecutiveWeeks++
+      } else {
+        // If week doesn't exist or percentage < 50, streak is broken
+        break
+      }
+    }
+
+    return consecutiveWeeks
+  } catch (error) {
+    console.error('Error calculating consecutive weeks waste reduction:', error)
+    return 0
+  }
 }
 
 /**
@@ -244,13 +334,64 @@ async function getRecipesTried(userId, supabase) {
 }
 
 /**
- * Calculate login streak
+ * Calculate login streak based on activity (pantry events)
+ * Uses consecutive days with any pantry activity as a proxy for login streak
  */
 async function getLoginStreak(userId, supabase) {
-  // This would require a login_history table
-  // For now, return 0 as placeholder
-  // TODO: Implement login tracking
-  return 0
+  try {
+    // Get all pantry events to determine activity
+    const { data: events, error } = await supabase
+      .from('pantry_events')
+      .select('created_at, at')
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error fetching events for login streak:', error)
+      return 0
+    }
+
+    if (!events || events.length === 0) {
+      return 0
+    }
+
+    // Get unique dates with activity
+    const activityDates = new Set()
+    events.forEach(event => {
+      const eventDate = event.at || event.created_at
+      if (eventDate) {
+        const date = new Date(eventDate).toISOString().split('T')[0]
+        activityDates.add(date)
+      }
+    })
+
+    if (activityDates.size === 0) {
+      return 0
+    }
+
+    // Calculate consecutive days from today backwards
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString().split('T')[0]
+    
+    let streak = 0
+    let checkDate = new Date(today)
+    
+    for (let i = 0; i < 365; i++) { // Max 1 year streak
+      const dateStr = checkDate.toISOString().split('T')[0]
+      
+      if (activityDates.has(dateStr)) {
+        streak++
+        checkDate.setDate(checkDate.getDate() - 1)
+      } else {
+        break
+      }
+    }
+
+    return streak
+  } catch (error) {
+    console.error('Error calculating login streak:', error)
+    return 0
+  }
 }
 
 /**
@@ -277,6 +418,122 @@ async function getDaysSinceSignup(userId, supabase) {
 }
 
 /**
+ * Calculate CO2 saved (in kg) through waste reduction
+ * Estimate: ~2.5kg CO2 per kg of food saved from waste
+ * Using consumed items as proxy (items consumed = items saved from waste)
+ */
+async function getCO2Saved(userId, supabase) {
+  try {
+    const consumedCount = await getConsumedItemsCount(userId, supabase)
+    // Rough estimate: average item weighs ~0.4kg, 2.5kg CO2 per kg saved
+    const estimatedCO2 = Math.round(consumedCount * 0.4 * 2.5)
+    return estimatedCO2
+  } catch (error) {
+    console.error('Error calculating CO2 saved:', error)
+    return 0
+  }
+}
+
+/**
+ * Calculate money saved (in dollars) through waste reduction
+ * Estimate: ~$2 per item saved from waste
+ */
+async function getMoneySaved(userId, supabase) {
+  try {
+    const consumedCount = await getConsumedItemsCount(userId, supabase)
+    // Rough estimate: $2 per item saved
+    const estimatedSavings = Math.round(consumedCount * 2)
+    return estimatedSavings
+  } catch (error) {
+    console.error('Error calculating money saved:', error)
+    return 0
+  }
+}
+
+/**
+ * Calculate consecutive days with 95%+ inventory accuracy
+ * Accuracy = (items consumed) / (items consumed + items wasted) >= 95%
+ * Returns the number of consecutive days (up to requirement) where accuracy >= 95%
+ */
+async function getConsecutiveDaysInventoryAccuracy(userId, supabase) {
+  try {
+    // Get all pantry events
+    const { data: events, error } = await supabase
+      .from('pantry_events')
+      .select('type, created_at, at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error || !events || events.length === 0) {
+      return 0
+    }
+
+    // Group events by date
+    const eventsByDate = new Map()
+    
+    events.forEach(event => {
+      const eventDate = new Date(event.at || event.created_at)
+      eventDate.setHours(0, 0, 0, 0)
+      const dateKey = eventDate.toISOString().split('T')[0]
+      
+      if (!eventsByDate.has(dateKey)) {
+        eventsByDate.set(dateKey, { consumed: 0, wasted: 0 })
+      }
+      
+      const day = eventsByDate.get(dateKey)
+      if (event.type === 'consumed') {
+        day.consumed++
+      } else if (event.type === 'wasted') {
+        day.wasted++
+      }
+    })
+
+    // Calculate accuracy for each day
+    const days = Array.from(eventsByDate.entries())
+      .map(([dateKey, data]) => {
+        const total = data.consumed + data.wasted
+        const accuracy = total > 0 ? (data.consumed / total) * 100 : 0
+        return {
+          dateKey,
+          accuracy,
+          date: new Date(dateKey)
+        }
+      })
+      .sort((a, b) => b.date - a.date) // Most recent first
+
+    if (days.length === 0) {
+      return 0
+    }
+
+    // Count consecutive days from most recent backwards with >= 95% accuracy
+    let consecutiveDays = 0
+    const mostRecentDay = days[0]
+    const startDate = new Date(mostRecentDay.date)
+    
+    for (let i = 0; i < 365; i++) { // Check up to 1 year
+      const checkDate = new Date(startDate)
+      checkDate.setDate(startDate.getDate() - i)
+      checkDate.setHours(0, 0, 0, 0)
+      const dateKey = checkDate.toISOString().split('T')[0]
+      
+      const day = days.find(d => d.dateKey === dateKey)
+      
+      if (day && day.accuracy >= 95) {
+        consecutiveDays++
+      } else {
+        // If day doesn't exist or accuracy < 95%, streak is broken
+        break
+      }
+    }
+
+    return consecutiveDays
+  } catch (error) {
+    console.error('Error calculating consecutive days inventory accuracy:', error)
+    return 0
+  }
+}
+
+/**
  * Get user's current progress for a specific badge
  */
 export async function getBadgeProgress(userId, badgeKey, supabase) {
@@ -291,6 +548,9 @@ export async function getBadgeProgress(userId, badgeKey, supabase) {
       break
     case 'waste_reduction_percentage':
       progress = await getWasteReductionPercentage(userId, supabase)
+      break
+    case 'consecutive_weeks_waste_reduction':
+      progress = await getConsecutiveWeeksWasteReduction(userId, supabase)
       break
     case 'zero_waste_week':
       progress = await hasZeroWasteWeek(userId, supabase) ? 1 : 0
@@ -309,6 +569,15 @@ export async function getBadgeProgress(userId, badgeKey, supabase) {
       break
     case 'items_saved':
       progress = await getConsumedItemsCount(userId, supabase)
+      break
+    case 'co2_saved':
+      progress = await getCO2Saved(userId, supabase)
+      break
+    case 'money_saved':
+      progress = await getMoneySaved(userId, supabase)
+      break
+    case 'consecutive_days_inventory_accuracy':
+      progress = await getConsecutiveDaysInventoryAccuracy(userId, supabase)
       break
     default:
       progress = 0
@@ -487,7 +756,8 @@ export async function getUserAchievementProgress(userId, supabase) {
       achievements.push({
         key: achievement.key,
         title: achievement.title,
-        description: achievement.description,
+        // Prioritize requirement description to ensure it's always up-to-date
+        description: requirement?.description || achievement.description || '',
         tier: achievement.tier || 'bronze',
         earned: userProgress ? Boolean(userProgress.unlocked_at) : false,
         earnedDate: userProgress?.unlocked_at 
