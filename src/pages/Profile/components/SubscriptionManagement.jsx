@@ -19,7 +19,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const [showChangePlanModal, setShowChangePlanModal] = useState(false)
   const [changePlanLoading, setChangePlanLoading] = useState(null) // Track which action is loading
 
-  // Helper to check if tier is the basic (free) tier
+  // Helper to check if tier is the basic tier
   const isBasicTier = (tier) => !tier || tier === 'basic'
 
   // Load subscription data
@@ -57,13 +57,13 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
   const getTierDisplayName = (tier) => {
     switch (tier) {
       case 'basic':
-        return 'Basic (Free)'
+        return 'Basic'
       case 'premium':
         return 'Premium'
       case 'household_premium':
         return 'Household Premium'
       default:
-        return 'Basic (Free)'
+        return 'Basic'
     }
   }
 
@@ -253,7 +253,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
       }
 
       if (cancelImmediately) {
-        alert('Your subscription has been canceled. You now have a Basic (Free) account.')
+        alert('Your subscription has been canceled. You now have a Basic account.')
       } else {
         const endDate = data.currentPeriodEnd 
           ? new Date(data.currentPeriodEnd * 1000).toLocaleDateString()
@@ -443,7 +443,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                 </Card>
               )}
 
-              {/* Downgrade to Basic (Free) */}
+              {/* Downgrade to Basic */}
               <Card className="p-4 border hover:border-gray-300 transition-colors">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
@@ -452,7 +452,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-1">Downgrade to Basic (Free)</h3>
+                    <h3 className="font-semibold mb-1">Downgrade to Basic</h3>
                     <p className="text-sm text-muted-foreground mb-3">
                       50 items limit, 10 AI scans/month, 3 storage locations. Your data will be preserved.
                     </p>
@@ -601,7 +601,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
           <div className="flex items-center gap-3">
             {getTierIcon(userData.subscriptionTier)}
             <div>
-              <p className="font-medium">Basic Plan (Free)</p>
+              <p className="font-medium">Basic Plan</p>
               <p className="text-sm text-muted-foreground">
                 Perfect for getting started with meal planning
               </p>

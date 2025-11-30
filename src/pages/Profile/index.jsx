@@ -28,7 +28,7 @@ const Profile = () => {
     email: '',
     avatar: null,
     joinDate: '',
-    subscriptionTier: 'free',
+    subscriptionTier: 'basic',
     subscriptionStatus: 'active',
     stats: {
       daysActive: 0,
@@ -166,7 +166,7 @@ const Profile = () => {
           email: user.email || '',
           avatar: profile?.avatar_url || null,
           joinDate: profile?.created_at || new Date().toISOString(),
-          subscriptionTier: profile?.subscription_tier || 'free',
+          subscriptionTier: profile?.subscription_tier || 'basic',
           subscriptionStatus: profile?.subscription_status || 'active',
           id: user.id,
           stats: {

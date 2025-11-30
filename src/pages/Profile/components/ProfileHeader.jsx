@@ -217,7 +217,7 @@ const ProfileHeader = ({ user, onUpdateProfile, userId }) => {
                   <Calendar className="h-4 w-4" />
                   <span>Joined {formatDate(user?.joinDate)}</span>
                 </div>
-                {user?.subscriptionTier && user.subscriptionTier !== 'free' && (
+                {user?.subscriptionTier && user.subscriptionTier !== 'basic' && (
                   <div className="flex items-center gap-1">
                     <Crown className="h-4 w-4" />
                     <span className="capitalize">{user.subscriptionTier.replace('_', ' ')}</span>
