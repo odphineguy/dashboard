@@ -21,7 +21,6 @@ import {
 import GroceryListItem from './components/GroceryListItem'
 import AddGroceryItemForm from './components/AddGroceryItemForm'
 import LowStockAlerts from './components/LowStockAlerts'
-import AddToInventoryModal from './components/AddToInventoryModal'
 
 const GroceryList = () => {
   const { user } = useAuth()
@@ -30,7 +29,6 @@ const GroceryList = () => {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // 'all', 'unchecked', 'checked'
   const [showAddForm, setShowAddForm] = useState(false)
-  const [inventoryModal, setInventoryModal] = useState({ isOpen: false, item: null })
 
   // Load grocery list items
   const loadItems = async () => {
@@ -138,28 +136,6 @@ const GroceryList = () => {
       setItems(prev => prev.filter(item => !item.is_checked))
     } catch (error) {
       console.error('Error clearing checked items:', error)
-    }
-  }
-
-  // Open Add to Inventory modal for a single item
-  const handleOpenInventoryModal = (item) => {
-    setInventoryModal({ isOpen: true, item })
-  }
-
-  // Handle successful addition to inventory
-  const handleInventorySuccess = async (groceryItem) => {
-    // Remove the item from grocery list after adding to inventory
-    try {
-      const { error } = await supabase
-        .from('grocery_list_items')
-        .delete()
-        .eq('id', groceryItem.id)
-
-      if (error) throw error
-
-      setItems(prev => prev.filter(item => item.id !== groceryItem.id))
-    } catch (error) {
-      console.error('Error removing item from grocery list:', error)
     }
   }
 
@@ -322,7 +298,6 @@ const GroceryList = () => {
                       item={item}
                       onToggleChecked={handleToggleChecked}
                       onDelete={handleDeleteItem}
-                      onAddToInventory={handleOpenInventoryModal}
                     />
                   ))}
                 </div>
@@ -337,13 +312,6 @@ const GroceryList = () => {
         </div>
       </div>
 
-      {/* Add to Inventory Modal */}
-      <AddToInventoryModal
-        isOpen={inventoryModal.isOpen}
-        onClose={() => setInventoryModal({ isOpen: false, item: null })}
-        groceryItem={inventoryModal.item}
-        onSuccess={handleInventorySuccess}
-      />
     </div>
   )
 }

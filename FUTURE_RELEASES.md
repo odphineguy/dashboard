@@ -57,6 +57,13 @@ This document tracks planned features and improvements for future releases of Me
 - Household Goals Progress - Track collective goal achievements
 - Collaboration Report - How well the household works together
 
+#### Grocery List Enhancements
+- **Add to Inventory from Grocery List** ⏳
+  - Quickly add purchased grocery items directly to pantry inventory
+  - One-click transfer from grocery list to inventory with auto-fill
+  - Status: Planned for future release
+  - Notes: Feature was temporarily disabled pending UX improvements
+
 #### Additional Features
 - [ ] Add more features here as they are planned
 

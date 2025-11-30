@@ -1,13 +1,12 @@
 import React from 'react'
 import { Checkbox } from '../../../components/ui/checkbox'
 import { Button } from '../../../components/ui/button'
-import { Trash2, Package } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 const GroceryListItem = ({
   item,
   onToggleChecked,
-  onDelete,
-  onAddToInventory
+  onDelete
 }) => {
   return (
     <div
@@ -37,19 +36,6 @@ const GroceryListItem = ({
           </span>
         )}
       </span>
-
-      {/* Add to Inventory Button (show for checked items) */}
-      {item.is_checked && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onAddToInventory(item)}
-          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
-          title="Add to Inventory"
-        >
-          <Package className="h-4 w-4" />
-        </Button>
-      )}
 
       {/* Delete Button */}
       <Button
