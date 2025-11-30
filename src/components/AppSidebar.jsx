@@ -17,7 +17,8 @@ import {
   Scan,
   MapPin,
   LogOut,
-  MessageSquare
+  MessageSquare,
+  ShoppingCart
 } from 'lucide-react'
 import { Button } from './ui/button'
 import {
@@ -158,6 +159,20 @@ const AppSidebar = ({ onClose }) => {
           >
             <Package className="h-5 w-5" />
             <span className="text-sm">Inventory</span>
+          </NavLink>
+          <NavLink
+            to="/grocery-list"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full ${
+                isActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
+            }
+          >
+            <ShoppingCart className="h-5 w-5" />
+            <span className="text-sm">Grocery List</span>
           </NavLink>
           <NavLink
             to="/recipes"

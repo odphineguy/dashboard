@@ -39,6 +39,7 @@ import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
 import Analytics from './pages/Analytics'
 import Inventory from './pages/Inventory'
+import GroceryList from './pages/GroceryList'
 import Recipes from './pages/Recipes'
 import Household from './pages/Household'
 import StorageLocations from './pages/StorageLocations'
@@ -218,6 +219,18 @@ const Routes = () => {
               element={
                 <MainLayout>
                   <Inventory />
+                </MainLayout>
+              }
+            />
+          }
+        />
+        <Route
+          path="/grocery-list"
+          element={
+            <ProtectedRoute
+              element={
+                <MainLayout>
+                  <GroceryList />
                 </MainLayout>
               }
             />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Bell, X, AlertTriangle, Clock, CheckCircle, Trash2, Package } from 'lucide-react'
+import { Bell, X, AlertTriangle, Clock, CheckCircle, Trash2, Package, ShoppingCart } from 'lucide-react'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
@@ -12,6 +12,7 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
   const { currentHousehold, isPersonal } = useHousehold()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [addingToList, setAddingToList] = useState(null)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
@@ -72,6 +73,7 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           notifs.push({
             id: `expired-${item.id}`,
             type: 'expired',
+            itemName: item.name,
             title: `${item.name} has expired`,
             message: `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''} ago`,
             timestamp: item.expiry_date,
@@ -84,6 +86,7 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           notifs.push({
             id: `today-${item.id}`,
             type: 'expires-today',
+            itemName: item.name,
             title: `${item.name} expires today`,
             message: 'Use it before it goes to waste',
             timestamp: item.expiry_date,
@@ -96,6 +99,7 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           notifs.push({
             id: `soon-${item.id}`,
             type: 'expiring-soon',
+            itemName: item.name,
             title: `${item.name} expiring soon`,
             message: `Expires in ${diffDays} day${diffDays !== 1 ? 's' : ''}`,
             timestamp: item.expiry_date,
@@ -121,6 +125,43 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
 
   const markAllAsRead = () => {
     setUnreadCount(0)
+  }
+
+  const addToGroceryList = async (itemName, notificationId) => {
+    if (!user?.id) return
+
+    setAddingToList(notificationId)
+    try {
+      // Check if already on the list
+      const { data: existing } = await supabase
+        .from('grocery_list_items')
+        .select('id')
+        .eq('user_id', user.id)
+        .ilike('name', itemName)
+        .single()
+
+      if (existing) {
+        alert(`"${itemName}" is already on your grocery list!`)
+        return
+      }
+
+      const { error } = await supabase
+        .from('grocery_list_items')
+        .insert([{
+          user_id: user.id,
+          name: itemName,
+          source: 'low_stock'
+        }])
+
+      if (error) throw error
+
+      // Show brief feedback
+      alert(`Added "${itemName}" to grocery list!`)
+    } catch (error) {
+      console.error('Error adding to grocery list:', error)
+    } finally {
+      setAddingToList(null)
+    }
   }
 
   if (!isOpen) return null
@@ -174,32 +215,42 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {notifications.map((notification) => {
-              const Icon = notification.icon
-              return (
-                <div
-                  key={notification.id}
-                  className={`p-4 hover:bg-muted/50 transition-colors ${notification.bgColor}`}
-                >
-                  <div className="flex gap-3">
-                    <div className={`flex-shrink-0 ${notification.color}`}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm">
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+{notifications.map((notification) => {
+                              const Icon = notification.icon
+                              return (
+                                <div
+                                  key={notification.id}
+                                  className={`p-4 hover:bg-muted/50 transition-colors ${notification.bgColor}`}
+                                >
+                                  <div className="flex gap-3">
+                                    <div className={`flex-shrink-0 ${notification.color}`}>
+                                      <Icon className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-foreground text-sm">
+                                        {notification.title}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {notification.message}
+                                      </p>
+                                      <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-muted-foreground">
+                                          {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
+                                        </p>
+                                        <button
+                                          onClick={() => addToGroceryList(notification.itemName, notification.id)}
+                                          disabled={addingToList === notification.id}
+                                          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                                        >
+                                          <ShoppingCart className="h-3 w-3" />
+                                          {addingToList === notification.id ? 'Adding...' : 'Add to List'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
           </div>
         )}
       </div>
