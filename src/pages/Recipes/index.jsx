@@ -109,7 +109,24 @@ Return ONLY valid JSON (no markdown, no code blocks):
       toast.success(`Generated ${data.recipes?.length || 0} recipes!`)
     } catch (error) {
       console.error('Error generating recipes:', error)
-      toast.error('Failed to generate recipes. Please try again.')
+      
+      // Check for quota/rate limit errors
+      if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('Quota exceeded')) {
+        toast.error('API Quota Exceeded', {
+          description: 'You\'ve reached the free tier limit. Please wait a few minutes and try again, or check your Google AI API billing settings.',
+          duration: 6000
+        })
+      } else if (error.message?.includes('API key') || error.message?.includes('401') || error.message?.includes('403')) {
+        toast.error('API Key Error', {
+          description: 'Invalid or missing Google AI API key. Please check your configuration.',
+          duration: 5000
+        })
+      } else {
+        toast.error('Failed to generate recipes', {
+          description: error.message || 'Please try again in a few moments.',
+          duration: 5000
+        })
+      }
     } finally {
       setGenerating(false)
     }
