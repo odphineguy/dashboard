@@ -12,13 +12,14 @@ const KPICards = ({ data }) => {
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
     const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    // Filter events by time period
-    const thisWeek = data.pantryEvents.filter(e => new Date(e.at) >= oneWeekAgo)
+    // Filter events by time period (prefer created_at for reliable timezone handling)
+    const getEventDate = (e) => new Date(e.created_at || e.at)
+    const thisWeek = data.pantryEvents.filter(e => getEventDate(e) >= oneWeekAgo)
     const lastWeek = data.pantryEvents.filter(e => {
-      const date = new Date(e.at)
+      const date = getEventDate(e)
       return date >= twoWeeksAgo && date < oneWeekAgo
     })
-    const thisMonth = data.pantryEvents.filter(e => new Date(e.at) >= oneMonthAgo)
+    const thisMonth = data.pantryEvents.filter(e => getEventDate(e) >= oneMonthAgo)
 
     // Calculate consumed/wasted by summing quantities
     const consumedThisWeek = thisWeek

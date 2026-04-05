@@ -92,13 +92,14 @@ const Analytics = () => {
       {/* KPI Cards */}
       <KPICards data={{ pantryEvents }} />
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AdvancedChartRecharts data={{ pantryEvents }} />
-        <PieChartRecharts data={{ pantryItems }} />
-      </div>
+      {/* Consumption & Waste Trends - full width */}
+      <AdvancedChartRecharts data={{ pantryEvents }} />
 
-      <BarChartRecharts data={{ pantryItems }} />
+      {/* Category charts side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PieChartRecharts data={{ pantryItems }} />
+        <BarChartRecharts data={{ pantryItems }} />
+      </div>
     </div>
   )
 }

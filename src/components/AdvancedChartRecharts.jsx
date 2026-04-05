@@ -1,15 +1,27 @@
 import React, { useState, useMemo } from 'react'
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
+import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import {
-  ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from './ui/chart'
 
 const AdvancedChartRecharts = ({ data }) => {
   const [timeRange, setTimeRange] = useState('7d')
+
+  // Get local date string (YYYY-MM-DD) from an event to avoid timezone issues
+  // Prefer created_at (always TIMESTAMPTZ) over at (may be DATE-only, causing TZ shifts)
+  const getLocalDateStr = (event) => {
+    const raw = event.created_at || event.at
+    if (!raw) return null
+    const d = new Date(raw)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  const toLocalDateStr = (date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
 
   // Process real data based on time range
   const chartData = useMemo(() => {
@@ -23,15 +35,9 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        date.setHours(0, 0, 0, 0)
-        const dayStart = new Date(date)
-        const dayEnd = new Date(date)
-        dayEnd.setHours(23, 59, 59, 999)
+        const dateStr = toLocalDateStr(date)
 
-        const dayEvents = data.pantryEvents.filter(e => {
-          const eventDate = new Date(e.at)
-          return eventDate >= dayStart && eventDate <= dayEnd
-        })
+        const dayEvents = data.pantryEvents.filter(e => getLocalDateStr(e) === dateStr)
 
         const consumed = dayEvents
           .filter(e => e.type === 'consumed')
@@ -41,7 +47,7 @@ const AdvancedChartRecharts = ({ data }) => {
           .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
 
         result.push({
-          date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           consumed: Math.round(consumed),
           wasted: Math.round(wasted)
         })
@@ -51,14 +57,14 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 28; i >= 0; i -= 2) {
         const date = new Date(now)
         date.setDate(date.getDate() - i)
-        date.setHours(0, 0, 0, 0)
-        const dayStart = new Date(date)
-        const dayEnd = new Date(dayStart)
-        dayEnd.setDate(dayEnd.getDate() + 2)
+        const periodStart = toLocalDateStr(date)
+        const endDate = new Date(date)
+        endDate.setDate(endDate.getDate() + 2)
+        const periodEnd = toLocalDateStr(endDate)
 
         const periodEvents = data.pantryEvents.filter(e => {
-          const eventDate = new Date(e.at)
-          return eventDate >= dayStart && eventDate < dayEnd
+          const eDate = getLocalDateStr(e)
+          return eDate >= periodStart && eDate < periodEnd
         })
 
         const consumed = periodEvents
@@ -69,7 +75,7 @@ const AdvancedChartRecharts = ({ data }) => {
           .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
 
         result.push({
-          date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           consumed: Math.round(consumed),
           wasted: Math.round(wasted)
         })
@@ -79,14 +85,14 @@ const AdvancedChartRecharts = ({ data }) => {
       for (let i = 12; i >= 0; i--) {
         const date = new Date(now)
         date.setDate(date.getDate() - (i * 7))
-        date.setHours(0, 0, 0, 0)
-        const weekStart = new Date(date)
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekEnd.getDate() + 7)
+        const weekStart = toLocalDateStr(date)
+        const endDate = new Date(date)
+        endDate.setDate(endDate.getDate() + 7)
+        const weekEnd = toLocalDateStr(endDate)
 
         const weekEvents = data.pantryEvents.filter(e => {
-          const eventDate = new Date(e.at)
-          return eventDate >= weekStart && eventDate < weekEnd
+          const eDate = getLocalDateStr(e)
+          return eDate >= weekStart && eDate < weekEnd
         })
 
         const consumed = weekEvents
@@ -97,7 +103,7 @@ const AdvancedChartRecharts = ({ data }) => {
           .reduce((sum, e) => sum + (parseFloat(e.quantity) || 1), 0)
 
         result.push({
-          date: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           consumed: Math.round(consumed),
           wasted: Math.round(wasted)
         })
@@ -170,35 +176,17 @@ const AdvancedChartRecharts = ({ data }) => {
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="fillConsumed" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-consumed)"
-                  stopOpacity={1.0}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-consumed)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="fillWasted" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-wasted)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-wasted)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} />
@@ -221,18 +209,21 @@ const AdvancedChartRecharts = ({ data }) => {
               dataKey="wasted"
               type="natural"
               fill="url(#fillWasted)"
-              stroke="var(--color-wasted)"
+              stroke="#ef4444"
+              strokeWidth={2}
               stackId="a"
             />
             <Area
               dataKey="consumed"
               type="natural"
               fill="url(#fillConsumed)"
-              stroke="var(--color-consumed)"
+              stroke="#22c55e"
+              strokeWidth={2}
               stackId="a"
             />
           </AreaChart>
-        </ChartContainer>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   )
