@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Plus, Mail, UserPlus, Settings, Crown, User as UserIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Users, Plus, Mail, UserPlus, Settings, Crown, User as UserIcon, Lock } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
@@ -7,6 +8,7 @@ import { Label } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 import { useSupabase } from '../../hooks/useSupabase'
 import CreateHouseholdModal from './components/CreateHouseholdModal'
 import InviteMemberModal from './components/InviteMemberModal'
@@ -17,6 +19,8 @@ import HouseholdInformation from '../Profile/components/HouseholdInformation'
 const Household = () => {
   const { user } = useAuth()
   const supabase = useSupabase()
+  const { checkFeatureAccess } = useSubscription()
+  const hasHouseholdAccess = checkFeatureAccess('household_management')
   const {
     households,
     currentHousehold,
@@ -150,10 +154,19 @@ const Household = () => {
             Manage your households and collaborate with family members
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Household
-        </Button>
+        {hasHouseholdAccess ? (
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Household
+          </Button>
+        ) : (
+          <Link to="/profile">
+            <Button>
+              <Lock className="h-4 w-4 mr-2" />
+              Upgrade to Create
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Household Switcher */}
@@ -246,10 +259,19 @@ const Household = () => {
               </div>
               <div className="flex gap-2">
                 {userRole === 'admin' && (
-                  <Button onClick={() => setIsInviteModalOpen(true)}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
-                  </Button>
+                  hasHouseholdAccess ? (
+                    <Button onClick={() => setIsInviteModalOpen(true)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invite Member
+                    </Button>
+                  ) : (
+                    <Link to="/profile">
+                      <Button variant="outline">
+                        <Lock className="h-4 w-4 mr-2" />
+                        Upgrade to Invite
+                      </Button>
+                    </Link>
+                  )
                 )}
                 <Button variant="outline" onClick={handleLeaveHousehold}>
                   Leave Household

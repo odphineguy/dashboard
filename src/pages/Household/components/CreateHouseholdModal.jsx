@@ -4,16 +4,23 @@ import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
 import { useHousehold } from '../../../contexts/HouseholdContext'
+import { useSubscription } from '../../../contexts/SubscriptionContext'
 
 const CreateHouseholdModal = ({ isOpen, onClose }) => {
   const [householdName, setHouseholdName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const { createHousehold } = useHousehold()
+  const { checkFeatureAccess } = useSubscription()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+
+    if (!checkFeatureAccess('household_management')) {
+      setError('Household sharing requires a Household Premium subscription.')
+      return
+    }
 
     if (!householdName.trim()) {
       setError('Household name is required')

@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronDown, Lock } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { useHousehold } from '../contexts/HouseholdContext'
+import { useSubscription } from '../contexts/SubscriptionContext'
 
 const ViewSwitcher = () => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
   const { currentHousehold, isPersonal, households, switchHousehold } = useHousehold()
+  const { checkFeatureAccess } = useSubscription()
+  const hasHouseholdAccess = checkFeatureAccess('household_management')
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -34,10 +38,10 @@ const ViewSwitcher = () => {
       >
         <span
           className={`h-2 w-2 rounded-full ${
-            isPersonal ? 'bg-green-500' : 'bg-orange-500'
+            isPersonal || !hasHouseholdAccess ? 'bg-green-500' : 'bg-orange-500'
           }`}
         ></span>
-        <span>{isPersonal ? 'Personal' : currentHousehold?.name}</span>
+        <span>{isPersonal || !hasHouseholdAccess ? 'Personal' : currentHousehold?.name}</span>
         <ChevronDown className="h-3 w-3 ml-1" />
       </Badge>
 
@@ -54,34 +58,50 @@ const ViewSwitcher = () => {
             <span>Personal</span>
           </button>
 
-          {/* Divider if households exist */}
-          {households.length > 0 && (
-            <div className="border-t border-border my-1"></div>
-          )}
+          {hasHouseholdAccess ? (
+            <>
+              {/* Divider if households exist */}
+              {households.length > 0 && (
+                <div className="border-t border-border my-1"></div>
+              )}
 
-          {/* Household Options */}
-          {households.map((household) => (
-            <button
-              key={household.id}
-              onClick={() => handleViewChange(household.id)}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
-                !isPersonal && currentHousehold?.id === household.id
-                  ? 'bg-accent/50 font-medium'
-                  : ''
-              }`}
-            >
-              <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-              <span>{household.name}</span>
-            </button>
-          ))}
+              {/* Household Options */}
+              {households.map((household) => (
+                <button
+                  key={household.id}
+                  onClick={() => handleViewChange(household.id)}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
+                    !isPersonal && currentHousehold?.id === household.id
+                      ? 'bg-accent/50 font-medium'
+                      : ''
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+                  <span>{household.name}</span>
+                </button>
+              ))}
 
-          {/* Empty state if no households */}
-          {households.length === 0 && (
+              {/* Empty state if no households */}
+              {households.length === 0 && (
+                <>
+                  <div className="border-t border-border my-1"></div>
+                  <div className="px-4 py-2 text-xs text-muted-foreground">
+                    No households yet
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
             <>
               <div className="border-t border-border my-1"></div>
-              <div className="px-4 py-2 text-xs text-muted-foreground">
-                No households yet
-              </div>
+              <Link
+                to="/profile"
+                onClick={() => setIsOpen(false)}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-muted-foreground"
+              >
+                <Lock className="h-3 w-3" />
+                <span>Upgrade for Household Sharing</span>
+              </Link>
             </>
           )}
         </div>
