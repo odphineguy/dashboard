@@ -108,7 +108,7 @@ const SubscriptionManagement = ({ userData, onUpdateSubscription }) => {
     try {
       setActionLoading(true)
 
-      // Pass userId in body for Clerk compatibility
+      // Pass userId in body for the edge function
       const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
         body: { 
           return_url: window.location.href,

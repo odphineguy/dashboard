@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router-dom'
-import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react'
+import AuthCallback from './components/AuthCallback'
 
 // Fallback component for when Supabase isn't configured
 const SupabaseErrorFallback = () => (
@@ -173,7 +173,7 @@ const Routes = () => {
       <RouterRoutes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Protected Routes */}
         <Route

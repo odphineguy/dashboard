@@ -3,12 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Create a mock client if environment variables are missing to prevent app crashes
 const createSupabaseClient = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase environment variables missing - creating mock client for development')
-
-    // Return a mock client that won't crash the app
     return {
       auth: {
         getSession: () => Promise.resolve({ data: { session: null }, error: null }),
@@ -30,18 +27,14 @@ const createSupabaseClient = () => {
     }
   }
 
-  // Clerk handles all authentication, so disable Supabase auth features completely
-  // This prevents multiple GoTrueClient instances and conflicts with Clerk
-  // Setting storage: undefined prevents Supabase from using localStorage for auth
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-      storage: undefined, // Disable storage to prevent auth persistence
-    }
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
   })
 }
 
 export const supabase = createSupabaseClient()
-

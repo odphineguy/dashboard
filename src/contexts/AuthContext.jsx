@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useUser, useClerk } from '@clerk/clerk-react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext({})
 
@@ -12,81 +11,95 @@ export const useAuth = () => {
   return context
 }
 
+const buildUser = (sessionUser) => {
+  if (!sessionUser) return null
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email,
+    user_metadata: {
+      full_name:
+        sessionUser.user_metadata?.full_name ||
+        sessionUser.user_metadata?.name ||
+        sessionUser.email?.split('@')[0] ||
+        '',
+      avatar_url:
+        sessionUser.user_metadata?.avatar_url ||
+        sessionUser.user_metadata?.picture ||
+        null,
+    },
+  }
+}
+
 export const AuthProvider = ({ children }) => {
-  const { isLoaded, isSignedIn, user: clerkUser } = useUser()
-  const { signOut: clerkSignOut } = useClerk()
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [profileReady, setProfileReady] = useState(false)
 
-  // Simple user object
-  const user = clerkUser
-    ? {
-        id: clerkUser.id,
-        email: clerkUser.primaryEmailAddress?.emailAddress,
-        user_metadata: {
-          full_name: clerkUser.fullName || clerkUser.firstName || '',
-          avatar_url: clerkUser.imageUrl,
-        },
-      }
-    : null
-
-  // Create/update profile on first sign-in
   useEffect(() => {
-    if (!isLoaded || !clerkUser) {
+    let mounted = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setSession(data.session ?? null)
+      setLoading(false)
+    })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession ?? null)
+    })
+
+    return () => {
+      mounted = false
+      sub.subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    const sessionUser = session?.user
+    if (!sessionUser) {
       setProfileReady(true)
       return
     }
 
     const ensureProfile = async () => {
       try {
-        // Use service role to bypass RLS policies
-        const supabase = createClient(
-          import.meta.env.VITE_SUPABASE_URL,
-          import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-        )
-
-        // First check if profile exists
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('id, subscription_tier, avatar_url')
-          .eq('id', clerkUser.id)
-          .single()
+          .eq('id', sessionUser.id)
+          .maybeSingle()
+
+        const fullName =
+          sessionUser.user_metadata?.full_name ||
+          sessionUser.user_metadata?.name ||
+          sessionUser.email?.split('@')[0] ||
+          'User'
+        const avatar =
+          sessionUser.user_metadata?.avatar_url ||
+          sessionUser.user_metadata?.picture ||
+          null
 
         if (existingProfile) {
-          // Profile exists - only update email/name from Clerk, preserve subscription and custom avatar
-          const { error } = await supabase
+          await supabase
             .from('profiles')
             .update({
-              email: clerkUser.primaryEmailAddress?.emailAddress,
-              full_name: clerkUser.fullName || clerkUser.firstName || 'User',
-              // Only update avatar if user doesn't have a custom one (custom avatars start with /avatars/)
-              ...(existingProfile.avatar_url?.startsWith('/avatars/') 
-                ? {} 
-                : { avatar_url: clerkUser.imageUrl || existingProfile.avatar_url }),
+              email: sessionUser.email,
+              full_name: fullName,
+              ...(existingProfile.avatar_url?.startsWith('/avatars/')
+                ? {}
+                : { avatar_url: avatar || existingProfile.avatar_url }),
               updated_at: new Date().toISOString(),
             })
-            .eq('id', clerkUser.id)
-
-          if (error) {
-            console.error('Profile update error:', error)
-          } else {
-            console.log('✅ Profile updated for user:', clerkUser.id, '- Tier preserved:', existingProfile.subscription_tier)
-          }
+            .eq('id', sessionUser.id)
         } else {
-          // New user - create profile with basic tier
-          const { error } = await supabase.from('profiles').insert({
-            id: clerkUser.id,
-            email: clerkUser.primaryEmailAddress?.emailAddress,
-            full_name: clerkUser.fullName || clerkUser.firstName || 'User',
-            avatar_url: clerkUser.imageUrl || null,
+          await supabase.from('profiles').insert({
+            id: sessionUser.id,
+            email: sessionUser.email,
+            full_name: fullName,
+            avatar_url: avatar,
             subscription_tier: 'basic',
             subscription_status: 'active',
           })
-
-          if (error) {
-            console.error('Profile create error:', error)
-          } else {
-            console.log('✅ New profile created for user:', clerkUser.id)
-          }
         }
       } catch (error) {
         console.error('Error ensuring profile:', error)
@@ -95,36 +108,38 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
+    setProfileReady(false)
     ensureProfile()
-  }, [isLoaded, clerkUser?.id])
+  }, [session?.user?.id])
 
   const signOut = async () => {
-    await clerkSignOut()
+    await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
-  // Show loading while auth initializes or profile is being created
-  if (!isLoaded || (isSignedIn && !profileReady)) {
+  if (loading || (session && !profileReady)) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-sm text-muted-foreground">
-            {!isLoaded ? 'Loading authentication...' : 'Setting up your profile...'}
+            {loading ? 'Loading authentication...' : 'Setting up your profile...'}
           </p>
         </div>
       </div>
     )
   }
 
+  const user = buildUser(session?.user)
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        isSignedIn,
+        isSignedIn: !!session,
         signOut,
-        loading: !isLoaded,
-        sessionLoaded: isLoaded && profileReady,
+        loading,
+        sessionLoaded: !loading && profileReady,
       }}
     >
       {children}

@@ -1,4 +1,4 @@
-// NOTE: supabase client is now passed as parameter to use authenticated Clerk session
+// NOTE: supabase client is passed as a parameter to use the authenticated Supabase session
 import { awardAchievement, updateAchievementProgress } from './achievements'
 
 /**
