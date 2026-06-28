@@ -2,7 +2,7 @@
 
 **Last Updated:** 2025-11-08
 **Database:** Supabase PostgreSQL
-**Authentication:** Clerk (Native Supabase Integration)
+**Authentication:** Supabase Auth (email/password + Google OAuth)
 **Project URL:** https://qrkkcrkxpydosxwkdeve.supabase.co
 
 ---
@@ -23,21 +23,24 @@
 
 ## Authentication & Authorization
 
-### Authentication System: Clerk
+### Authentication System: Supabase Auth
 
-The application uses **Clerk** for authentication, not Supabase Auth. User IDs are TEXT format (e.g., `user_2abc123xyz`) instead of UUID.
+The application uses **Supabase Auth** (`supabase.auth`) for authentication —
+email/password and Google OAuth. Sessions persist via the PKCE flow. The
+`user_id` / `profiles.id` columns are stored as TEXT (they hold the Supabase
+auth user UUID as a string).
 
 **Key Function:**
 ```sql
--- Extracts Clerk user ID from JWT token
-CREATE FUNCTION auth.jwt() RETURNS jsonb
--- Usage: (SELECT auth.jwt()->>'sub') returns the Clerk user ID
+-- auth.uid() returns the authenticated user's UUID
+-- RLS policies compare it against the TEXT user_id columns:
+-- (auth.uid())::text = user_id
 ```
 
 **Important Notes:**
-- All `user_id` columns are TEXT type, not UUID
-- RLS policies use `(SELECT auth.jwt()->>'sub')` to get current user ID
-- Profiles are created via Clerk webhook, not Supabase triggers
+- All `user_id` columns are TEXT type, holding the Supabase auth user UUID as text
+- RLS policies use `(auth.uid())::text = user_id` to scope rows to the current user
+- Profiles are created on first sign-in (auto-provisioned)
 - Service role bypasses all RLS policies for webhook operations
 
 ---
@@ -46,14 +49,14 @@ CREATE FUNCTION auth.jwt() RETURNS jsonb
 
 ```
 ┌─────────────────┐
-│   auth.users    │ (Clerk - External)
+│   auth.users    │ (Supabase Auth)
 └────────┬────────┘
          │
          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         profiles                             │
 │  ┌────────────────────────────────────────────────────┐    │
-│  │ id (TEXT, PK) - Clerk user ID                      │    │
+│  │ id (TEXT, PK) - Supabase auth user UUID (as text)  │    │
 │  │ email (TEXT, UNIQUE)                               │    │
 │  │ full_name (TEXT)                                   │    │
 │  │ avatar_url (TEXT)                                  │    │
@@ -112,8 +115,8 @@ CREATE FUNCTION auth.jwt() RETURNS jsonb
 
 ```sql
 CREATE TABLE profiles (
-  id TEXT PRIMARY KEY,                    -- Clerk user ID (e.g., "user_2abc123xyz")
-  email TEXT UNIQUE,                      -- User's email (from Clerk)
+  id TEXT PRIMARY KEY,                    -- Supabase auth user UUID stored as text
+  email TEXT UNIQUE,                      -- User's email (from Supabase Auth)
   full_name TEXT,                         -- Display name
   avatar_url TEXT,                        -- Profile picture URL
   subscription_tier TEXT DEFAULT 'basic'  -- basic | premium | household_premium
@@ -442,7 +445,7 @@ RETURNS TABLE (
 
 **Usage:**
 ```sql
-SELECT * FROM get_user_subscription('user_2abc123xyz');
+SELECT * FROM get_user_subscription('00000000-0000-0000-0000-000000000000');
 ```
 
 ---
@@ -470,7 +473,7 @@ RETURNS BOOLEAN;
 
 **Usage:**
 ```sql
-SELECT has_feature_access('user_2abc123xyz', 'unlimited_items');
+SELECT has_feature_access('00000000-0000-0000-0000-000000000000', 'unlimited_items');
 ```
 
 ---
@@ -560,13 +563,13 @@ CREATE FUNCTION update_user_subscription_tier(
 
 ## Row Level Security (RLS) Policies
 
-All tables have RLS enabled. Policies use Clerk's native Supabase integration via `auth.jwt()`.
+All tables have RLS enabled. Policies use Supabase Auth via `auth.uid()`.
 
 ### Authentication Pattern
 
 ```sql
--- Get current Clerk user ID
-(SELECT auth.jwt()->>'sub')
+-- Match the current user's UUID against the TEXT user_id columns
+(auth.uid())::text = user_id
 
 -- Service role bypass
 current_setting('role', true) = 'service_role'
@@ -578,18 +581,18 @@ current_setting('role', true) = 'service_role'
 -- Users can view own profile
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT
-  USING ((SELECT auth.jwt()->>'sub') = id OR current_setting('role', true) = 'service_role');
+  USING ((auth.uid())::text = id OR current_setting('role', true) = 'service_role');
 
 -- Users can insert own profile (during onboarding)
 CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT
-  WITH CHECK ((SELECT auth.jwt()->>'sub') = id OR current_setting('role', true) = 'service_role');
+  WITH CHECK ((auth.uid())::text = id OR current_setting('role', true) = 'service_role');
 
 -- Users can update own profile
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
-  USING ((SELECT auth.jwt()->>'sub') = id OR current_setting('role', true) = 'service_role')
-  WITH CHECK ((SELECT auth.jwt()->>'sub') = id OR current_setting('role', true) = 'service_role');
+  USING ((auth.uid())::text = id OR current_setting('role', true) = 'service_role')
+  WITH CHECK ((auth.uid())::text = id OR current_setting('role', true) = 'service_role');
 
 -- Service role can manage all profiles
 CREATE POLICY "Service role can manage profiles"
@@ -605,10 +608,10 @@ CREATE POLICY "Service role can manage profiles"
 CREATE POLICY "Users can view own pantry items"
   ON pantry_items FOR SELECT
   USING (
-    (SELECT auth.jwt()->>'sub') = user_id OR
+    (auth.uid())::text = user_id OR
     household_id IN (
       SELECT household_id FROM household_members
-      WHERE user_id = (SELECT auth.jwt()->>'sub')
+      WHERE user_id = (auth.uid())::text
     ) OR
     current_setting('role', true) = 'service_role'
   );
@@ -617,7 +620,7 @@ CREATE POLICY "Users can view own pantry items"
 CREATE POLICY "Users can insert own pantry items"
   ON pantry_items FOR INSERT
   WITH CHECK (
-    (SELECT auth.jwt()->>'sub') = user_id OR
+    (auth.uid())::text = user_id OR
     current_setting('role', true) = 'service_role'
   );
 
@@ -625,10 +628,10 @@ CREATE POLICY "Users can insert own pantry items"
 CREATE POLICY "Users can update own pantry items"
   ON pantry_items FOR UPDATE
   USING (
-    (SELECT auth.jwt()->>'sub') = user_id OR
+    (auth.uid())::text = user_id OR
     household_id IN (
       SELECT household_id FROM household_members
-      WHERE user_id = (SELECT auth.jwt()->>'sub')
+      WHERE user_id = (auth.uid())::text
     ) OR
     current_setting('role', true) = 'service_role'
   );
@@ -637,10 +640,10 @@ CREATE POLICY "Users can update own pantry items"
 CREATE POLICY "Users can delete own pantry items"
   ON pantry_items FOR DELETE
   USING (
-    (SELECT auth.jwt()->>'sub') = user_id OR
+    (auth.uid())::text = user_id OR
     household_id IN (
       SELECT household_id FROM household_members
-      WHERE user_id = (SELECT auth.jwt()->>'sub')
+      WHERE user_id = (auth.uid())::text
     ) OR
     current_setting('role', true) = 'service_role'
   );
@@ -652,20 +655,20 @@ CREATE POLICY "Users can delete own pantry items"
 -- Users can view own storage locations
 CREATE POLICY "Users can view own locations"
   ON storage_locations FOR SELECT
-  USING ((SELECT auth.jwt()->>'sub') = user_id);
+  USING ((auth.uid())::text = user_id);
 
 -- Users can manage own storage locations
 CREATE POLICY "Users can insert own locations"
   ON storage_locations FOR INSERT
-  WITH CHECK ((SELECT auth.jwt()->>'sub') = user_id);
+  WITH CHECK ((auth.uid())::text = user_id);
 
 CREATE POLICY "Users can update own locations"
   ON storage_locations FOR UPDATE
-  USING ((SELECT auth.jwt()->>'sub') = user_id);
+  USING ((auth.uid())::text = user_id);
 
 CREATE POLICY "Users can delete own locations"
   ON storage_locations FOR DELETE
-  USING ((SELECT auth.jwt()->>'sub') = user_id);
+  USING ((auth.uid())::text = user_id);
 ```
 
 ### subscriptions
@@ -674,7 +677,7 @@ CREATE POLICY "Users can delete own locations"
 -- Users can view own subscriptions
 CREATE POLICY "Users can view own subscriptions"
   ON subscriptions FOR SELECT
-  USING ((SELECT auth.jwt()->>'sub') = user_id);
+  USING ((auth.uid())::text = user_id);
 
 -- Service role can manage all subscriptions
 CREATE POLICY "Service role can manage subscriptions"
@@ -689,7 +692,7 @@ CREATE POLICY "Service role can manage subscriptions"
 -- Users can view own payment history
 CREATE POLICY "Users can view own payment history"
   ON payment_history FOR SELECT
-  USING ((SELECT auth.jwt()->>'sub') = user_id);
+  USING ((auth.uid())::text = user_id);
 
 -- Service role can manage all payment history
 CREATE POLICY "Service role can manage payment history"
@@ -833,20 +836,20 @@ CHECK (role IN ('owner', 'admin', 'member'))
 ### Migration Timeline
 
 1. **20251011175316** - Add onboarding_completed flag to profiles
-2. **20251013230000** - Create profile trigger for Supabase Auth (deprecated)
+2. **20251013230000** - Create profile trigger for Supabase Auth
 3. **20251016000000** - Add subscription system (subscriptions, payment_history, stripe_webhooks_log)
 4. **20251016000001** - Add subscription functions (has_feature_access, get_subscription_limits, etc.)
 5. **20251021000000** - Add default storage locations
-6. **20251022000000** - Clerk compatibility (convert UUID to TEXT, update RLS policies)
-7. **20251023000000** - Fix profile RLS for Clerk users
-8. **20251023120000** - Switch to Clerk native integration (use auth.jwt() instead of custom function)
+6. **20251022000000** - Convert user_id columns from UUID to TEXT, update RLS policies
+7. **20251023000000** - Fix profile RLS policies
+8. **20251023120000** - Standardize RLS on Supabase Auth (`auth.uid()`)
 
 ### Important Migration Notes
 
-- **User ID Format Changed:** UUID → TEXT (Clerk user IDs like `user_2abc123xyz`)
-- **Foreign Keys Updated:** All user_id references now point to profiles table, not auth.users
-- **RLS Policies Updated:** Now use `(SELECT auth.jwt()->>'sub')` instead of `auth.uid()`
-- **Profile Creation:** Moved from Supabase trigger to Clerk webhook
+- **User ID Format:** `user_id` / `profiles.id` are TEXT, holding the Supabase auth user UUID as text
+- **Foreign Keys:** All user_id references point to the profiles table, not auth.users
+- **RLS Policies:** Use `(auth.uid())::text = user_id`
+- **Profile Creation:** Auto-provisioned on first sign-in
 - **Subscription Sync:** Automated via trigger from subscriptions → profiles
 
 ---
@@ -932,9 +935,9 @@ const { data } = await supabase
 
 ### 4. Authentication
 
-- Clerk handles all authentication
-- JWTs are validated by Supabase
-- No passwords stored in database
+- Supabase Auth handles all authentication (email/password + Google OAuth)
+- JWTs are issued and validated by Supabase; sessions persist via PKCE
+- Passwords are managed by Supabase Auth, not stored in application tables
 - Service role key required for admin operations
 
 ---
@@ -963,7 +966,7 @@ Based on code references, these tables may also exist but are not in the migrati
 - Purpose: Audit trail of user actions
 - Fields: id, user_id, action_type, metadata (JSONB), created_at
 
-**Note:** These tables are referenced in the Clerk compatibility migration but may have been created in earlier migrations not present in the repository.
+**Note:** These tables are referenced in the user_id TEXT conversion migration but may have been created in earlier migrations not present in the repository.
 
 ---
 

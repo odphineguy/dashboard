@@ -5,7 +5,7 @@
 verify_jwt = false
 
 [functions.sync-subscription]
-# Allow sync-subscription to be called by authenticated users (via anon key + clerk token)
+# Allow sync-subscription to be called by authenticated users (via anon key + Supabase token)
 verify_jwt = false
 
 [functions.create-checkout-session]

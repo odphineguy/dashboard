@@ -36,7 +36,7 @@ A food pantry management app that helps users track grocery inventory, reduce fo
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18 + Vite + Tailwind CSS |
-| Auth | Clerk (JWT-based, Google + Apple Sign In) |
+| Auth | Supabase Auth (email/password + Google OAuth, PKCE sessions) |
 | Database | Supabase (PostgreSQL + RLS) |
 | Payments | Stripe (Checkout + Customer Portal) |
 | AI | Google Gemini 2.0 Flash (Vision + Text) |
@@ -57,7 +57,7 @@ A food pantry management app that helps users track grocery inventory, reduce fo
 ### Key Architectural Decisions for iOS
 1. **Keep the same Supabase backend** — no need to rebuild the database
 2. **Replace Stripe with StoreKit 2** — Apple requires IAP for digital subscriptions
-3. **Replace Clerk with Supabase Auth** — eliminates a paid dependency, simplifies RLS, uses `auth.uid()` natively
+3. **Reuse Supabase Auth** — same native auth the web app already uses; simplifies RLS via `auth.uid()`, no extra paid dependency
 4. **On-device AI with Gemma 4** — no API keys to manage, works offline, genuine privacy story
 5. **Add offline support** — mobile users expect it, web app doesn't have it
 6. **Use SwiftUI exclusively** — no UIKit unless necessary for camera
@@ -140,14 +140,14 @@ CREATE POLICY "Enforce item limit" ON pantry_items
 ```
 2. The iOS app benefits automatically once RLS enforces limits server-side
 
-### 2.5 MEDIUM: Remove Clerk, Standardize Auth Functions
+### 2.5 MEDIUM: Standardize Auth Functions on `auth.uid()`
 
-**Problem**: Three different auth function versions exist across migrations because of Clerk:
-- `public.clerk_user_id()` (migration 20251022)
+**Problem**: Several different auth-helper versions accumulated across migrations during the auth history:
+- a custom `user_id()` helper function (migration 20251022)
 - `auth.jwt()->>'sub'` (migration 20251023)
-- `public.clerk_user_id()` again (migration 20251128)
+- the custom helper again (migration 20251128)
 
-**Fix**: Since we're replacing Clerk with Supabase Auth for iOS (and eventually web too), standardize ALL RLS policies to use `auth.uid()`. Write a single migration that drops `clerk_user_id()` and rewrites all policies. See Section 7 for the full auth migration plan.
+**Fix**: The app now uses Supabase Auth natively. Standardize ALL RLS policies to use `auth.uid()`. Write a single migration that drops any leftover custom helper function and rewrites all policies to compare `(auth.uid())::text = user_id`. See Section 7 for the full auth migration plan.
 
 ### 2.6 MEDIUM: Household INSERT Policy Missing Ownership Check
 
@@ -202,7 +202,7 @@ The iOS app will connect to the **same Supabase instance**. Here's the actual sc
 
 ```
 profiles
-├── id TEXT PK (Clerk user ID like "user_34rGFx...")
+├── id TEXT PK (Supabase auth user UUID stored as text)
 ├── email TEXT
 ├── full_name TEXT
 ├── avatar_url TEXT
@@ -322,7 +322,7 @@ ai_saved_recipes
 
 | Issue | Description | Recommendation |
 |-------|-------------|----------------|
-| `profiles.id` is TEXT (Clerk ID) | Supabase Auth `auth.uid()` returns UUID, not Clerk-style text IDs | For iOS: use UUID as `profiles.id` for new users. Write a migration to change the `id` column type from TEXT to UUID, or create a new clean profiles table for iOS users. Existing web users with Clerk IDs will need migration when web app switches to Supabase Auth too. |
+| `profiles.id` is TEXT | Supabase Auth `auth.uid()` returns a UUID; it is currently stored as text in the TEXT `id` column | For iOS: continue storing the auth UUID as text, or write a migration to change the `id` column type from TEXT to UUID for a clean start. Compare with `(auth.uid())::text = user_id` in RLS for the text-column case. |
 | `pantry_events.at` vs `created_at` | Redundant timestamp fields cause confusion | Use `created_at` as the canonical timestamp, drop `at` |
 | `subscriptions` tied to Stripe | iOS uses StoreKit, not Stripe | Add `apple_transaction_id`, `apple_product_id` columns; or create a separate `ios_subscriptions` table |
 | No `device_token` column | Needed for push notifications | Add `device_tokens JSONB` to `profiles` (array of {token, platform, created_at}) |
@@ -331,7 +331,7 @@ ai_saved_recipes
 
 ### 4.3 RLS Policy Summary
 
-RLS is enabled on all tables. Current policies use `clerk_user_id()` function. If switching auth providers for iOS, policies need updating (see Section 7).
+RLS is enabled on all tables. Policies use Supabase Auth's `auth.uid()`, compared against the TEXT `user_id` columns as `(auth.uid())::text = user_id` (see Section 7).
 
 ---
 
@@ -751,13 +751,13 @@ Same Supabase queries as React. Key flows:
 
 ## 7. Authentication Strategy
 
-### Supabase Auth (Email + Apple + Google) — No Clerk
+### Supabase Auth (Email + Apple + Google)
 
-Clerk is being removed entirely. Supabase Auth handles everything natively with zero extra dependencies.
+The web app already uses Supabase Auth natively, and iOS will too — zero extra auth dependencies.
 
 ### Why This Is Better
-- **No paid dependency** — Clerk charges per MAU; Supabase Auth is included free
-- **Native RLS integration** — `auth.uid()` works out of the box, no custom `clerk_user_id()` functions
+- **No paid auth dependency** — Supabase Auth is included free
+- **Native RLS integration** — `auth.uid()` works out of the box, no custom helper functions
 - **Simpler codebase** — no JWT template gymnastics, no custom fetch wrappers
 - **Built-in providers** — Apple, Google, email/password all supported natively
 - **Apple requires Sign in with Apple** — if you offer Google Sign-In, Apple mandates their own
@@ -811,8 +811,8 @@ let userId = supabase.auth.currentUser?.id  // UUID
 Write a single migration to standardize all policies:
 
 ```sql
--- Drop the old Clerk function
-DROP FUNCTION IF EXISTS public.clerk_user_id();
+-- Drop any leftover custom auth helper function (if one still exists)
+DROP FUNCTION IF EXISTS public.requesting_user_id();
 
 -- Rewrite all policies to use auth.uid()
 -- Example for pantry_items:
@@ -1234,7 +1234,7 @@ Data NOT collected (marketing differentiator):
 - [ ] Fix service role key exposure — remove from `.env`, create DB trigger for profile creation (Section 2.1)
 - [ ] Remove `.env` from git history (Section 2.2)
 - [ ] Rotate all exposed API keys
-- [ ] Remove Clerk — write migration to drop `clerk_user_id()`, rewrite all RLS policies to use `auth.uid()` (Section 7)
+- [ ] Standardize auth — write migration to drop any leftover custom auth helper function and rewrite all RLS policies to use `auth.uid()` (Section 7)
 - [ ] Enable Supabase Auth providers: Email, Apple, Google (Supabase Dashboard)
 - [ ] Add subscription limit enforcement to RLS policies (Section 2.4)
 - [ ] Fix household INSERT policy (Section 2.6)

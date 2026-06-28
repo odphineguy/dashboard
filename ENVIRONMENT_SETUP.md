@@ -7,7 +7,6 @@
 - The `.env` file is gitignored for your protection
 - If secrets were exposed in git history, **rotate them immediately**:
   - Supabase: Generate new anon/service keys in Supabase Dashboard
-  - Clerk: Regenerate publishable keys in Clerk Dashboard
   - Stripe: Rotate API keys in Stripe Dashboard
   - Google AI: Regenerate API key in Google AI Studio
 
@@ -20,10 +19,7 @@
 Create a `.env` file in your project root with these variables:
 
 ```bash
-# Clerk Authentication (Primary)
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-
-# Supabase Database (Using Clerk Auth)
+# Supabase (Backend & Auth)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
@@ -34,51 +30,44 @@ VITE_GOOGLE_GENAI_API_KEY=your-google-ai-key
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
-## Clerk Configuration
+## Authentication
 
-### 1. JWT Template Setup
-- Go to https://dashboard.clerk.com
-- Navigate to **JWT Templates**
-- Create new template named **"supabase"**
-- Add these claims:
-```json
-{
-  "sub": "{{user.id}}",
-  "email": "{{user.primary_email_address}}",
-  "email_verified": true
-}
-```
+The app uses **Supabase Auth** (`supabase.auth`) for all authentication:
 
-### 2. Supabase Configuration
-- Go to Supabase Dashboard → **Authentication** → **URL Configuration**
-- Set **JWT URL**: `https://[your-clerk-domain]/jwks`
-- Leave **JWT Secret** empty
+- Email/password sign-up and sign-in
+- Google OAuth (sign in with Google)
+- Sessions persist automatically via PKCE flow
+
+No extra auth provider or JWT template configuration is required — Supabase
+issues and validates the JWTs, and RLS policies read the user ID directly from
+`auth.uid()`.
+
+### Supabase Dashboard Setup
+- Go to Supabase Dashboard → **Authentication** → **Providers**
+- Ensure **Email** is enabled
+- Enable **Google** and add your Google OAuth Client ID and Client Secret
+- Configure redirect URLs under **Authentication** → **URL Configuration**
 
 ## Testing the Integration
 
 1. **Start your app**: `npm run dev`
-2. **Sign in with Clerk**
+2. **Sign in** with email/password or Google
 3. **Open browser console**
 4. **Test database access**:
 ```javascript
-// This should work after JWT template is configured
+// This should work once you are signed in
 const { data, error } = await supabase.from('profiles').select('*')
 console.log('Profile data:', data)
 ```
 
 ## Troubleshooting
 
-### JWT Template Not Working
-- Verify template name is exactly "supabase"
-- Check claims format matches exactly
-- Ensure template is saved and active
-
 ### Database Access Denied
-- Check RLS policies use `clerk_user_id()` function
+- Verify you are signed in (`await supabase.auth.getSession()` returns a session)
+- Check RLS policies use `(auth.uid())::text = user_id`
 - Verify user_id columns are TEXT type
-- Test with: `SELECT clerk_user_id(), requesting_user_id()`
 
 ### Authentication Errors
-- Verify Clerk publishable key is correct
-- Check Supabase URL and anon key
-- Ensure no conflicting auth systems
+- Verify Supabase URL and anon key are correct
+- Confirm the provider (Email/Google) is enabled in the Supabase Dashboard
+- Ensure redirect URLs are configured for OAuth

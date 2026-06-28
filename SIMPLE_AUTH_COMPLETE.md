@@ -23,7 +23,7 @@ Successfully rebuilt the authentication system from scratch, removing all comple
 ```
 User clicks "Sign in with Google"
   ↓
-Clerk authenticates user ✅
+Supabase Auth authenticates user ✅
   ↓
 AuthContext checks if profile exists
   ↓
@@ -142,7 +142,7 @@ supabase functions deploy stripe-webhook
 |------------|------------|
 | OnboardingGuard redirects | No redirects - straight to dashboard |
 | OnboardingPage with complex logic | No onboarding page |
-| Clerk JWT template required | Not required (service role creates profile) |
+| Custom JWT template required | Not required (Supabase Auth + service role creates profile) |
 | Profile sync with RLS headaches | Service role bypasses RLS |
 | Stripe success → `/onboarding?success=true` | Stripe success → `/?payment_success=true` |
 | Complex profile checking | Simple upsert on sign-in |
@@ -232,9 +232,9 @@ supabase functions list
    - Create edge function: `supabase/functions/sync-profile/index.ts`
    - Call from AuthContext instead of direct insert
 
-2. **Update Clerk to production keys:**
-   - Clerk Dashboard → switch to production
-   - Update `VITE_CLERK_PUBLISHABLE_KEY` in `.env`
+2. **Configure Supabase Auth for production:**
+   - Set production redirect URLs in Supabase Dashboard → Authentication → URL Configuration
+   - Verify Email and Google providers are enabled for the production project
 
 3. **Update Stripe to live keys:**
    - Deploy webhook with live keys

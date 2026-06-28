@@ -46,32 +46,27 @@ See `DEPLOYMENT_GUIDE.md` for complete instructions.
 After deploying edge functions, Google OAuth sign-in got stuck on loading screen with 406 errors and "PGRST116" database errors.
 
 ### Root Cause
-1. Clerk JWT wasn't configured with Supabase template
-2. New Clerk users didn't get Supabase profiles auto-created
-3. SubscriptionContext used `.single()` which threw errors on missing profiles
+1. New users didn't get Supabase profiles auto-created on first sign-in
+2. SubscriptionContext used `.single()` which threw errors on missing profiles
 
 ### Solution
-1. ✅ Updated `useSupabase.js` to request Supabase JWT template
+1. ✅ Standardized on Supabase Auth (`supabase.auth`) — no custom JWT template needed
 2. ✅ Added auto-profile creation in AuthContext
 3. ✅ Changed `.single()` to `.maybeSingle()` in SubscriptionContext
 4. ✅ Added comprehensive error handling and logging
 
 ### Files Modified
-- `src/hooks/useSupabase.js` - Added `{ template: 'supabase' }` to getToken()
+- `src/hooks/useSupabase.js` - Uses the authenticated Supabase session directly
 - `src/contexts/AuthContext.jsx` - Added profile sync mechanism
 - `src/contexts/SubscriptionContext.jsx` - Changed to maybeSingle()
 
 ### Documentation Created
-- `CLERK_SETUP.md` - Clerk JWT template configuration guide
 - `AUTH_FIX_SUMMARY.md` - Authentication fix summary
 
 ### Next Steps
 **YOU MUST DO THIS:**
-1. Create Supabase JWT template in Clerk Dashboard
-2. Name it exactly `supabase` (lowercase)
-3. Test Google sign-in flow
-
-See `CLERK_SETUP.md` for complete instructions.
+1. Ensure Email and Google providers are enabled in the Supabase Dashboard
+2. Test the Google sign-in flow
 
 ---
 
@@ -97,9 +92,9 @@ supabase functions deploy cancel-subscription
 
 ### For Authentication Fix:
 
-1. **Clerk Dashboard** → JWT Templates → New Template → Supabase
-2. Name: `supabase`
-3. Save
+1. **Supabase Dashboard** → Authentication → Providers
+2. Enable **Email** and **Google**
+3. Configure redirect URLs under URL Configuration
 4. Hard refresh app (Cmd+Shift+R)
 
 ---
@@ -137,7 +132,7 @@ dashboard/
 │   │   ├── AuthContext.jsx           ✅ Auto-creates profiles
 │   │   └── SubscriptionContext.jsx   ✅ Handles missing profiles, refresh method
 │   ├── hooks/
-│   │   └── useSupabase.js            ✅ Uses Supabase JWT template
+│   │   └── useSupabase.js            ✅ Uses authenticated Supabase session
 │   └── pages/
 │       └── Onboarding/
 │           └── index.jsx              ✅ Polls for subscription updates
@@ -150,7 +145,6 @@ dashboard/
 └── docs/
     ├── STRIPE_WEBHOOK_FIX.md         📄 Technical explanation
     ├── DEPLOYMENT_GUIDE.md            📄 Deployment steps
-    ├── CLERK_SETUP.md                 📄 Clerk configuration
     ├── AUTH_FIX_SUMMARY.md            📄 Auth fix summary
     └── FIXES_README.md                📄 This file
 ```
@@ -159,14 +153,11 @@ dashboard/
 
 ## Common Issues & Solutions
 
-### "Invalid JWT template name"
-**Solution:** Create `supabase` template in Clerk Dashboard
-
 ### "406 Not Acceptable" on profiles
 **Solution:**
-1. Check Clerk JWT template exists
+1. Confirm you are signed in: `await supabase.auth.getSession()`
 2. Hard refresh browser
-3. Verify token has `sub` claim: `await window.Clerk.session.getToken({ template: 'supabase' })`
+3. Verify the session JWT exists and RLS policies use `(auth.uid())::text = user_id`
 
 ### Subscription tier not updating after payment
 **Solution:**
@@ -175,11 +166,11 @@ dashboard/
 3. Check webhook logs: `supabase functions logs stripe-webhook`
 4. Check database: `SELECT * FROM stripe_webhooks_log ORDER BY created_at DESC LIMIT 10;`
 
-### Profile not created for new Clerk user
+### Profile not created for new user
 **Quick fix:**
 ```sql
 INSERT INTO profiles (id, email, full_name, subscription_tier, subscription_status)
-VALUES ('user_YOUR_CLERK_ID', 'your@email.com', 'Your Name', 'basic', 'active');
+VALUES ('YOUR_SUPABASE_AUTH_UUID', 'your@email.com', 'Your Name', 'basic', 'active');
 ```
 
 ---
@@ -190,7 +181,6 @@ VALUES ('user_YOUR_CLERK_ID', 'your@email.com', 'Your Name', 'basic', 'active');
 |------|---------|-------------|
 | `DEPLOYMENT_GUIDE.md` | Deploy Stripe edge functions | Setting up subscription payments |
 | `STRIPE_WEBHOOK_FIX.md` | Technical details of webhook implementation | Understanding how webhooks work |
-| `CLERK_SETUP.md` | Configure Clerk JWT templates | Fixing authentication issues |
 | `AUTH_FIX_SUMMARY.md` | Summary of auth fixes | Understanding auth flow |
 | `FIXES_README.md` | Overview of all fixes | Starting point (this file) |
 
@@ -208,18 +198,19 @@ If issues persist after following these guides:
 2. **Check database:**
    ```sql
    SELECT * FROM stripe_webhooks_log WHERE processed = false;
-   SELECT * FROM profiles WHERE id LIKE 'user_%';
+   SELECT * FROM profiles ORDER BY created_at DESC LIMIT 10;
    SELECT * FROM subscriptions ORDER BY created_at DESC LIMIT 10;
    ```
 
 3. **Check browser console:**
-   - Look for "Failed to get Clerk token" errors
+   - Look for authentication/session errors
    - Check if profile creation succeeded
    - Verify subscription loaded correctly
 
-4. **Test JWT token:**
+4. **Test the session JWT:**
    ```javascript
-   const token = await window.Clerk.session.getToken({ template: 'supabase' })
+   const { data: { session } } = await supabase.auth.getSession()
+   const token = session?.access_token
    const payload = JSON.parse(atob(token.split('.')[1]))
    console.log('Token payload:', payload)
    ```
@@ -237,13 +228,13 @@ Two major issues have been fixed:
    - Deployment guide created
 
 2. **Authentication** ✅
+   - Standardized on Supabase Auth (`supabase.auth`)
    - Auto-profile creation implemented
-   - JWT template configuration documented
    - Error handling improved
    - Graceful fallbacks added
 
 **Both fixes require configuration:**
 - Subscription: Deploy edge functions + configure Stripe webhook
-- Authentication: Create Clerk JWT template named `supabase`
+- Authentication: Enable Email and Google providers in the Supabase Dashboard
 
-Follow the respective guides in `DEPLOYMENT_GUIDE.md` and `CLERK_SETUP.md`.
+Follow the deployment steps in `DEPLOYMENT_GUIDE.md`.
